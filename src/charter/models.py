@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -63,3 +64,24 @@ class AcceptanceCriterion:
             self.status,
             self.created_by,
         )
+
+
+@dataclass(frozen=True)
+class TraceRef:
+    kind: str
+    id: str
+
+
+@dataclass(frozen=True)
+class TraceLink:
+    id: str
+    state: str
+    from_ref: TraceRef
+    relation: str
+    to_ref: TraceRef
+    authority: str
+    freshness: str
+    confidence: float | None
+    created_by: str
+    accepted_by: str | None
+    target_snapshot: dict[str, Any]

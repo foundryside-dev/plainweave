@@ -10,7 +10,14 @@ from pathlib import Path
 from typing import Any, cast
 
 from charter.errors import CharterError, ErrorCode
-from charter.models import AcceptanceCriterion, RequirementDraft, RequirementRecord, RequirementVersion
+from charter.models import (
+    AcceptanceCriterion,
+    RequirementDraft,
+    RequirementRecord,
+    RequirementVersion,
+    TraceLink,
+    TraceRef,
+)
 from charter.store import connect, read_schema_meta
 
 
@@ -393,6 +400,108 @@ class CharterService:
                     ).fetchall()
             return [self._criterion_from_row(row) for row in rows]
 
+    def propose_trace_link(
+        self,
+        from_ref: TraceRef,
+        relation: str,
+        to_ref: TraceRef,
+        *,
+        actor: str,
+        confidence: float | None = None,
+    ) -> TraceLink:
+        return self.create_trace_link(
+            from_ref,
+            relation,
+            to_ref,
+            actor=actor,
+            authority="agent_proposed",
+            confidence=confidence,
+        )
+
+    def create_trace_link(
+        self,
+        from_ref: TraceRef,
+        relation: str,
+        to_ref: TraceRef,
+        *,
+        actor: str,
+        authority: str,
+        confidence: float | None = None,
+    ) -> TraceLink:
+        self._require_actor(actor)
+        self._validate_trace_relation(from_ref, relation, to_ref)
+        now = self._now()
+        state = "accepted" if authority == "accepted" else "proposed"
+        accepted_by = actor if authority == "accepted" else None
+        with connect(self.db_path) as connection:
+            link_id = f"LINK-{self._next_link_number(connection):04d}"
+            connection.execute(
+                """
+                insert into trace_links(
+                  link_id, state, from_kind, from_id, relation, to_kind, to_id,
+                  authority, freshness, confidence, created_by, accepted_by,
+                  created_at, updated_at, target_snapshot_json
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    link_id,
+                    state,
+                    from_ref.kind,
+                    from_ref.id,
+                    relation,
+                    to_ref.kind,
+                    to_ref.id,
+                    authority,
+                    "current",
+                    confidence,
+                    actor,
+                    accepted_by,
+                    now,
+                    now,
+                    "{}",
+                ),
+            )
+            self._record_event(
+                connection,
+                "trace_link_created",
+                "trace_link",
+                link_id,
+                actor,
+                None,
+                {"link_id": link_id, "state": state, "authority": authority},
+                now,
+            )
+            connection.commit()
+            return TraceLink(
+                link_id, state, from_ref, relation, to_ref, authority, "current", confidence, actor, accepted_by, {}
+            )
+
+    def accept_trace_link(self, link_id: str, *, actor: str) -> TraceLink:
+        return self._transition_trace(link_id, actor=actor, state="accepted", authority="accepted", freshness="current")
+
+    def reject_trace_link(self, link_id: str, *, actor: str, reason: str) -> TraceLink:
+        return self._transition_trace(link_id, actor=actor, state="rejected", reason=reason)
+
+    def mark_trace_stale(self, link_id: str, *, actor: str, reason: str) -> TraceLink:
+        return self._transition_trace(link_id, actor=actor, state="stale", freshness="stale", reason=reason)
+
+    def mark_trace_orphaned(self, link_id: str, *, actor: str, reason: str) -> TraceLink:
+        return self._transition_trace(link_id, actor=actor, state="orphaned", freshness="orphaned", reason=reason)
+
+    def trace_for(self, requirement_id: str | None = None, state: str | None = None) -> list[TraceLink]:
+        clauses: list[str] = []
+        params: list[object] = []
+        if requirement_id is not None:
+            clauses.append("(to_id = ? or from_id = ?)")
+            params.extend([requirement_id, requirement_id])
+        if state is not None:
+            clauses.append("state = ?")
+            params.append(state)
+        where = " where " + " and ".join(clauses) if clauses else ""
+        with connect(self.db_path) as connection:
+            rows = connection.execute(f"select * from trace_links{where} order by link_id", params).fetchall()
+            return [self._trace_from_row(row) for row in rows]
+
     def get_requirement(self, requirement_id: str) -> RequirementRecord:
         with connect(self.db_path) as connection:
             return self._get_requirement(connection, requirement_id)
@@ -554,6 +663,10 @@ class CharterService:
         ).fetchone()[0]
         return int(value) + 1 if value is not None else 1
 
+    def _next_link_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from trace_links").fetchone()[0])
+        return count + 1
+
     def _criterion_from_row(self, row: sqlite3.Row) -> AcceptanceCriterion:
         return AcceptanceCriterion(
             str(row["criterion_id"]),
@@ -565,6 +678,92 @@ class CharterService:
             str(row["status"]),
             str(row["created_by"]),
         )
+
+    def _transition_trace(
+        self,
+        link_id: str,
+        *,
+        actor: str,
+        state: str,
+        authority: str | None = None,
+        freshness: str | None = None,
+        reason: str | None = None,
+    ) -> TraceLink:
+        self._require_actor(actor)
+        now = self._now()
+        with connect(self.db_path) as connection:
+            row = self._trace_row(connection, link_id)
+            self._validate_trace_transition(str(row["state"]), state)
+            next_authority = authority or str(row["authority"])
+            next_freshness = freshness or str(row["freshness"])
+            accepted_by = actor if state == "accepted" else row["accepted_by"]
+            connection.execute(
+                """
+                update trace_links
+                set state = ?, authority = ?, freshness = ?, accepted_by = ?, updated_at = ?
+                where link_id = ?
+                """,
+                (state, next_authority, next_freshness, accepted_by, now, link_id),
+            )
+            self._record_event(
+                connection,
+                f"trace_link_{state}",
+                "trace_link",
+                link_id,
+                actor,
+                None,
+                {"link_id": link_id, "state": state, "reason": reason},
+                now,
+            )
+            connection.commit()
+            return self._trace_from_row(self._trace_row(connection, link_id))
+
+    def _trace_row(self, connection: sqlite3.Connection, link_id: str) -> sqlite3.Row:
+        row = connection.execute("select * from trace_links where link_id = ?", (link_id,)).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"trace link not found: {link_id}")
+        return cast(sqlite3.Row, row)
+
+    def _trace_from_row(self, row: sqlite3.Row) -> TraceLink:
+        snapshot = json.loads(str(row["target_snapshot_json"]))
+        return TraceLink(
+            str(row["link_id"]),
+            str(row["state"]),
+            TraceRef(str(row["from_kind"]), str(row["from_id"])),
+            str(row["relation"]),
+            TraceRef(str(row["to_kind"]), str(row["to_id"])),
+            str(row["authority"]),
+            str(row["freshness"]),
+            float(row["confidence"]) if row["confidence"] is not None else None,
+            str(row["created_by"]),
+            row["accepted_by"] if isinstance(row["accepted_by"], str) else None,
+            snapshot if isinstance(snapshot, dict) else {},
+        )
+
+    def _validate_trace_relation(self, from_ref: TraceRef, relation: str, to_ref: TraceRef) -> None:
+        allowed = {
+            ("clarion_entity", "satisfies", "requirement_version"),
+            ("file_ref", "fragile_satisfies", "requirement_version"),
+            ("verification_method", "verifies", "requirement_version"),
+            ("verification_record", "evidences", "verification_method"),
+            ("test_selector", "provides_evidence_for", "verification_method"),
+            ("filigree_issue", "implements_work_for", "requirement_version"),
+            ("filigree_issue", "resolves_gap", "gap"),
+            ("wardline_finding", "violates", "acceptance_criterion"),
+            ("legis_attestation", "attests", "requirement_version"),
+        }
+        if (from_ref.kind, relation, to_ref.kind) not in allowed:
+            raise self._error(ErrorCode.VALIDATION, "trace relation is not canonical")
+
+    def _validate_trace_transition(self, current: str, target: str) -> None:
+        allowed = {
+            "proposed": {"accepted", "rejected", "stale"},
+            "accepted": {"stale", "orphaned"},
+            "stale": {"proposed", "accepted", "rejected"},
+            "orphaned": {"proposed", "rejected"},
+        }
+        if target not in allowed.get(current, set()):
+            raise self._error(ErrorCode.CONFLICT, "trace state transition is not allowed")
 
     def _record_event(
         self,
