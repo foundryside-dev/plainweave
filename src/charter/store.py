@@ -11,6 +11,7 @@ SCHEMA_VERSION = 1
 @contextmanager
 def connect(db_path: Path) -> Iterator[sqlite3.Connection]:
     connection = sqlite3.connect(db_path)
+    connection.row_factory = sqlite3.Row
     connection.execute("pragma foreign_keys = on")
     try:
         yield connection
