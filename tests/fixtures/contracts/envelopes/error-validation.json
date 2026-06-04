@@ -1,0 +1,20 @@
+{
+  "schema": "loom.charter.error.v1",
+  "ok": false,
+  "error": {
+    "code": "VALIDATION",
+    "message": "requirement_id is required",
+    "recoverable": true,
+    "hint": "Pass a requirement id such as REQ-AUTH-017.",
+    "details": {}
+  },
+  "warnings": [],
+  "meta": {
+    "producer": {
+      "tool": "charter",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-04T10:00:00+10:00",
+    "project": "AUTH"
+  }
+}

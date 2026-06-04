@@ -1,0 +1,13 @@
+{
+  "schema": "loom.charter.requirement_draft.v1",
+  "id": "REQ-AUTH-017",
+  "stable_id": "charter:req:AUTH:017",
+  "draft_id": "DRAFT-0001",
+  "base_version": null,
+  "draft_revision": 1,
+  "title": "Reject expired bearer tokens",
+  "statement": "The API shall reject expired bearer tokens.",
+  "status": "draft",
+  "created_by": "human:john",
+  "created_at": "2026-06-04T10:00:00+10:00"
+}
