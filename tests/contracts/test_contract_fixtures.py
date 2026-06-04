@@ -63,6 +63,8 @@ REQUIRED_FIXTURES = {
     "traces/trace-link-stale.json",
     "traces/trace-link-orphaned.json",
     "mcp/side-effect-metadata.json",
+    "mcp/tool-inventory.json",
+    "mcp/resource-inventory.json",
     "cli/req-add-json.json",
     "cli/req-show-json.json",
     "cli/req-approve-json.json",
@@ -312,6 +314,46 @@ def test_mcp_side_effect_metadata_fixture_contract() -> None:
     assert fixture["supports_dry_run"] is True
     assert fixture["peer_side_effects"] == []
     assert fixture["retry_contract"]
+
+
+def test_mcp_tool_inventory_fixture_contract() -> None:
+    fixture = load_fixture("mcp/tool-inventory.json")
+
+    expected_tools = {
+        "charter_project_context_get",
+        "charter_requirement_search",
+        "charter_requirement_get",
+        "charter_requirement_dossier_get",
+        "charter_trace_link_list",
+        "charter_baseline_list",
+        "charter_baseline_get",
+        "charter_baseline_diff",
+        "charter_verification_status_get",
+        "charter_verification_status_list",
+    }
+
+    assert fixture["schema"] == "loom.charter.mcp_tool_inventory.v1"
+    assert [tool["name"] for tool in fixture["tools"]] == sorted(expected_tools)
+    for tool in fixture["tools"]:
+        assert set(tool) == {"name", "mutates", "local_only", "peer_side_effects", "authority_boundary"}
+        assert tool["mutates"] is False
+        assert tool["local_only"] is True
+        assert tool["peer_side_effects"] == []
+        assert tool["authority_boundary"]
+
+
+def test_mcp_resource_inventory_fixture_contract() -> None:
+    fixture = load_fixture("mcp/resource-inventory.json")
+
+    assert fixture["schema"] == "loom.charter.mcp_resource_inventory.v1"
+    assert fixture["resources"] == [
+        "charter://project/context",
+        "charter://contracts/loom.charter.error.v1",
+        "charter://contracts/loom.charter.requirement_dossier.v1",
+        "charter://contracts/loom.charter.baseline.v1",
+        "charter://contracts/loom.charter.baseline_diff.v1",
+        "charter://contracts/loom.charter.requirement_verification_status.v1",
+    ]
 
 
 def test_baseline_fixture_contract() -> None:

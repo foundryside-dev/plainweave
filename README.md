@@ -25,16 +25,29 @@ better idea (Charter was exactly such an idea). See `~/loom/members/shuttle.md`.
 
 ## Status
 
-This repository is in scaffold state. The only supported runtime behavior is:
+The local core is implemented. Supported runtime behavior includes:
 
 ```bash
 charter --version
-python -m charter --version
+charter init
+charter doctor
+charter req add|edit|show|search|approve|supersede|deprecate|reject
+charter criterion add|list
+charter trace propose|accept|reject|list
+charter baseline create|show|list|diff
+charter verify method add
+charter verify evidence record
+charter verify status
+charter status requirement|unverified|stale
+charter dossier REQ_ID
+charter-mcp
 ```
 
-Domain commands such as `charter init`, requirement storage, MCP tools, and
-federation adapters are intentionally deferred until the v0.1 product design and
-implementation plan are approved.
+`charter-mcp` exposes the P0 read-only agentic surface for local project
+context, requirement search/show, dossiers, trace listing, baselines, baseline
+diffs, and verification status. Mutation, live federation calls, impact
+analysis, durable gaps, import/export, and release-readiness verdicts remain
+deferred.
 
 ## Concept
 
@@ -50,4 +63,4 @@ uv sync --group dev
 make ci
 ```
 
-The base package has no required runtime dependencies.
+The runtime package depends on the official Python MCP SDK for `charter-mcp`.

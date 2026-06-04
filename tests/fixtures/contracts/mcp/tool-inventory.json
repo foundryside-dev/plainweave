@@ -1,0 +1,75 @@
+{
+  "schema": "loom.charter.mcp_tool_inventory.v1",
+  "tools": [
+    {
+      "name": "charter_baseline_diff",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local baseline drift facts; it does not make release decisions."
+    },
+    {
+      "name": "charter_baseline_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns one local immutable baseline snapshot."
+    },
+    {
+      "name": "charter_baseline_list",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Lists local immutable baselines without creating or changing snapshots."
+    },
+    {
+      "name": "charter_project_context_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Reports local Charter project context and read-only capability metadata."
+    },
+    {
+      "name": "charter_requirement_dossier_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns the local computed dossier; live peer calls are not made in P0."
+    },
+    {
+      "name": "charter_requirement_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns one local requirement record; active drafts remain separate from approved truth."
+    },
+    {
+      "name": "charter_requirement_search",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local requirement records without changing authority state."
+    },
+    {
+      "name": "charter_trace_link_list",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local trace links with state, authority, and freshness preserved."
+    },
+    {
+      "name": "charter_verification_status_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns derived local verification status and evidence freshness."
+    },
+    {
+      "name": "charter_verification_status_list",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Lists local unverified or stale verification statuses without recording evidence."
+    }
+  ]
+}

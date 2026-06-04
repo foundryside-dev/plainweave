@@ -5,6 +5,12 @@
       "command": "/home/john/.local/bin/filigree-mcp",
       "args": [],
       "env": {}
+    },
+    "charter": {
+      "type": "stdio",
+      "command": "/home/john/.local/bin/uv",
+      "args": ["--directory", "/home/john/charter", "run", "charter-mcp"],
+      "env": {}
     }
   }
 }

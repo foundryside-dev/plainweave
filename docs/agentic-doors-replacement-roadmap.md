@@ -9,10 +9,10 @@ Current state: Charter local core is installed on `main`. It can store
 repo-local requirements, drafts, immutable approved versions, acceptance
 criteria, local trace links, append-only events, named locked baselines,
 verification methods, evidence records, computed verification status, computed
-local requirement dossiers, and JSON CLI envelopes. That is enough to start
-storing requirements and verification state, and enough for an agent to fetch a
-dense local dossier before acting. It is not yet enough to replace a mature
-requirements-management system.
+local requirement dossiers, read-only MCP tools/resources, and JSON CLI
+envelopes. That is enough to start storing requirements and verification state,
+and enough for an agent to fetch dense local context without shelling out to the
+CLI. It is not yet enough to replace a mature requirements-management system.
 
 The replacement bar is not "copy DOORS." The bar is:
 
@@ -45,6 +45,10 @@ Installed capabilities are available in the integrated `main` branch:
   Dossiers preserve approved/draft separation, criteria separation, trace
   authority/freshness, verification status, baseline exposure, ephemeral
   computed gaps, local-only peer facts, and machine-readable next actions.
+- **MCP read surface**: `charter-mcp` exposes read-only local tools/resources
+  for project context, requirement search/show, dossiers, trace listing,
+  baseline list/show/diff, and verification status. The P0 surface is
+  local-only, mutation-free, and uses Charter JSON envelopes.
 
 Installed command groups:
 
@@ -60,6 +64,7 @@ charter verify evidence record
 charter verify status
 charter status requirement|unverified|stale
 charter dossier REQ_ID
+charter-mcp
 ```
 
 ## Progress Checkpoint
@@ -72,13 +77,13 @@ Completed on `main`:
   rules.
 - Package C, local Requirement Dossiers: one-call local dossier read model and
   CLI contract.
+- Package C, MCP Read Surface: read-only local MCP tools/resources over the
+  installed Charter contracts.
 - Loom federation pointer docs: Charter now points federation roster, Axiom, and
   SEI material at Loom as the hub rather than duplicating peer authority.
 
 Still open:
 
-- Complete Package C by adding the read-only MCP surface over the installed CLI
-  contracts.
 - Start P1 operational work after MCP read: impact analysis, durable gap
   tracking, MCP mutation, review queues, and import/export.
 - Defer federation integrations, human UI/TUI, collaboration hardening, scale
@@ -86,14 +91,7 @@ Still open:
 
 ## Remaining Work
 
-Highest-priority remaining work:
-
-- **P0 MCP read/query surface**: read-only MCP tools for requirement search/show,
-  dossiers, baselines, verification status, and traces, using the same stable
-  JSON contracts as the CLI. This is now the remaining P0 bridge from local CLI
-  authority to first-class agentic use.
-
-P1 operational work still deferred:
+Highest-priority remaining work is now P1 operational depth:
 
 - impact analysis;
 - durable gap tracking;
@@ -117,7 +115,7 @@ P2/P3 adoption work still deferred:
 | Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Installed on `main`. | P0 |
 | Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Installed on `main`. | P0 |
 | Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Installed on `main`; computed local read model, no new storage. | P0 |
-| MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Remaining P0; deferred except inert contract fixture. | P0 |
+| MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Installed on `main`; read-only local tools/resources via `charter-mcp`. | P0 |
 | Impact analysis | The main product value is "what obligations does this change touch?" | Deferred. | P1 |
 | Gap tracking | Missing or stale evidence must become durable work candidates. | Deferred. | P1 |
 | MCP mutation surface | Agents should propose requirements, links, evidence, and gaps with actor attribution and idempotency. | Deferred. | P1 |
@@ -245,7 +243,7 @@ Definition of done:
 
 #### 5. MCP Read Surface
 
-Status: remaining P0 after local requirement dossiers landed on `main`.
+Status: installed on `main`.
 
 Deliver:
 
@@ -257,10 +255,12 @@ Deliver:
 
 Definition of done:
 
-- agents can use Charter without shelling out to CLI for read workflows;
-- read tools never mutate state;
-- tool descriptions state authority boundaries and freshness semantics;
-- MCP tests validate schemas and error envelopes.
+- Complete: agents can use Charter without shelling out to CLI for read
+  workflows;
+- Complete: read tools never mutate state;
+- Complete: tool descriptions state authority boundaries and freshness
+  semantics;
+- Complete: MCP tests validate schemas and error envelopes.
 
 ### P1: Make Charter Operationally Useful During Development
 
@@ -575,26 +575,26 @@ Exit criteria:
 
 Goal: make Charter useful as an agent-facing requirements authority.
 
-Status: in progress. Requirement dossiers are installed on `main`; read-only
-MCP tools remain deferred.
+Status: installed on `main`.
 
 Suggested Filigree breakdown:
 
 - design `requirement_dossier.v1` (installed on `main`);
 - implement local dossier computation (installed on `main`);
 - add CLI dossier command (installed on `main`);
-- add read-only MCP server skeleton;
-- expose read tools for requirements, traces, status, baselines, and dossiers;
-- add MCP contract tests and no-mutation safety tests.
+- add read-only MCP server skeleton (installed on `main`);
+- expose read tools for requirements, traces, status, baselines, and dossiers
+  (installed on `main`);
+- add MCP contract tests and no-mutation safety tests (installed on `main`).
 
 Exit criteria:
 
-- Complete on `main`: an agent can fetch a full requirement context from the
-  local CLI in one dossier call;
-- Remaining: an agent can fetch the same full requirement context in one MCP
-  tool call;
-- MCP tools are read-only and schema-stable;
-- dossier output preserves authority and freshness distinctions.
+- Complete: an agent can fetch a full requirement context from the local CLI in
+  one dossier call;
+- Complete: an agent can fetch the same full requirement context in one MCP tool
+  call;
+- Complete: MCP tools are read-only and schema-stable;
+- Complete: dossier output preserves authority and freshness distinctions.
 
 ## Non-Negotiable Product Rules
 

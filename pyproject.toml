@@ -21,7 +21,9 @@ classifiers = [
     "Topic :: Software Development",
     "Typing :: Typed",
 ]
-dependencies = []
+dependencies = [
+    "mcp>=1.2.0",
+]
 
 [dependency-groups]
 dev = [
@@ -34,6 +36,7 @@ dev = [
 
 [project.scripts]
 charter = "charter.cli:main"
+charter-mcp = "charter.mcp_server:main"
 
 [project.urls]
 Homepage = "https://github.com/foundryside-dev/charter"

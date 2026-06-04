@@ -1,0 +1,11 @@
+{
+  "schema": "loom.charter.mcp_resource_inventory.v1",
+  "resources": [
+    "charter://project/context",
+    "charter://contracts/loom.charter.error.v1",
+    "charter://contracts/loom.charter.requirement_dossier.v1",
+    "charter://contracts/loom.charter.baseline.v1",
+    "charter://contracts/loom.charter.baseline_diff.v1",
+    "charter://contracts/loom.charter.requirement_verification_status.v1"
+  ]
+}
