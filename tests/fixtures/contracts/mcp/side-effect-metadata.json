@@ -1,0 +1,10 @@
+{
+  "name": "trace_link_propose",
+  "mutates": true,
+  "idempotent": true,
+  "requires_actor": true,
+  "requires_human_acceptance": "later",
+  "supports_dry_run": true,
+  "peer_side_effects": [],
+  "retry_contract": "same idempotency_key returns original result"
+}

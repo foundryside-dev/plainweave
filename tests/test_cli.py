@@ -14,13 +14,16 @@ def test_cli_main_version_outputs_package_version(capsys: pytest.CaptureFixture[
     assert capsys.readouterr().out.strip() == "charter 0.1.0"
 
 
-def test_cli_main_help_mentions_no_domain_commands_yet(capsys: pytest.CaptureFixture[str]) -> None:
+def test_cli_main_help_mentions_local_core_commands(capsys: pytest.CaptureFixture[str]) -> None:
     from charter.cli import main
 
     assert main(["--help"]) == 0
     output = capsys.readouterr().out
     assert "Charter requirements and verification authority" in output
-    assert "No domain commands are implemented in this scaffold yet." in output
+    assert "Local-core commands are available for requirements, criteria, trace, init, and" in output
+    assert "diagnostics." in output
+    for command in ("init", "doctor", "req", "criterion", "trace"):
+        assert command in output
 
 
 def test_cli_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:

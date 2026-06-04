@@ -1,0 +1,156 @@
+from __future__ import annotations
+
+import sqlite3
+from pathlib import Path
+
+import pytest
+
+from charter.store import connect, migrate
+
+
+def table_names(connection: sqlite3.Connection) -> set[str]:
+    rows = connection.execute(
+        "select name from sqlite_master where type = 'table' and name not like 'sqlite_%'"
+    ).fetchall()
+    return {str(row[0]) for row in rows}
+
+
+def columns(connection: sqlite3.Connection, table: str) -> set[str]:
+    return {str(row[1]) for row in connection.execute(f"pragma table_info({table})").fetchall()}
+
+
+def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+
+    migrate(db_path, project_key="AUTH")
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert table_names(connection) == {
+            "schema_meta",
+            "actors",
+            "requirements",
+            "requirement_drafts",
+            "requirement_versions",
+            "acceptance_criteria",
+            "trace_links",
+            "events",
+            "idempotency_keys",
+        }
+        metadata = dict(connection.execute("select key, value from schema_meta").fetchall())
+        assert metadata == {"project_key": "AUTH", "schema_version": "1"}
+
+
+def test_store_connections_enable_foreign_keys(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert connection.execute("pragma foreign_keys").fetchone()[0] == 1
+
+
+def test_store_connections_configure_busy_timeout(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert int(connection.execute("pragma busy_timeout").fetchone()[0]) >= 5000
+
+
+def test_requirements_table_does_not_store_mutable_approved_text(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert "statement" not in columns(connection, "requirements")
+        assert {"title", "statement", "statement_hash"} <= columns(connection, "requirement_versions")
+
+
+def test_requirement_version_statement_is_immutable(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into requirements(
+              requirement_id, display_id, stable_id, current_version, active_draft_id,
+              status, type, criticality, created_at, updated_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "req-1",
+                "REQ-AUTH-001",
+                "charter:req:AUTH:001",
+                1,
+                None,
+                "approved",
+                "functional",
+                "medium",
+                "2026-06-04T10:00:00+10:00",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+        connection.execute(
+            """
+            insert into requirement_versions(
+              requirement_id, version, title, statement, statement_hash, status,
+              approved_by, approved_at, superseded_by_version
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "req-1",
+                1,
+                "Reject expired bearer tokens",
+                "The API shall reject expired bearer tokens.",
+                "sha256:old",
+                "approved",
+                "human:john",
+                "2026-06-04T10:00:00+10:00",
+                None,
+            ),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="requirement version text is immutable"):
+            connection.execute(
+                """
+                update requirement_versions
+                set statement = ?, statement_hash = ?
+                where requirement_id = ? and version = ?
+                """,
+                ("Changed text.", "sha256:new", "req-1", 1),
+            )
+
+
+def test_events_are_append_only(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into events(
+              event_id, event_type, aggregate_type, aggregate_id,
+              actor, idempotency_key, payload_json, created_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "EVT-1",
+                "requirement_created",
+                "requirement",
+                "req-1",
+                "human:john",
+                None,
+                "{}",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="events are append-only"):
+            connection.execute(
+                "update events set payload_json = ? where event_id = ?",
+                ('{"changed": true}', "EVT-1"),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError, match="events are append-only"):
+            connection.execute("delete from events where event_id = ?", ("EVT-1",))

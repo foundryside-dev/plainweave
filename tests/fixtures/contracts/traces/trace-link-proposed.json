@@ -1,0 +1,20 @@
+{
+  "schema": "loom.charter.trace_link.v1",
+  "id": "LINK-0001",
+  "state": "proposed",
+  "from": {
+    "kind": "test_selector",
+    "id": "tests/test_auth.py::test_expired"
+  },
+  "relation": "provides_evidence_for",
+  "to": {
+    "kind": "verification_method",
+    "id": "VERM-0001"
+  },
+  "authority": "agent_proposed",
+  "freshness": "current",
+  "confidence": 0.82,
+  "created_by": "agent:codex",
+  "accepted_by": null,
+  "target_snapshot": {}
+}

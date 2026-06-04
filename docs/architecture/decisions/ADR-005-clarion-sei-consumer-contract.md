@@ -1,6 +1,6 @@
 # ADR-005: Clarion SEI Consumer Contract
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-06-04
 **Deciders**: Charter maintainers
 **Context**: Clarion owns code identity and SEI. Charter needs rename-resilient requirement-to-code links without becoming an identity authority.

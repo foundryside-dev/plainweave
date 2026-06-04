@@ -1,0 +1,32 @@
+{
+  "schema": "loom.charter.trace_link.v1",
+  "ok": true,
+  "data": {
+    "id": "LINK-0001",
+    "state": "proposed",
+    "from": {
+      "kind": "test_selector",
+      "id": "tests/test_auth.py::test_expired"
+    },
+    "relation": "provides_evidence_for",
+    "to": {
+      "kind": "verification_method",
+      "id": "VERM-0001"
+    },
+    "authority": "agent_proposed",
+    "freshness": "current",
+    "confidence": 0.82,
+    "created_by": "agent:codex",
+    "accepted_by": null,
+    "target_snapshot": {}
+  },
+  "warnings": [],
+  "meta": {
+    "producer": {
+      "tool": "charter",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-04T10:00:00+10:00",
+    "project": "AUTH"
+  }
+}

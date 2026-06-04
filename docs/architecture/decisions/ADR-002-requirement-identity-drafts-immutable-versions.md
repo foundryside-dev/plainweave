@@ -1,6 +1,6 @@
 # ADR-002: Requirement Identity, Drafts, And Immutable Versions
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-06-04
 **Deciders**: Charter maintainers
 **Context**: Charter must prevent accidental mutation of approved requirement text while keeping draft editing lightweight.

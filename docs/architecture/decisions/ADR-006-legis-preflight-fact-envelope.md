@@ -1,6 +1,6 @@
 # ADR-006: Legis Preflight Fact Envelope
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-06-04
 **Deciders**: Charter maintainers
 **Context**: Legis owns commit/preflight governance. Charter must contribute requirement facts without deciding gates.

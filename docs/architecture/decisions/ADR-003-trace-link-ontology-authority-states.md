@@ -1,6 +1,6 @@
 # ADR-003: Trace-Link Ontology And Authority States
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-06-04
 **Deciders**: Charter maintainers
 **Context**: Charter's highest product risk is agent-generated traceability that looks accepted but is not trustworthy.
