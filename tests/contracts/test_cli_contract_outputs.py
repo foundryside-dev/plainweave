@@ -37,7 +37,7 @@ def assert_matches_fixture(actual: dict[str, Any], fixture: dict[str, Any]) -> N
 
 
 def assert_value_matches(actual: Any, expected: Any, field_name: str) -> None:
-    if field_name in {"generated_at", "approved_at", "created_at"}:
+    if field_name in {"generated_at", "approved_at", "created_at", "recorded_at"}:
         assert isinstance(actual, str)
         assert actual
         return
@@ -364,3 +364,129 @@ def test_baseline_cli_outputs_match_contract_fixtures(
 
     diff = run_json(["baseline", "diff", "BASELINE-0001"], capsys)
     assert_matches_fixture(diff, load_fixture("cli/baseline-diff-json.json"))
+
+
+def test_verification_cli_outputs_match_contract_fixtures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Reject expired bearer tokens",
+            "--statement",
+            "The API shall reject expired bearer tokens.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "req",
+            "approve",
+            "REQ-AUTH-0001",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--idempotency-key",
+            "approve-verification-contract",
+        ],
+        capsys,
+    )
+
+    method = run_json(
+        [
+            "verify",
+            "method",
+            "add",
+            "REQ-AUTH-0001",
+            "--method",
+            "test",
+            "--target",
+            "tests/test_auth.py::test_expired",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(method, load_fixture("cli/verify-method-add-json.json"))
+
+    evidence = run_json(
+        [
+            "verify",
+            "evidence",
+            "record",
+            "VERM-0001",
+            "--status",
+            "passing",
+            "--evidence-ref",
+            "pytest:tests/test_auth.py::test_expired",
+            "--actor",
+            "agent:codex",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(evidence, load_fixture("cli/verify-evidence-record-json.json"))
+
+    status = run_json(["verify", "status", "REQ-AUTH-0001"], capsys)
+    assert_matches_fixture(status, load_fixture("cli/verify-status-json.json"))
+
+    requirement_status = run_json(["status", "requirement", "REQ-AUTH-0001"], capsys)
+    assert_matches_fixture(requirement_status, load_fixture("cli/status-requirement-json.json"))
+
+    run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Log token failures",
+            "--statement",
+            "The API shall log token failures.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "req",
+            "approve",
+            "REQ-AUTH-0002",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--idempotency-key",
+            "approve-unverified-contract",
+        ],
+        capsys,
+    )
+    unverified = run_json(["status", "unverified"], capsys)
+    assert_matches_fixture(unverified, load_fixture("cli/status-unverified-json.json"))
+
+    run_json(
+        [
+            "req",
+            "supersede",
+            "REQ-AUTH-0001",
+            "--title",
+            "Reject invalid bearer tokens",
+            "--statement",
+            "The API shall reject expired or malformed bearer tokens.",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "1",
+            "--idempotency-key",
+            "supersede-verification-contract",
+        ],
+        capsys,
+    )
+    stale = run_json(["status", "stale"], capsys)
+    assert_matches_fixture(stale, load_fixture("cli/status-stale-json.json"))

@@ -127,3 +127,49 @@ class BaselineDiff:
     baseline_id: str
     summary: dict[str, int]
     items: list[BaselineDiffItem]
+
+
+@dataclass(frozen=True)
+class VerificationMethod:
+    id: str
+    requirement_id: str
+    requirement_version: int
+    method: str
+    target: str
+    status: str
+    created_by: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class VerificationEvidence:
+    id: str
+    method_id: str
+    requirement_id: str
+    requirement_version: int
+    status: str
+    evidence_ref: str
+    authority: str
+    freshness: str
+    recorded_by: str
+    recorded_at: str
+    payload: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class VerificationReason:
+    code: str
+    message: str
+    evidence_id: str | None = None
+
+
+@dataclass(frozen=True)
+class RequirementVerificationStatus:
+    requirement_id: str
+    id: str
+    stable_id: str
+    current_version: int
+    status: str
+    reasons: list[VerificationReason]
+    current_evidence: list[VerificationEvidence]
+    stale_evidence: list[VerificationEvidence]
