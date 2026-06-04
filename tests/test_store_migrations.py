@@ -34,6 +34,8 @@ def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> 
             "requirement_versions",
             "acceptance_criteria",
             "trace_links",
+            "baselines",
+            "baseline_members",
             "events",
             "idempotency_keys",
         }
@@ -154,3 +156,124 @@ def test_events_are_append_only(tmp_path: Path) -> None:
 
         with pytest.raises(sqlite3.IntegrityError, match="events are append-only"):
             connection.execute("delete from events where event_id = ?", ("EVT-1",))
+
+
+def test_baseline_tables_store_locked_snapshot_members(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert columns(connection, "baselines") == {
+            "baseline_id",
+            "name",
+            "description",
+            "locked",
+            "created_by",
+            "created_at",
+        }
+        assert columns(connection, "baseline_members") == {
+            "baseline_id",
+            "requirement_id",
+            "version",
+            "display_id",
+            "stable_id",
+            "statement_hash",
+            "status_at_baseline",
+        }
+
+
+def test_baseline_members_are_immutable(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into requirements(
+              requirement_id, display_id, stable_id, current_version, active_draft_id,
+              status, type, criticality, created_at, updated_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "req-1",
+                "REQ-AUTH-0001",
+                "charter:req:AUTH:0001",
+                1,
+                None,
+                "approved",
+                "functional",
+                "medium",
+                "2026-06-04T10:00:00+10:00",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+        connection.execute(
+            """
+            insert into requirement_versions(
+              requirement_id, version, title, statement, statement_hash, status,
+              approved_by, approved_at, superseded_by_version
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "req-1",
+                1,
+                "Reject expired bearer tokens",
+                "The API shall reject expired bearer tokens.",
+                "sha256:old",
+                "approved",
+                "human:john",
+                "2026-06-04T10:00:00+10:00",
+                None,
+            ),
+        )
+        connection.execute(
+            """
+            insert into baselines(
+              baseline_id, name, description, locked, created_by, created_at
+            ) values (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "BASELINE-0001",
+                "Release 1.0 requirements",
+                "Approved requirements for release 1.0.",
+                1,
+                "human:john",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+        connection.execute(
+            """
+            insert into baseline_members(
+              baseline_id, requirement_id, version, display_id, stable_id,
+              statement_hash, status_at_baseline
+            ) values (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "BASELINE-0001",
+                "req-1",
+                1,
+                "REQ-AUTH-0001",
+                "charter:req:AUTH:0001",
+                "sha256:old",
+                "approved",
+            ),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="baseline members are immutable"):
+            connection.execute(
+                """
+                update baseline_members
+                set statement_hash = ?
+                where baseline_id = ? and requirement_id = ? and version = ?
+                """,
+                ("sha256:new", "BASELINE-0001", "req-1", 1),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError, match="baseline members are immutable"):
+            connection.execute(
+                """
+                delete from baseline_members
+                where baseline_id = ? and requirement_id = ? and version = ?
+                """,
+                ("BASELINE-0001", "req-1", 1),
+            )
