@@ -57,6 +57,10 @@ REQUIRED_FIXTURES = {
     "cli/trace-list-json.json",
     "cli/error-validation-json.json",
     "cli/error-conflict-json.json",
+    "cli/baseline-create-json.json",
+    "cli/baseline-show-json.json",
+    "cli/baseline-list-json.json",
+    "cli/baseline-diff-json.json",
 }
 
 
