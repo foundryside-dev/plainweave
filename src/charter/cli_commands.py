@@ -16,8 +16,12 @@ from charter.models import (
     RequirementDraft,
     RequirementRecord,
     RequirementVersion,
+    RequirementVerificationStatus,
     TraceLink,
     TraceRef,
+    VerificationEvidence,
+    VerificationMethod,
+    VerificationReason,
 )
 from charter.paths import charter_db_path, default_project_key, project_root
 from charter.service import CharterService
@@ -49,6 +53,14 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     baseline_parser = subparsers.add_parser("baseline", help="Manage requirement baselines.")
     baseline_subparsers = baseline_parser.add_subparsers(dest="baseline_command", required=True)
     _register_baseline_commands(baseline_subparsers)
+
+    verify_parser = subparsers.add_parser("verify", help="Manage verification methods and evidence.")
+    verify_subparsers = verify_parser.add_subparsers(dest="verify_command", required=True)
+    _register_verify_commands(verify_subparsers)
+
+    status_parser = subparsers.add_parser("status", help="Report requirement verification status.")
+    status_subparsers = status_parser.add_subparsers(dest="status_command", required=True)
+    _register_status_commands(status_subparsers)
 
 
 def _register_requirement_commands(
@@ -190,6 +202,54 @@ def _register_baseline_commands(
     diff_parser.add_argument("baseline_id")
     diff_parser.add_argument("--json", action="store_true")
     diff_parser.set_defaults(handler=handle_baseline_diff)
+
+
+def _register_verify_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    method_parser = subparsers.add_parser("method", help="Manage verification methods.")
+    method_subparsers = method_parser.add_subparsers(dest="verify_method_command", required=True)
+
+    add_parser = method_subparsers.add_parser("add", help="Add a verification method.")
+    add_parser.add_argument("requirement_id")
+    add_parser.add_argument("--method", required=True)
+    add_parser.add_argument("--target", required=True)
+    add_parser.add_argument("--actor", default="")
+    add_parser.add_argument("--json", action="store_true")
+    add_parser.set_defaults(handler=handle_verify_method_add)
+
+    evidence_parser = subparsers.add_parser("evidence", help="Manage verification evidence.")
+    evidence_subparsers = evidence_parser.add_subparsers(dest="verify_evidence_command", required=True)
+
+    record_parser = evidence_subparsers.add_parser("record", help="Record verification evidence.")
+    record_parser.add_argument("method_id")
+    record_parser.add_argument("--status", required=True)
+    record_parser.add_argument("--evidence-ref", required=True)
+    record_parser.add_argument("--actor", default="")
+    record_parser.add_argument("--json", action="store_true")
+    record_parser.set_defaults(handler=handle_verify_evidence_record)
+
+    status_parser = subparsers.add_parser("status", help="Show verification status for a requirement.")
+    status_parser.add_argument("requirement_id")
+    status_parser.add_argument("--json", action="store_true")
+    status_parser.set_defaults(handler=handle_verify_status)
+
+
+def _register_status_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    requirement_parser = subparsers.add_parser("requirement", help="Show verification status for a requirement.")
+    requirement_parser.add_argument("requirement_id")
+    requirement_parser.add_argument("--json", action="store_true")
+    requirement_parser.set_defaults(handler=handle_status_requirement)
+
+    unverified_parser = subparsers.add_parser("unverified", help="List unverified requirements.")
+    unverified_parser.add_argument("--json", action="store_true")
+    unverified_parser.set_defaults(handler=handle_status_unverified)
+
+    stale_parser = subparsers.add_parser("stale", help="List requirements with stale verification evidence.")
+    stale_parser.add_argument("--json", action="store_true")
+    stale_parser.set_defaults(handler=handle_status_stale)
 
 
 def handle_init(args: argparse.Namespace) -> int:
@@ -433,6 +493,64 @@ def handle_baseline_diff(args: argparse.Namespace) -> int:
     )
 
 
+def handle_verify_method_add(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.verification_method.v1",
+        lambda service: _verification_method_dict(
+            service.add_verification_method(
+                str(args.requirement_id),
+                method=str(args.method),
+                target=str(args.target),
+                actor=str(args.actor),
+            )
+        ),
+    )
+
+
+def handle_verify_evidence_record(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.verification_evidence.v1",
+        lambda service: _verification_evidence_dict(
+            service.record_verification_evidence(
+                str(args.method_id),
+                status=str(args.status),
+                evidence_ref=str(args.evidence_ref),
+                actor=str(args.actor),
+            )
+        ),
+    )
+
+
+def handle_verify_status(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.requirement_verification_status.v1",
+        lambda service: _requirement_verification_status_dict(service.verification_status(str(args.requirement_id))),
+    )
+
+
+def handle_status_requirement(args: argparse.Namespace) -> int:
+    return handle_verify_status(args)
+
+
+def handle_status_unverified(args: argparse.Namespace) -> int:
+    return _handle_service_list(
+        args,
+        "loom.charter.requirement_verification_status_list.v1",
+        lambda service: [_requirement_verification_status_dict(item) for item in service.list_unverified_requirements()],
+    )
+
+
+def handle_status_stale(args: argparse.Namespace) -> int:
+    return _handle_service_list(
+        args,
+        "loom.charter.requirement_verification_status_list.v1",
+        lambda service: [_requirement_verification_status_dict(item) for item in service.list_stale_requirements()],
+    )
+
+
 def initialize_project(root: Path, project_key: str) -> dict[str, object]:
     db_path = charter_db_path(root)
     created = not db_path.exists()
@@ -649,4 +767,65 @@ def _baseline_diff_dict(diff: BaselineDiff) -> dict[str, object]:
         "baseline_id": diff.baseline_id,
         "summary": diff.summary,
         "items": [_baseline_diff_item_dict(item) for item in diff.items],
+    }
+
+
+def _verification_method_dict(method: VerificationMethod) -> dict[str, object]:
+    return {
+        "id": method.id,
+        "requirement_id": method.requirement_id,
+        "requirement_version": method.requirement_version,
+        "method": method.method,
+        "target": method.target,
+        "status": method.status,
+        "created_by": method.created_by,
+        "created_at": method.created_at,
+    }
+
+
+def _verification_evidence_dict(evidence: VerificationEvidence) -> dict[str, object]:
+    return {
+        "id": evidence.id,
+        "method_id": evidence.method_id,
+        "requirement_id": evidence.requirement_id,
+        "requirement_version": evidence.requirement_version,
+        "status": evidence.status,
+        "evidence_ref": evidence.evidence_ref,
+        "authority": evidence.authority,
+        "freshness": evidence.freshness,
+        "recorded_by": evidence.recorded_by,
+        "recorded_at": evidence.recorded_at,
+        "payload": evidence.payload,
+    }
+
+
+def _verification_reason_dict(reason: VerificationReason) -> dict[str, object]:
+    return {
+        "code": reason.code,
+        "message": reason.message,
+        "evidence_id": reason.evidence_id,
+    }
+
+
+def _verification_evidence_summary_dict(evidence: VerificationEvidence) -> dict[str, object]:
+    return {
+        "id": evidence.id,
+        "method_id": evidence.method_id,
+        "status": evidence.status,
+        "authority": evidence.authority,
+        "freshness": evidence.freshness,
+        "evidence_ref": evidence.evidence_ref,
+    }
+
+
+def _requirement_verification_status_dict(status: RequirementVerificationStatus) -> dict[str, object]:
+    return {
+        "requirement_id": status.requirement_id,
+        "id": status.id,
+        "stable_id": status.stable_id,
+        "current_version": status.current_version,
+        "status": status.status,
+        "reasons": [_verification_reason_dict(reason) for reason in status.reasons],
+        "current_evidence": [_verification_evidence_summary_dict(evidence) for evidence in status.current_evidence],
+        "stale_evidence": [_verification_evidence_summary_dict(evidence) for evidence in status.stale_evidence],
     }

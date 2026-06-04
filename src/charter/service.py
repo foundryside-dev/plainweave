@@ -1070,7 +1070,15 @@ class CharterService:
         )
 
     def _verification_method_row(self, connection: sqlite3.Connection, method_id: str) -> sqlite3.Row:
-        row = connection.execute("select * from verification_methods where method_id = ?", (method_id,)).fetchone()
+        row = connection.execute(
+            """
+            select r.display_id, vm.*
+            from verification_methods vm
+            join requirements r on r.requirement_id = vm.requirement_id
+            where vm.method_id = ?
+            """,
+            (method_id,),
+        ).fetchone()
         if row is None:
             raise self._error(ErrorCode.NOT_FOUND, f"verification method not found: {method_id}")
         return cast(sqlite3.Row, row)
@@ -1078,7 +1086,7 @@ class CharterService:
     def _verification_method_from_row(self, row: sqlite3.Row) -> VerificationMethod:
         return VerificationMethod(
             str(row["method_id"]),
-            str(row["requirement_id"]),
+            str(row["display_id"]),
             int(row["requirement_version"]),
             str(row["method_type"]),
             str(row["target"]),
@@ -1088,7 +1096,15 @@ class CharterService:
         )
 
     def _verification_evidence_row(self, connection: sqlite3.Connection, evidence_id: str) -> sqlite3.Row:
-        row = connection.execute("select * from verification_evidence where evidence_id = ?", (evidence_id,)).fetchone()
+        row = connection.execute(
+            """
+            select r.display_id, ve.*
+            from verification_evidence ve
+            join requirements r on r.requirement_id = ve.requirement_id
+            where ve.evidence_id = ?
+            """,
+            (evidence_id,),
+        ).fetchone()
         if row is None:
             raise self._error(ErrorCode.NOT_FOUND, f"verification evidence not found: {evidence_id}")
         return cast(sqlite3.Row, row)
@@ -1106,7 +1122,7 @@ class CharterService:
         return VerificationEvidence(
             str(row["evidence_id"]),
             str(row["method_id"]),
-            str(row["requirement_id"]),
+            str(row["display_id"]),
             requirement_version,
             str(row["status"]),
             str(row["evidence_ref"]),
@@ -1125,8 +1141,10 @@ class CharterService:
     ) -> list[VerificationEvidence]:
         rows = connection.execute(
             """
-            select * from verification_evidence
-            where requirement_id = ?
+            select r.display_id, ve.*
+            from verification_evidence ve
+            join requirements r on r.requirement_id = ve.requirement_id
+            where ve.requirement_id = ?
             order by recorded_at, evidence_id
             """,
             (requirement_id,),

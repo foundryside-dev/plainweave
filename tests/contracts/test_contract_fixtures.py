@@ -76,6 +76,12 @@ REQUIRED_FIXTURES = {
     "cli/baseline-show-json.json",
     "cli/baseline-list-json.json",
     "cli/baseline-diff-json.json",
+    "cli/verify-method-add-json.json",
+    "cli/verify-evidence-record-json.json",
+    "cli/verify-status-json.json",
+    "cli/status-requirement-json.json",
+    "cli/status-unverified-json.json",
+    "cli/status-stale-json.json",
 }
 
 
