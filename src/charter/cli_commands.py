@@ -15,8 +15,8 @@ from charter.models import (
     BaselineMember,
     RequirementDraft,
     RequirementRecord,
-    RequirementVersion,
     RequirementVerificationStatus,
+    RequirementVersion,
     TraceLink,
     TraceRef,
     VerificationEvidence,
@@ -539,7 +539,9 @@ def handle_status_unverified(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
         "loom.charter.requirement_verification_status_list.v1",
-        lambda service: [_requirement_verification_status_dict(item) for item in service.list_unverified_requirements()],
+        lambda service: [
+            _requirement_verification_status_dict(item) for item in service.list_unverified_requirements()
+        ],
     )
 
 

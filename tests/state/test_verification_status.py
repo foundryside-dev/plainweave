@@ -50,7 +50,12 @@ def test_add_method_requires_approved_requirement(tmp_path: Path) -> None:
     draft = service.create_requirement("Draft only", "This requirement is not approved.", "human:john")
 
     with pytest.raises(CharterError) as exc_info:
-        service.add_verification_method(draft.id, method="test", target="tests/test_auth.py::test_expired", actor="human:john")
+        service.add_verification_method(
+            draft.id,
+            method="test",
+            target="tests/test_auth.py::test_expired",
+            actor="human:john",
+        )
 
     assert exc_info.value.code == ErrorCode.POLICY_REQUIRED
 

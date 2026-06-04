@@ -25,8 +25,8 @@ The replacement bar is not "copy DOORS." The bar is:
 | Gap | Why it matters | Current state | Priority |
 |---|---|---|---|
 | Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Implemented in the baseline-core local slice. | P0 |
-| Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Deferred. | P0 |
-| Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Deferred. | P0 |
+| Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Implemented in the verification-core local slice. | P0 |
+| Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Implemented in the verification-core local slice. | P0 |
 | Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Deferred. | P0 |
 | MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Deferred except inert contract fixture. | P0 |
 | Impact analysis | The main product value is "what obligations does this change touch?" | Deferred. | P1 |
@@ -453,20 +453,29 @@ Exit criteria:
 
 Goal: make Charter answer whether requirements are satisfied.
 
-Suggested Filigree breakdown:
+Status: implemented on `codex/verification-core`. Evidence includes
+verification method/evidence storage, append-only evidence records,
+`charter verify method add`, `charter verify evidence record`,
+`charter verify status`, `charter status requirement`, `charter status
+unverified`, `charter status stale`, verification JSON fixtures, state tests,
+CLI tests, and local gates.
 
-- design verification method and evidence contracts;
-- implement method/evidence store/service;
-- implement evidence freshness when requirement versions change;
-- implement `status requirement`, `status unverified`, and `status stale`;
-- add contract, state-machine, and CLI tests;
-- review authority rules for manual/external attestations.
+Delivered Filigree breakdown:
+
+- Complete: design verification method and evidence contracts;
+- Complete: implement method/evidence store/service;
+- Complete: implement evidence freshness when requirement versions change;
+- Complete: implement `status requirement`, `status unverified`, and
+  `status stale`;
+- Complete: add contract, state-machine, and CLI tests;
+- Complete: review authority rules for manual/external attestations.
 
 Exit criteria:
 
-- requirements can be approved, unverified, satisfied, stale, or unsatisfied;
-- status output includes reason codes and evidence references;
-- agents cannot create accepted manual attestations by default.
+- Complete: requirements can be approved, unverified, satisfied, stale, or
+  unsatisfied.
+- Complete: status output includes reason codes and evidence references.
+- Complete: agents cannot create accepted manual attestations by default.
 
 ### Package C: Dossiers And MCP Read Tools
 

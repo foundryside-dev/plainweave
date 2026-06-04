@@ -18,8 +18,8 @@ from charter.models import (
     BaselineMember,
     RequirementDraft,
     RequirementRecord,
-    RequirementVersion,
     RequirementVerificationStatus,
+    RequirementVersion,
     TraceLink,
     TraceRef,
     VerificationEvidence,
@@ -135,7 +135,10 @@ class CharterService:
                 now,
             )
             connection.commit()
-            return self._verification_evidence_from_row(self._verification_evidence_row(connection, evidence_id), current_version)
+            return self._verification_evidence_from_row(
+                self._verification_evidence_row(connection, evidence_id),
+                current_version,
+            )
 
     def verification_status(self, requirement_id: str) -> RequirementVerificationStatus:
         with connect(self.db_path) as connection:
@@ -1196,15 +1199,29 @@ class CharterService:
         if any(item.status == "failing" for item in current_evidence):
             evidence = next(item for item in current_evidence if item.status == "failing")
             return "unsatisfied", [
-                VerificationReason("failing_evidence", "Current failing evidence makes the requirement unsatisfied.", evidence.id)
+                VerificationReason(
+                    "failing_evidence",
+                    "Current failing evidence makes the requirement unsatisfied.",
+                    evidence.id,
+                )
             ]
         if any(item.status == "waived" and item.authority == "waiver" for item in current_evidence):
             evidence = next(item for item in current_evidence if item.status == "waived" and item.authority == "waiver")
-            return "waived", [VerificationReason("human_waiver", "Current human waiver evidence waives verification.", evidence.id)]
+            return "waived", [
+                VerificationReason(
+                    "human_waiver",
+                    "Current human waiver evidence waives verification.",
+                    evidence.id,
+                )
+            ]
         if any(item.status == "passing" for item in current_evidence):
             evidence = next(item for item in current_evidence if item.status == "passing")
             return "satisfied", [
-                VerificationReason("passing_evidence", "Current passing evidence satisfies the requirement version.", evidence.id)
+                VerificationReason(
+                    "passing_evidence",
+                    "Current passing evidence satisfies the requirement version.",
+                    evidence.id,
+                )
             ]
         if any(item.status == "inconclusive" for item in current_evidence):
             evidence = next(item for item in current_evidence if item.status == "inconclusive")
@@ -1214,7 +1231,11 @@ class CharterService:
         if stale_evidence:
             evidence = stale_evidence[-1]
             return "stale", [
-                VerificationReason("stale_evidence", "Only stale evidence is available for the current requirement version.", evidence.id)
+                VerificationReason(
+                    "stale_evidence",
+                    "Only stale evidence is available for the current requirement version.",
+                    evidence.id,
+                )
             ]
         if method_count:
             return "unverified", [VerificationReason("no_current_evidence", "No current evidence has been recorded.")]
