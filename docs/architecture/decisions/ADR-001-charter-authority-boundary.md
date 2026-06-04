@@ -11,7 +11,7 @@ Charter will be the local-first requirements and verification authority for Loom
 
 ## Context
 
-Loom is a federation. Each product owns one kind of truth and remains useful alone. Charter must therefore satisfy three tests:
+Loom is a federation. Each product owns one kind of truth and remains useful alone. (The federation axiom, composition law, and authoritative roster are owned by the Loom hub: `~/loom/doctrine.md`. This ADR restates them only as context for Charter's own boundary, which is what it actually decides.) Charter must therefore satisfy three tests:
 
 - useful as a standalone requirements and verification tool;
 - additive with each peer;

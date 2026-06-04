@@ -13,6 +13,8 @@ Charter will consume Clarion SEI as an opaque peer identifier. It may store SEI 
 
 Charter's first killer federation workflow is requirement impact that survives code moves and renames. That requires Clarion SEI. The same integration can accidentally violate Loom boundaries if Charter starts making identity decisions.
 
+The Stable Entity Identity standard Charter conforms to as a consumer is owned by the Loom hub: `~/loom/sei-standard.md` (Clarion is the identity authority/implementer; Charter is a consumer). This ADR records only Charter's consumer-side contract; the SEI shape itself is normative there.
+
 ## Decision
 
 When Clarion is present and advertises required capabilities, Charter will:
@@ -80,3 +82,8 @@ Clarion absent -> freshness unknown, no destructive mutation
 - ADR-001: Charter authority boundary.
 - ADR-003: Trace-link ontology and authority states.
 - ADR-004: CLI/MCP JSON envelope and error policy.
+
+## Federation References
+
+- SEI standard (authoritative): `~/loom/sei-standard.md`.
+- Cross-product contract index: `~/loom/contracts-index.md`.

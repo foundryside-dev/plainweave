@@ -14,7 +14,14 @@ their authority:
 - Legis owns git, CI, governance, and attestations.
 - Charter owns requirements, traceability, baselines, and verification evidence.
 
-Shuttle remains on the Loom roadmap as a future sixth member.
+The authoritative federation roster, axiom, and per-member authority split live
+in the Loom hub at `~/loom/doctrine.md`; the summary above mirrors it for
+convenience. The hub's ruling is that the roster is **five realized members**
+(Clarion, Filigree, Wardline, Legis, Charter).
+
+Shuttle is **not** a committed sixth member. It is a roadmap thought-bubble — a
+named but undesigned change-execution gap with no repo, displaceable by any
+better idea (Charter was exactly such an idea). See `~/loom/members/shuttle.md`.
 
 ## Status
 
