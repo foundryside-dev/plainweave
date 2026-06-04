@@ -2,14 +2,11 @@ from __future__ import annotations
 
 import argparse
 import json
-import sqlite3
-from contextlib import closing
 from pathlib import Path
 
 from charter.envelopes import success_envelope
 from charter.paths import charter_db_path, default_project_key, project_root
-
-SCHEMA_VERSION = 1
+from charter.store import connect, migrate, read_schema_meta
 
 
 def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -50,17 +47,9 @@ def handle_doctor(args: argparse.Namespace) -> int:
 def initialize_project(root: Path, project_key: str) -> dict[str, object]:
     db_path = charter_db_path(root)
     created = not db_path.exists()
-    db_path.parent.mkdir(parents=True, exist_ok=True)
-    with closing(sqlite3.connect(db_path)) as connection:
-        connection.execute("create table if not exists schema_meta (key text primary key, value text not null)")
-        metadata = _schema_meta(connection)
-        if not metadata:
-            connection.executemany(
-                "insert into schema_meta(key, value) values (?, ?)",
-                [("project_key", project_key), ("schema_version", str(SCHEMA_VERSION))],
-            )
-        connection.commit()
-        metadata = _schema_meta(connection)
+    migrate(db_path, project_key=project_key)
+    with connect(db_path) as connection:
+        metadata = read_schema_meta(connection)
     return {
         "created": created,
         "project_key": metadata["project_key"],
@@ -78,16 +67,11 @@ def inspect_project(root: Path) -> dict[str, object]:
             "schema_version": None,
             "db_path": str(db_path),
         }
-    with closing(sqlite3.connect(db_path)) as connection:
-        metadata = _schema_meta(connection)
+    with connect(db_path) as connection:
+        metadata = read_schema_meta(connection)
     return {
         "initialized": True,
         "project_key": metadata.get("project_key"),
         "schema_version": int(metadata["schema_version"]) if "schema_version" in metadata else None,
         "db_path": str(db_path),
     }
-
-
-def _schema_meta(connection: sqlite3.Connection) -> dict[str, str]:
-    rows: list[tuple[str, str]] = connection.execute("select key, value from schema_meta").fetchall()
-    return dict(rows)
