@@ -19,8 +19,12 @@ from charter.models import (
     RequirementDraft,
     RequirementRecord,
     RequirementVersion,
+    RequirementVerificationStatus,
     TraceLink,
     TraceRef,
+    VerificationEvidence,
+    VerificationMethod,
+    VerificationReason,
 )
 from charter.store import connect, read_schema_meta
 
@@ -28,6 +32,121 @@ from charter.store import connect, read_schema_meta
 class CharterService:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
+
+    def add_verification_method(
+        self,
+        requirement_id: str,
+        *,
+        method: str,
+        target: str,
+        actor: str,
+    ) -> VerificationMethod:
+        self._require_actor(actor)
+        self._validate_verification_method(method)
+        if not target:
+            raise self._error(ErrorCode.VALIDATION, "verification target is required")
+        now = self._now()
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            if str(requirement["status"]) not in {"approved", "deprecated"} or int(requirement["current_version"]) <= 0:
+                raise self._error(ErrorCode.POLICY_REQUIRED, "verification methods require an approved requirement")
+            method_id = f"VERM-{self._next_verification_method_number(connection):04d}"
+            connection.execute(
+                """
+                insert into verification_methods(
+                  method_id, requirement_id, requirement_version, method_type,
+                  target, status, created_by, created_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    method_id,
+                    requirement["requirement_id"],
+                    int(requirement["current_version"]),
+                    method,
+                    target,
+                    "active",
+                    actor,
+                    now,
+                ),
+            )
+            self._record_event(
+                connection,
+                "verification_method_added",
+                "verification_method",
+                method_id,
+                actor,
+                None,
+                {"method_id": method_id, "requirement_id": requirement["display_id"], "method": method},
+                now,
+            )
+            connection.commit()
+            return self._verification_method_from_row(self._verification_method_row(connection, method_id))
+
+    def record_verification_evidence(
+        self,
+        method_id: str,
+        *,
+        status: str,
+        evidence_ref: str,
+        actor: str,
+        payload: dict[str, Any] | None = None,
+    ) -> VerificationEvidence:
+        self._require_actor(actor)
+        self._validate_evidence_status(status)
+        if not evidence_ref:
+            raise self._error(ErrorCode.VALIDATION, "evidence reference is required")
+        now = self._now()
+        with connect(self.db_path) as connection:
+            method = self._verification_method_row(connection, method_id)
+            requirement = self._requirement_row(connection, str(method["requirement_id"]))
+            authority = self._evidence_authority(str(method["method_type"]), status, actor)
+            evidence_id = f"EVID-{self._next_evidence_number(connection):04d}"
+            current_version = int(requirement["current_version"])
+            connection.execute(
+                """
+                insert into verification_evidence(
+                  evidence_id, method_id, requirement_id, requirement_version,
+                  status, evidence_ref, authority, freshness, recorded_by,
+                  recorded_at, payload_json
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    evidence_id,
+                    method_id,
+                    requirement["requirement_id"],
+                    current_version,
+                    status,
+                    evidence_ref,
+                    authority,
+                    "current",
+                    actor,
+                    now,
+                    json.dumps(payload or {}, sort_keys=True),
+                ),
+            )
+            self._record_event(
+                connection,
+                "verification_evidence_recorded",
+                "verification_evidence",
+                evidence_id,
+                actor,
+                None,
+                {"evidence_id": evidence_id, "method_id": method_id, "status": status, "authority": authority},
+                now,
+            )
+            connection.commit()
+            return self._verification_evidence_from_row(self._verification_evidence_row(connection, evidence_id), current_version)
+
+    def verification_status(self, requirement_id: str) -> RequirementVerificationStatus:
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            return self._verification_status_for_row(connection, requirement)
+
+    def list_unverified_requirements(self) -> list[RequirementVerificationStatus]:
+        return self._list_requirement_statuses({"unverified"})
+
+    def list_stale_requirements(self) -> list[RequirementVerificationStatus]:
+        return self._list_requirement_statuses({"stale"})
 
     def create_baseline(self, name: str, *, actor: str, description: str | None = None) -> Baseline:
         self._require_actor(actor)
@@ -903,6 +1022,14 @@ class CharterService:
         count = int(connection.execute("select count(*) from baselines").fetchone()[0])
         return count + 1
 
+    def _next_verification_method_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from verification_methods").fetchone()[0])
+        return count + 1
+
+    def _next_evidence_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from verification_evidence").fetchone()[0])
+        return count + 1
+
     def _baseline_row(self, connection: sqlite3.Connection, baseline_id: str) -> sqlite3.Row:
         row = connection.execute("select * from baselines where baseline_id = ?", (baseline_id,)).fetchone()
         if row is None:
@@ -941,6 +1068,151 @@ class CharterService:
             str(row["created_at"]),
             self._baseline_members(connection, baseline_id),
         )
+
+    def _verification_method_row(self, connection: sqlite3.Connection, method_id: str) -> sqlite3.Row:
+        row = connection.execute("select * from verification_methods where method_id = ?", (method_id,)).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"verification method not found: {method_id}")
+        return cast(sqlite3.Row, row)
+
+    def _verification_method_from_row(self, row: sqlite3.Row) -> VerificationMethod:
+        return VerificationMethod(
+            str(row["method_id"]),
+            str(row["requirement_id"]),
+            int(row["requirement_version"]),
+            str(row["method_type"]),
+            str(row["target"]),
+            str(row["status"]),
+            str(row["created_by"]),
+            str(row["created_at"]),
+        )
+
+    def _verification_evidence_row(self, connection: sqlite3.Connection, evidence_id: str) -> sqlite3.Row:
+        row = connection.execute("select * from verification_evidence where evidence_id = ?", (evidence_id,)).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"verification evidence not found: {evidence_id}")
+        return cast(sqlite3.Row, row)
+
+    def _verification_evidence_from_row(
+        self,
+        row: sqlite3.Row,
+        current_version: int | None = None,
+    ) -> VerificationEvidence:
+        payload = json.loads(str(row["payload_json"]))
+        requirement_version = int(row["requirement_version"])
+        freshness = str(row["freshness"])
+        if current_version is not None and requirement_version != current_version:
+            freshness = "stale"
+        return VerificationEvidence(
+            str(row["evidence_id"]),
+            str(row["method_id"]),
+            str(row["requirement_id"]),
+            requirement_version,
+            str(row["status"]),
+            str(row["evidence_ref"]),
+            str(row["authority"]),
+            freshness,
+            str(row["recorded_by"]),
+            str(row["recorded_at"]),
+            payload if isinstance(payload, dict) else {},
+        )
+
+    def _verification_evidence_for_requirement(
+        self,
+        connection: sqlite3.Connection,
+        requirement_id: str,
+        current_version: int,
+    ) -> list[VerificationEvidence]:
+        rows = connection.execute(
+            """
+            select * from verification_evidence
+            where requirement_id = ?
+            order by recorded_at, evidence_id
+            """,
+            (requirement_id,),
+        ).fetchall()
+        return [self._verification_evidence_from_row(row, current_version) for row in rows]
+
+    def _verification_status_for_row(
+        self,
+        connection: sqlite3.Connection,
+        requirement: sqlite3.Row,
+    ) -> RequirementVerificationStatus:
+        current_version = int(requirement["current_version"])
+        requirement_id = str(requirement["requirement_id"])
+        evidence = self._verification_evidence_for_requirement(connection, requirement_id, current_version)
+        current_evidence = [item for item in evidence if item.requirement_version == current_version]
+        stale_evidence = [item for item in evidence if item.requirement_version != current_version]
+        method_count = int(
+            connection.execute(
+                "select count(*) from verification_methods where requirement_id = ?",
+                (requirement_id,),
+            ).fetchone()[0]
+        )
+        status, reasons = self._compute_verification_status(
+            str(requirement["status"]),
+            method_count,
+            current_evidence,
+            stale_evidence,
+        )
+        return RequirementVerificationStatus(
+            requirement_id,
+            str(requirement["display_id"]),
+            str(requirement["stable_id"]),
+            current_version,
+            status,
+            reasons,
+            current_evidence,
+            stale_evidence,
+        )
+
+    def _compute_verification_status(
+        self,
+        requirement_status: str,
+        method_count: int,
+        current_evidence: list[VerificationEvidence],
+        stale_evidence: list[VerificationEvidence],
+    ) -> tuple[str, list[VerificationReason]]:
+        if requirement_status not in {"approved", "deprecated"}:
+            return "unknown", [VerificationReason("requirement_not_approved", "Requirement is not approved.")]
+        if any(item.status == "failing" for item in current_evidence):
+            evidence = next(item for item in current_evidence if item.status == "failing")
+            return "unsatisfied", [
+                VerificationReason("failing_evidence", "Current failing evidence makes the requirement unsatisfied.", evidence.id)
+            ]
+        if any(item.status == "waived" and item.authority == "waiver" for item in current_evidence):
+            evidence = next(item for item in current_evidence if item.status == "waived" and item.authority == "waiver")
+            return "waived", [VerificationReason("human_waiver", "Current human waiver evidence waives verification.", evidence.id)]
+        if any(item.status == "passing" for item in current_evidence):
+            evidence = next(item for item in current_evidence if item.status == "passing")
+            return "satisfied", [
+                VerificationReason("passing_evidence", "Current passing evidence satisfies the requirement version.", evidence.id)
+            ]
+        if any(item.status == "inconclusive" for item in current_evidence):
+            evidence = next(item for item in current_evidence if item.status == "inconclusive")
+            return "unknown", [
+                VerificationReason("inconclusive_evidence", "Current evidence is inconclusive.", evidence.id)
+            ]
+        if stale_evidence:
+            evidence = stale_evidence[-1]
+            return "stale", [
+                VerificationReason("stale_evidence", "Only stale evidence is available for the current requirement version.", evidence.id)
+            ]
+        if method_count:
+            return "unverified", [VerificationReason("no_current_evidence", "No current evidence has been recorded.")]
+        return "unverified", [VerificationReason("no_verification_method", "No verification method has been defined.")]
+
+    def _list_requirement_statuses(self, statuses: set[str]) -> list[RequirementVerificationStatus]:
+        with connect(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                select * from requirements
+                where current_version > 0 and status in ('approved', 'deprecated')
+                order by display_id
+                """
+            ).fetchall()
+            items = [self._verification_status_for_row(connection, row) for row in rows]
+        return [item for item in items if item.status in statuses]
 
     def _criterion_from_row(self, row: sqlite3.Row) -> AcceptanceCriterion:
         return AcceptanceCriterion(
@@ -1222,6 +1494,28 @@ class CharterService:
     def _require_actor(self, actor: str) -> None:
         if not actor:
             raise self._error(ErrorCode.VALIDATION, "actor is required")
+
+    def _validate_verification_method(self, method: str) -> None:
+        if method not in {"test", "analysis", "inspection", "manual"}:
+            raise self._error(ErrorCode.VALIDATION, "verification method is not supported")
+
+    def _validate_evidence_status(self, status: str) -> None:
+        if status not in {"passing", "failing", "inconclusive", "waived"}:
+            raise self._error(ErrorCode.VALIDATION, "verification evidence status is not supported")
+
+    def _evidence_authority(self, method: str, status: str, actor: str) -> str:
+        actor_is_agent = actor.startswith("agent:")
+        if status == "waived":
+            if actor_is_agent:
+                raise self._error(ErrorCode.POLICY_REQUIRED, "agents cannot record waiver evidence")
+            return "waiver"
+        if method == "manual" and actor_is_agent:
+            raise self._error(ErrorCode.POLICY_REQUIRED, "agents cannot record manual attestation evidence")
+        if method == "test":
+            return "test_derived"
+        if actor.startswith("human:"):
+            return "human_attested"
+        return "agent_reported"
 
     def _error(self, code: ErrorCode, message: str) -> CharterError:
         return CharterError(code, message, recoverable=True, hint="Refresh local Charter state and retry.")
