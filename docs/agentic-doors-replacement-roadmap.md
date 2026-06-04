@@ -5,11 +5,12 @@
 This document captures what is still missing for Charter to become a
 first-class agentic replacement for DOORS-style requirements management.
 
-Current state: Charter v0.1 local core can store repo-local requirements,
-drafts, immutable approved versions, acceptance criteria, local trace links,
-append-only events, and JSON CLI envelopes. That is enough to start storing
-requirements. It is not yet enough to replace a mature requirements-management
-system.
+Current state: Charter local core is installed on `main`. It can store
+repo-local requirements, drafts, immutable approved versions, acceptance
+criteria, local trace links, append-only events, named locked baselines,
+verification methods, evidence records, computed verification status, and JSON
+CLI envelopes. That is enough to start storing requirements and verification
+state. It is not yet enough to replace a mature requirements-management system.
 
 The replacement bar is not "copy DOORS." The bar is:
 
@@ -20,13 +21,72 @@ The replacement bar is not "copy DOORS." The bar is:
 - integrations compose with Loom peers without taking over their authority;
 - humans can review, approve, export, and audit the resulting state.
 
+## Installed On Main
+
+Installed capabilities are available in the integrated `main` branch:
+
+- **v0.1 local core**: `charter init`, `charter doctor`, local
+  `.charter/charter.db`, requirement drafts, immutable approved versions,
+  acceptance criteria, proposed/accepted/rejected/stale/orphaned trace links,
+  append-only events, JSON envelopes, CLI contract fixtures, and state tests.
+- **Baseline core**: locked named baselines of current approved/deprecated
+  requirement versions, baseline member listing, baseline list/show/diff CLI
+  commands, immutable baseline storage, and baseline contract fixtures.
+- **Verification and status core**: verification methods, append-only evidence
+  records, method/evidence authority rules, status categories `satisfied`,
+  `unsatisfied`, `unverified`, `stale`, `unknown`, and `waived`, machine-readable
+  reason codes, `verify` CLI commands, `status` CLI commands, and verification
+  contract fixtures.
+
+Installed command groups:
+
+```text
+charter init
+charter doctor
+charter req add|edit|show|search|approve|supersede|deprecate|reject
+charter criterion add|list
+charter trace propose|accept|reject|list
+charter baseline create|show|list|diff
+charter verify method add
+charter verify evidence record
+charter verify status
+charter status requirement|unverified|stale
+```
+
+## Remaining Work
+
+Highest-priority remaining work:
+
+- **P0 Requirement dossiers**: one dense agent-safe object per requirement,
+  combining requirement version, criteria, traces, verification, gaps, peer
+  facts, and next actions without calling live peers.
+- **P0 MCP read/query surface**: read-only MCP tools for requirement search/show,
+  dossiers, baselines, verification status, and traces, using the same stable
+  JSON contracts as the CLI.
+
+P1 operational work still deferred:
+
+- impact analysis;
+- durable gap tracking;
+- MCP mutation surface;
+- review queues and approval policy;
+- import/export and migration.
+
+P2/P3 adoption work still deferred:
+
+- Clarion, Filigree, Wardline, and Legis federation integrations;
+- human review UI/TUI;
+- collaboration and governance hardening;
+- scale/performance validation;
+- ReqIF and enterprise ALM adapters.
+
 ## Product Gaps
 
 | Gap | Why it matters | Current state | Priority |
 |---|---|---|---|
-| Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Implemented in the baseline-core local slice. | P0 |
-| Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Implemented in the verification-core local slice. | P0 |
-| Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Implemented in the verification-core local slice. | P0 |
+| Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Installed on `main`. | P0 |
+| Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Installed on `main`. | P0 |
+| Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Installed on `main`. | P0 |
 | Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Deferred. | P0 |
 | MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Deferred except inert contract fixture. | P0 |
 | Impact analysis | The main product value is "what obligations does this change touch?" | Deferred. | P1 |
@@ -430,9 +490,9 @@ or UI features before Charter can answer the core questions:
 
 Goal: make approved requirement sets auditable.
 
-Status: implemented on `codex/baseline-core`. Evidence includes immutable
-baseline storage, `charter baseline create/show/list/diff`, baseline JSON
-fixtures, state tests, CLI tests, and final local gates.
+Status: installed on `main`. Evidence includes immutable baseline storage,
+`charter baseline create/show/list/diff`, baseline JSON fixtures, state tests,
+CLI tests, and final local gates.
 
 Suggested Filigree breakdown:
 
@@ -453,12 +513,12 @@ Exit criteria:
 
 Goal: make Charter answer whether requirements are satisfied.
 
-Status: implemented on `codex/verification-core`. Evidence includes
-verification method/evidence storage, append-only evidence records,
-`charter verify method add`, `charter verify evidence record`,
-`charter verify status`, `charter status requirement`, `charter status
-unverified`, `charter status stale`, verification JSON fixtures, state tests,
-CLI tests, and local gates.
+Status: installed on `main`. Evidence includes verification method/evidence
+storage, append-only evidence records, `charter verify method add`,
+`charter verify evidence record`, `charter verify status`,
+`charter status requirement`, `charter status unverified`,
+`charter status stale`, verification JSON fixtures, state tests, CLI tests, and
+local gates.
 
 Delivered Filigree breakdown:
 
