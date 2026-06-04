@@ -20,8 +20,10 @@ def test_cli_main_help_mentions_local_core_commands(capsys: pytest.CaptureFixtur
     assert main(["--help"]) == 0
     output = capsys.readouterr().out
     assert "Charter requirements and verification authority" in output
-    assert "Local-core commands are available for init and diagnostics." in output
-    assert "{init,doctor}" in output
+    assert "Local-core commands are available for requirements, criteria, trace, init, and" in output
+    assert "diagnostics." in output
+    for command in ("init", "doctor", "req", "criterion", "trace"):
+        assert command in output
 
 
 def test_cli_main_without_args_prints_help(capsys: pytest.CaptureFixture[str]) -> None:

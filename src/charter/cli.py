@@ -8,7 +8,7 @@ from charter import __version__
 from charter.cli_commands import register_commands
 
 DESCRIPTION = "Charter requirements and verification authority."
-EPILOG = "Local-core commands are available for init and diagnostics."
+EPILOG = "Local-core commands are available for requirements, criteria, trace, init, and diagnostics."
 
 
 def build_parser() -> argparse.ArgumentParser:
