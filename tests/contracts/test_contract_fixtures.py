@@ -49,6 +49,7 @@ REQUIRED_FIXTURES = {
     "verification/verification-method.json",
     "verification/verification-evidence.json",
     "verification/requirement-verification-status.json",
+    "dossiers/requirement-dossier.json",
     "envelopes/success.json",
     "envelopes/error-validation.json",
     "envelopes/error-conflict.json",
@@ -87,6 +88,14 @@ REQUIRED_FIXTURES = {
 
 def load_fixture(path: str) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads((FIXTURE_ROOT / path).read_text(encoding="utf-8")))
+
+
+def assert_computed_gap_shape(gap: dict[str, Any]) -> None:
+    assert set(gap) == {"code", "severity", "message", "source"}
+
+
+def assert_next_action_shape(action: dict[str, Any]) -> None:
+    assert set(action) == {"action", "priority", "reason", "command", "blocked_by"}
 
 
 def test_required_fixture_plan_files_exist() -> None:
@@ -463,3 +472,82 @@ def test_requirement_verification_status_fixture_contract() -> None:
         assert reason["message"]
     assert isinstance(fixture["current_evidence"], list)
     assert isinstance(fixture["stale_evidence"], list)
+
+
+def test_requirement_dossier_fixture_contract() -> None:
+    fixture = load_fixture("dossiers/requirement-dossier.json")
+
+    assert set(fixture) == {
+        "schema",
+        "identity",
+        "authority_summary",
+        "requirement",
+        "acceptance_criteria",
+        "traces",
+        "verification",
+        "baseline_exposure",
+        "computed_gaps",
+        "peer_facts",
+        "next_actions",
+    }
+    assert fixture["schema"] == "loom.charter.requirement_dossier.v1"
+    assert set(fixture["identity"]) == {"requirement_id", "id", "stable_id", "current_version"}
+    assert set(fixture["authority_summary"]) == {
+        "status",
+        "current_approved_version",
+        "current_statement_hash",
+        "has_active_draft",
+        "active_draft_id",
+        "verification_status",
+        "baseline_count",
+    }
+    assert set(fixture["requirement"]) == {"record", "current_version", "active_draft"}
+    assert set(fixture["acceptance_criteria"]) == {"current_version", "active_draft"}
+    assert set(fixture["traces"]) == {"incoming", "outgoing", "by_state", "by_relation", "items"}
+    assert set(fixture["verification"]) == {"status", "reasons", "current_evidence", "stale_evidence"}
+    assert set(fixture["baseline_exposure"]) == {"summary", "items"}
+    assert set(fixture["peer_facts"]) == {"live_peer_calls", "sources", "notes"}
+    assert fixture["peer_facts"]["live_peer_calls"] is False
+    assert isinstance(fixture["computed_gaps"], list)
+    assert isinstance(fixture["next_actions"], list)
+    computed_gap_fixture = {
+        "code": "no_verification_method",
+        "severity": "high",
+        "message": "Requirement has no verification method.",
+        "source": "verification",
+    }
+
+    identity = fixture["identity"]
+    requirement_record = fixture["requirement"]["record"]
+    current_version = fixture["requirement"]["current_version"]
+    current_version_record = requirement_record["current_version_record"]
+    acceptance_criteria = fixture["acceptance_criteria"]["current_version"]
+    statement_hash = fixture["authority_summary"]["current_statement_hash"]
+
+    assert identity["requirement_id"] == "req-1"
+    assert requirement_record["requirement_id"] == identity["requirement_id"]
+    assert current_version["requirement_id"] == identity["requirement_id"]
+    assert current_version_record["requirement_id"] == identity["requirement_id"]
+    for criterion in acceptance_criteria:
+        assert criterion["requirement_id"] == identity["requirement_id"]
+    assert requirement_record["id"] == identity["id"]
+    assert current_version["id"] == identity["id"]
+    assert current_version_record["id"] == identity["id"]
+    assert requirement_record["stable_id"] == identity["stable_id"]
+    assert current_version["stable_id"] == identity["stable_id"]
+    assert current_version_record["stable_id"] == identity["stable_id"]
+    assert current_version["statement_hash"] == statement_hash
+    assert current_version_record["statement_hash"] == statement_hash
+    for exposure in fixture["baseline_exposure"]["items"]:
+        assert exposure["baseline_statement_hash"] == statement_hash
+        assert exposure["current_statement_hash"] == statement_hash
+    for trace_group in ("incoming", "items"):
+        for trace in fixture["traces"][trace_group]:
+            if trace["relation"] == "provides_evidence_for":
+                assert trace["to"] == {"kind": "verification_method", "id": "VERM-0001"}
+
+    assert_computed_gap_shape(computed_gap_fixture)
+    for gap in fixture["computed_gaps"]:
+        assert_computed_gap_shape(gap)
+    for action in fixture["next_actions"]:
+        assert_next_action_shape(action)
