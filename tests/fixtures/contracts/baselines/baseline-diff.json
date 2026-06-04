@@ -1,0 +1,33 @@
+{
+  "schema": "loom.charter.baseline_diff.v1",
+  "baseline_id": "BASELINE-0001",
+  "summary": {
+    "unchanged": 0,
+    "changed": 0,
+    "missing_current": 0,
+    "new_since_baseline": 1,
+    "superseded_since_baseline": 1
+  },
+  "items": [
+    {
+      "requirement_id": "req-1",
+      "id": "REQ-AUTH-0001",
+      "stable_id": "charter:req:AUTH:0001",
+      "baseline_version": 1,
+      "current_version": 2,
+      "status": "superseded_since_baseline",
+      "baseline_statement_hash": "sha256:569f1e9c2ef2d3aa4dc808f09e3ac207fe2a7d5d1c74fd4b2fe9b49fa74b4d8b",
+      "current_statement_hash": "sha256:1f7cf4a86d23117acafc6576279a84cb114f018d2f1d287f622e4883ce7d64d9"
+    },
+    {
+      "requirement_id": "req-2",
+      "id": "REQ-AUTH-0002",
+      "stable_id": "charter:req:AUTH:0002",
+      "baseline_version": null,
+      "current_version": 1,
+      "status": "new_since_baseline",
+      "baseline_statement_hash": null,
+      "current_statement_hash": "sha256:f971d0d98f84c47b5809edfd4736c832b83f57eaf5ebc01b7bcff8964ea89d73"
+    }
+  ]
+}
