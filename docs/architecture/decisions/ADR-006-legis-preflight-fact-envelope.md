@@ -89,3 +89,11 @@ untraced_change
 - ADR-001: Charter authority boundary.
 - ADR-004: CLI/MCP JSON envelope and error policy.
 - ADR-005: Clarion SEI consumer contract.
+
+## Federation References
+
+The `loom.charter.preflight_facts.v1` envelope defined here is Charter-owned;
+this ADR is its authoritative spec. It is registered in the Loom hub's
+cross-product contract index for discovery: `~/loom/contracts-index.md`. The
+federation model and SEI keying it builds on are authoritative in
+`~/loom/doctrine.md` and `~/loom/sei-standard.md`.

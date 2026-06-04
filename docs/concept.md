@@ -20,6 +20,10 @@ Wardline owns trust-boundary analysis.
 Legis owns git/CI governance and attestations.
 ```
 
+> The authoritative federation roster and per-member authority split are owned
+> by the Loom hub at `~/loom/doctrine.md`. The split above mirrors it; if they
+> ever disagree, the hub wins.
+
 The primary design goal is to make requirements traceability cheap enough that agents can maintain it during ordinary development.
 
 ## 2. Authority boundary
@@ -58,7 +62,9 @@ Those remain owned by Clarion, Filigree, Wardline, Legis, or an external ALM sys
 
 ## 3. Operating model
 
-Charter follows the Loom federation model:
+Charter follows the Loom federation model (the federation axiom and composition
+law are authoritative in `~/loom/doctrine.md`; what follows is Charter's
+restatement of it):
 
 ```text
 Each tool owns one kind of truth.
