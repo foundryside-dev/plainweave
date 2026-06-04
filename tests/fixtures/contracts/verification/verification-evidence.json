@@ -1,0 +1,17 @@
+{
+  "schema": "loom.charter.verification_evidence.v1",
+  "id": "EVID-0001",
+  "method_id": "VERM-0001",
+  "requirement_id": "REQ-AUTH-0001",
+  "requirement_version": 1,
+  "status": "passing",
+  "evidence_ref": "pytest:tests/test_auth.py::test_rejects_expired_bearer_tokens",
+  "authority": "test_derived",
+  "freshness": "current",
+  "recorded_by": "agent:codex",
+  "recorded_at": "2026-06-05T09:05:00+10:00",
+  "payload": {
+    "runner": "pytest",
+    "exit_code": 0
+  }
+}

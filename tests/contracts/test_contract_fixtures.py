@@ -30,10 +30,25 @@ TRACE_AUTHORITIES = {
     "peer_reported",
 }
 TRACE_FRESHNESS = {"current", "stale", "unknown", "orphaned", "not_applicable"}
+VERIFICATION_METHODS = {"test", "analysis", "inspection", "manual"}
+VERIFICATION_EVIDENCE_STATUSES = {"passing", "failing", "inconclusive", "waived"}
+VERIFICATION_AUTHORITIES = {"test_derived", "human_attested", "agent_reported", "waiver"}
+VERIFICATION_FRESHNESS = {"current", "stale"}
+REQUIREMENT_VERIFICATION_STATUSES = {
+    "satisfied",
+    "unsatisfied",
+    "unverified",
+    "stale",
+    "unknown",
+    "waived",
+}
 
 REQUIRED_FIXTURES = {
     "baselines/baseline.json",
     "baselines/baseline-diff.json",
+    "verification/verification-method.json",
+    "verification/verification-evidence.json",
+    "verification/requirement-verification-status.json",
     "envelopes/success.json",
     "envelopes/error-validation.json",
     "envelopes/error-conflict.json",
@@ -356,3 +371,89 @@ def test_baseline_diff_fixture_contract() -> None:
             "new_since_baseline",
             "superseded_since_baseline",
         }
+
+
+def test_verification_method_fixture_contract() -> None:
+    fixture = load_fixture("verification/verification-method.json")
+
+    assert set(fixture) == {
+        "schema",
+        "id",
+        "requirement_id",
+        "requirement_version",
+        "method",
+        "target",
+        "status",
+        "created_by",
+        "created_at",
+    }
+    assert fixture["schema"] == "loom.charter.verification_method.v1"
+    assert fixture["id"].startswith("VERM-")
+    assert fixture["requirement_id"].startswith("REQ-AUTH-")
+    assert isinstance(fixture["requirement_version"], int)
+    assert fixture["method"] in VERIFICATION_METHODS
+    assert fixture["target"]
+    assert fixture["status"] == "active"
+    assert fixture["created_by"].startswith(("human:", "agent:"))
+    assert isinstance(fixture["created_at"], str)
+
+
+def test_verification_evidence_fixture_contract() -> None:
+    fixture = load_fixture("verification/verification-evidence.json")
+
+    assert set(fixture) == {
+        "schema",
+        "id",
+        "method_id",
+        "requirement_id",
+        "requirement_version",
+        "status",
+        "evidence_ref",
+        "authority",
+        "freshness",
+        "recorded_by",
+        "recorded_at",
+        "payload",
+    }
+    assert fixture["schema"] == "loom.charter.verification_evidence.v1"
+    assert fixture["id"].startswith("EVID-")
+    assert fixture["method_id"].startswith("VERM-")
+    assert fixture["requirement_id"].startswith("REQ-AUTH-")
+    assert isinstance(fixture["requirement_version"], int)
+    assert fixture["status"] in VERIFICATION_EVIDENCE_STATUSES
+    assert fixture["evidence_ref"]
+    assert fixture["authority"] in VERIFICATION_AUTHORITIES
+    assert fixture["freshness"] in VERIFICATION_FRESHNESS
+    assert fixture["recorded_by"].startswith(("human:", "agent:"))
+    assert isinstance(fixture["recorded_at"], str)
+    assert isinstance(fixture["payload"], dict)
+
+
+def test_requirement_verification_status_fixture_contract() -> None:
+    fixture = load_fixture("verification/requirement-verification-status.json")
+
+    assert set(fixture) == {
+        "schema",
+        "requirement_id",
+        "id",
+        "stable_id",
+        "current_version",
+        "status",
+        "reasons",
+        "current_evidence",
+        "stale_evidence",
+    }
+    assert fixture["schema"] == "loom.charter.requirement_verification_status.v1"
+    assert fixture["requirement_id"].startswith("req-")
+    assert fixture["id"].startswith("REQ-AUTH-")
+    assert fixture["stable_id"].startswith("charter:req:AUTH:")
+    assert isinstance(fixture["current_version"], int)
+    assert fixture["status"] in REQUIREMENT_VERIFICATION_STATUSES
+    assert isinstance(fixture["reasons"], list)
+    assert fixture["reasons"]
+    for reason in fixture["reasons"]:
+        assert set(reason) == {"code", "message", "evidence_id"}
+        assert reason["code"]
+        assert reason["message"]
+    assert isinstance(fixture["current_evidence"], list)
+    assert isinstance(fixture["stale_evidence"], list)

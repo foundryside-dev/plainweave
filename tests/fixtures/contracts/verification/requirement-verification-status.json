@@ -1,0 +1,26 @@
+{
+  "schema": "loom.charter.requirement_verification_status.v1",
+  "requirement_id": "req-1",
+  "id": "REQ-AUTH-0001",
+  "stable_id": "charter:req:AUTH:0001",
+  "current_version": 1,
+  "status": "satisfied",
+  "reasons": [
+    {
+      "code": "passing_evidence",
+      "message": "Current passing evidence satisfies the requirement version.",
+      "evidence_id": "EVID-0001"
+    }
+  ],
+  "current_evidence": [
+    {
+      "id": "EVID-0001",
+      "method_id": "VERM-0001",
+      "status": "passing",
+      "authority": "test_derived",
+      "freshness": "current",
+      "evidence_ref": "pytest:tests/test_auth.py::test_rejects_expired_bearer_tokens"
+    }
+  ],
+  "stale_evidence": []
+}
