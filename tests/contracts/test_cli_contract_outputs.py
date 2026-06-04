@@ -200,6 +200,56 @@ def test_criterion_cli_output_matches_contract_fixture(
     assert_matches_fixture(criterion, load_fixture("cli/criterion-add-json.json"))
 
 
+def test_dossier_cli_output_matches_contract_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Reject expired bearer tokens",
+            "--statement",
+            "The API shall reject expired bearer tokens.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "criterion",
+            "add",
+            "REQ-AUTH-0001",
+            "--text",
+            "Expired tokens return 401.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "req",
+            "approve",
+            "REQ-AUTH-0001",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--idempotency-key",
+            "approve-dossier-contract",
+        ],
+        capsys,
+    )
+
+    dossier = run_json(["dossier", "REQ-AUTH-0001"], capsys)
+    assert_matches_fixture(dossier, load_fixture("cli/dossier-json.json"))
+
+
 def test_trace_cli_outputs_match_contract_fixtures(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

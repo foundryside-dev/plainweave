@@ -1,0 +1,180 @@
+{
+  "schema": "loom.charter.requirement_dossier.v1",
+  "identity": {
+    "requirement_id": "req-1",
+    "id": "REQ-AUTH-0001",
+    "stable_id": "charter:req:AUTH:0001",
+    "current_version": 1
+  },
+  "authority_summary": {
+    "status": "approved",
+    "current_approved_version": 1,
+    "current_statement_hash": "sha256:4d9674f0b947daeb092a02fa2b2d0d9c7b501c2385d59a468b181dc3a09d2f3f",
+    "has_active_draft": false,
+    "active_draft_id": null,
+    "verification_status": "satisfied",
+    "baseline_count": 1
+  },
+  "requirement": {
+    "record": {
+      "requirement_id": "req-1",
+      "id": "REQ-AUTH-0001",
+      "stable_id": "charter:req:AUTH:0001",
+      "current_version": 1,
+      "active_draft_id": null,
+      "status": "approved",
+      "current_version_record": {
+        "requirement_id": "req-1",
+        "id": "REQ-AUTH-0001",
+        "stable_id": "charter:req:AUTH:0001",
+        "version": 1,
+        "title": "Reject expired bearer tokens",
+        "statement": "The API shall reject expired bearer tokens.",
+        "statement_hash": "sha256:4d9674f0b947daeb092a02fa2b2d0d9c7b501c2385d59a468b181dc3a09d2f3f",
+        "status": "approved",
+        "approved_by": "human:john",
+        "approved_at": "2026-06-05T00:00:00Z"
+      }
+    },
+    "current_version": {
+      "requirement_id": "req-1",
+      "id": "REQ-AUTH-0001",
+      "stable_id": "charter:req:AUTH:0001",
+      "version": 1,
+      "title": "Reject expired bearer tokens",
+      "statement": "The API shall reject expired bearer tokens.",
+      "statement_hash": "sha256:4d9674f0b947daeb092a02fa2b2d0d9c7b501c2385d59a468b181dc3a09d2f3f",
+      "status": "approved",
+      "approved_by": "human:john",
+      "approved_at": "2026-06-05T00:00:00Z"
+    },
+    "active_draft": null
+  },
+  "acceptance_criteria": {
+    "current_version": [
+      {
+        "id": "AC-0001",
+        "requirement_id": "req-1",
+        "draft_id": null,
+        "version": 1,
+        "position": 1,
+        "text": "Expired tokens return 401.",
+        "status": "approved",
+        "created_by": "human:john",
+        "created_at": "2026-06-05T00:00:00Z"
+      }
+    ],
+    "active_draft": []
+  },
+  "traces": {
+    "incoming": [
+      {
+        "id": "LINK-0001",
+        "state": "accepted",
+        "from": {
+          "kind": "test_selector",
+          "id": "tests/test_auth.py::test_expired"
+        },
+        "relation": "provides_evidence_for",
+        "to": {
+          "kind": "verification_method",
+          "id": "VERM-0001"
+        },
+        "authority": "accepted",
+        "freshness": "current",
+        "confidence": 0.82,
+        "created_by": "agent:codex",
+        "accepted_by": "human:john",
+        "target_snapshot": {}
+      }
+    ],
+    "outgoing": [],
+    "by_state": {
+      "accepted": 1
+    },
+    "by_relation": {
+      "provides_evidence_for": 1
+    },
+    "items": [
+      {
+        "id": "LINK-0001",
+        "state": "accepted",
+        "from": {
+          "kind": "test_selector",
+          "id": "tests/test_auth.py::test_expired"
+        },
+        "relation": "provides_evidence_for",
+        "to": {
+          "kind": "verification_method",
+          "id": "VERM-0001"
+        },
+        "authority": "accepted",
+        "freshness": "current",
+        "confidence": 0.82,
+        "created_by": "agent:codex",
+        "accepted_by": "human:john",
+        "target_snapshot": {}
+      }
+    ]
+  },
+  "verification": {
+    "status": "satisfied",
+    "reasons": [
+      {
+        "code": "passing_evidence",
+        "message": "Current passing evidence exists.",
+        "evidence_id": "EVID-0001"
+      }
+    ],
+    "current_evidence": [
+      {
+        "id": "EVID-0001",
+        "method_id": "VERM-0001",
+        "status": "passing",
+        "authority": "test_derived",
+        "freshness": "current",
+        "evidence_ref": "pytest:tests/test_auth.py::test_expired"
+      }
+    ],
+    "stale_evidence": []
+  },
+  "baseline_exposure": {
+    "summary": {
+      "current": 1,
+      "changed": 0,
+      "missing_current": 0,
+      "superseded_since_baseline": 0
+    },
+    "items": [
+      {
+        "baseline_id": "BASELINE-0001",
+        "name": "Release 1.0 requirements",
+        "locked": true,
+        "created_by": "human:john",
+        "created_at": "2026-06-05T00:00:00Z",
+        "baseline_version": 1,
+        "baseline_statement_hash": "sha256:4d9674f0b947daeb092a02fa2b2d0d9c7b501c2385d59a468b181dc3a09d2f3f",
+        "current_version": 1,
+        "current_statement_hash": "sha256:4d9674f0b947daeb092a02fa2b2d0d9c7b501c2385d59a468b181dc3a09d2f3f",
+        "state": "current"
+      }
+    ]
+  },
+  "computed_gaps": [],
+  "peer_facts": {
+    "live_peer_calls": false,
+    "sources": [],
+    "notes": [
+      "Dossier is computed from the local Charter store only."
+    ]
+  },
+  "next_actions": [
+    {
+      "action": "record_current_evidence",
+      "priority": 2,
+      "reason": "Keep verification evidence fresh before release.",
+      "command": "charter verify evidence record VERM-0001 --status passing --evidence-ref pytest:tests/test_auth.py::test_expired --actor agent:codex --json",
+      "blocked_by": []
+    }
+  ]
+}

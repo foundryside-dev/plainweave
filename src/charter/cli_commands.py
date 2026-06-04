@@ -13,6 +13,16 @@ from charter.models import (
     BaselineDiff,
     BaselineDiffItem,
     BaselineMember,
+    DossierAcceptanceCriteriaSection,
+    DossierAuthoritySummary,
+    DossierBaselineExposure,
+    DossierBaselineExposureItem,
+    DossierComputedGap,
+    DossierNextAction,
+    DossierPeerFacts,
+    DossierRequirementSection,
+    DossierTraceSection,
+    RequirementDossier,
     RequirementDraft,
     RequirementRecord,
     RequirementVerificationStatus,
@@ -61,6 +71,11 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     status_parser = subparsers.add_parser("status", help="Report requirement verification status.")
     status_subparsers = status_parser.add_subparsers(dest="status_command", required=True)
     _register_status_commands(status_subparsers)
+
+    dossier_parser = subparsers.add_parser("dossier", help="Show a requirement dossier.")
+    dossier_parser.add_argument("requirement_id")
+    dossier_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
+    dossier_parser.set_defaults(handler=handle_dossier)
 
 
 def _register_requirement_commands(
@@ -553,6 +568,27 @@ def handle_status_stale(args: argparse.Namespace) -> int:
     )
 
 
+def handle_dossier(args: argparse.Namespace) -> int:
+    try:
+        dossier = _service().requirement_dossier(str(args.requirement_id))
+    except CharterError as exc:
+        return _emit_error(args, exc)
+    dossier_data = _dossier_dict(dossier)
+    if bool(args.json):
+        print(
+            json.dumps(
+                success_envelope(
+                    "loom.charter.requirement_dossier.v1",
+                    dossier_data,
+                    project=_current_project_key(),
+                )
+            )
+        )
+    else:
+        print(_render_dossier(dossier_data))
+    return 0
+
+
 def initialize_project(root: Path, project_key: str) -> dict[str, object]:
     db_path = charter_db_path(root)
     created = not db_path.exists()
@@ -831,3 +867,160 @@ def _requirement_verification_status_dict(status: RequirementVerificationStatus)
         "current_evidence": [_verification_evidence_summary_dict(evidence) for evidence in status.current_evidence],
         "stale_evidence": [_verification_evidence_summary_dict(evidence) for evidence in status.stale_evidence],
     }
+
+
+def _dossier_authority_summary_dict(summary: DossierAuthoritySummary) -> dict[str, object]:
+    return {
+        "status": summary.status,
+        "current_approved_version": summary.current_approved_version,
+        "current_statement_hash": summary.current_statement_hash,
+        "has_active_draft": summary.has_active_draft,
+        "active_draft_id": summary.active_draft_id,
+        "verification_status": summary.verification_status,
+        "baseline_count": summary.baseline_count,
+    }
+
+
+def _dossier_requirement_section_dict(section: DossierRequirementSection) -> dict[str, object]:
+    return {
+        "record": _record_dict(section.record),
+        "current_version": _version_dict(section.current_version) if section.current_version is not None else None,
+        "active_draft": _draft_dict(section.active_draft) if section.active_draft is not None else None,
+    }
+
+
+def _dossier_acceptance_criteria_section_dict(section: DossierAcceptanceCriteriaSection) -> dict[str, object]:
+    return {
+        "current_version": [_criterion_dict(item) for item in section.current_version],
+        "active_draft": [_criterion_dict(item) for item in section.active_draft],
+    }
+
+
+def _dossier_trace_section_dict(section: DossierTraceSection) -> dict[str, object]:
+    return {
+        "incoming": [_trace_dict(item) for item in section.incoming],
+        "outgoing": [_trace_dict(item) for item in section.outgoing],
+        "by_state": section.by_state,
+        "by_relation": section.by_relation,
+        "items": [_trace_dict(item) for item in section.items],
+    }
+
+
+def _dossier_baseline_exposure_item_dict(item: DossierBaselineExposureItem) -> dict[str, object]:
+    return {
+        "baseline_id": item.baseline_id,
+        "name": item.name,
+        "locked": item.locked,
+        "created_by": item.created_by,
+        "created_at": item.created_at,
+        "baseline_version": item.baseline_version,
+        "baseline_statement_hash": item.baseline_statement_hash,
+        "current_version": item.current_version,
+        "current_statement_hash": item.current_statement_hash,
+        "state": item.state,
+    }
+
+
+def _dossier_baseline_exposure_dict(exposure: DossierBaselineExposure) -> dict[str, object]:
+    return {
+        "summary": exposure.summary,
+        "items": [_dossier_baseline_exposure_item_dict(item) for item in exposure.items],
+    }
+
+
+def _dossier_computed_gap_dict(gap: DossierComputedGap) -> dict[str, object]:
+    return {
+        "code": gap.code,
+        "severity": gap.severity,
+        "message": gap.message,
+        "source": gap.source,
+    }
+
+
+def _dossier_peer_facts_dict(peer_facts: DossierPeerFacts) -> dict[str, object]:
+    return {
+        "live_peer_calls": peer_facts.live_peer_calls,
+        "sources": peer_facts.sources,
+        "notes": peer_facts.notes,
+    }
+
+
+def _dossier_next_action_dict(action: DossierNextAction) -> dict[str, object]:
+    return {
+        "action": action.action,
+        "priority": action.priority,
+        "reason": action.reason,
+        "command": action.command,
+        "blocked_by": action.blocked_by,
+    }
+
+
+def _dossier_verification_dict(status: RequirementVerificationStatus) -> dict[str, object]:
+    return {
+        "status": status.status,
+        "reasons": [_verification_reason_dict(reason) for reason in status.reasons],
+        "current_evidence": [_verification_evidence_summary_dict(evidence) for evidence in status.current_evidence],
+        "stale_evidence": [_verification_evidence_summary_dict(evidence) for evidence in status.stale_evidence],
+    }
+
+
+def _dossier_dict(dossier: RequirementDossier) -> dict[str, object]:
+    return {
+        "identity": dict(dossier.identity),
+        "authority_summary": _dossier_authority_summary_dict(dossier.authority_summary),
+        "requirement": _dossier_requirement_section_dict(dossier.requirement),
+        "acceptance_criteria": _dossier_acceptance_criteria_section_dict(dossier.acceptance_criteria),
+        "traces": _dossier_trace_section_dict(dossier.traces),
+        "verification": _dossier_verification_dict(dossier.verification),
+        "baseline_exposure": _dossier_baseline_exposure_dict(dossier.baseline_exposure),
+        "computed_gaps": [_dossier_computed_gap_dict(gap) for gap in dossier.computed_gaps],
+        "peer_facts": _dossier_peer_facts_dict(dossier.peer_facts),
+        "next_actions": [_dossier_next_action_dict(action) for action in dossier.next_actions],
+    }
+
+
+def _render_dossier(dossier: dict[str, object]) -> str:
+    identity = dossier["identity"]
+    authority = dossier["authority_summary"]
+    verification = dossier["verification"]
+    baselines = dossier["baseline_exposure"]
+    gaps = dossier["computed_gaps"]
+    next_actions = dossier["next_actions"]
+    if not isinstance(identity, dict) or not isinstance(authority, dict) or not isinstance(verification, dict):
+        raise TypeError("invalid dossier shape")
+    if not isinstance(baselines, dict) or not isinstance(gaps, list) or not isinstance(next_actions, list):
+        raise TypeError("invalid dossier shape")
+
+    requirement_id = str(identity["id"])
+    current_version = identity.get("current_version")
+    status = str(authority["status"])
+    verification_status = str(verification["status"])
+    lines = [f"{requirement_id} v{current_version} {status}", f"Verification: {verification_status}"]
+
+    baseline_items = baselines.get("items")
+    lines.append("Baselines:")
+    if isinstance(baseline_items, list) and baseline_items:
+        for item in baseline_items:
+            if isinstance(item, dict):
+                lines.append(f"- {item['baseline_id']} {item['name']} ({item['state']})")
+    else:
+        lines.append("- none")
+
+    lines.append("Gaps:")
+    if gaps:
+        for gap in gaps:
+            if isinstance(gap, dict):
+                lines.append(f"- {gap['code']} [{gap['severity']}]: {gap['message']}")
+    else:
+        lines.append("- none")
+
+    lines.append("Next actions:")
+    if next_actions:
+        for action in next_actions:
+            if isinstance(action, dict):
+                command = action.get("command")
+                suffix = f" - {command}" if isinstance(command, str) and command else ""
+                lines.append(f"- P{action['priority']} {action['action']}: {action['reason']}{suffix}")
+    else:
+        lines.append("- none")
+    return "\n".join(lines)
