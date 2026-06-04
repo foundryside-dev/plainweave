@@ -1,0 +1,171 @@
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from typing import Any, cast
+
+import pytest
+
+from charter.cli import main
+
+FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "contracts"
+
+
+def load_fixture(path: str) -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads((FIXTURE_ROOT / path).read_text(encoding="utf-8")))
+
+
+def json_output(output: str) -> dict[str, Any]:
+    return cast(dict[str, Any], json.loads(output))
+
+
+def run_json(args: list[str], capsys: pytest.CaptureFixture[str], expected_status: int = 0) -> dict[str, Any]:
+    assert main([*args, "--json"]) == expected_status
+    return json_output(capsys.readouterr().out)
+
+
+def init_project(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.chdir(tmp_path)
+    assert main(["init", "--project-key", "AUTH", "--json"]) == 0
+    capsys.readouterr()
+
+
+def assert_matches_fixture(actual: dict[str, Any], fixture: dict[str, Any]) -> None:
+    assert set(actual) == set(fixture)
+    for key, expected in fixture.items():
+        assert_value_matches(actual[key], expected, key)
+
+
+def assert_value_matches(actual: Any, expected: Any, field_name: str) -> None:
+    if field_name in {"generated_at", "approved_at"}:
+        assert isinstance(actual, str)
+        assert actual
+        return
+    if isinstance(expected, dict):
+        assert isinstance(actual, dict)
+        assert set(actual) == set(expected)
+        for key, nested_expected in expected.items():
+            assert_value_matches(actual[key], nested_expected, key)
+        return
+    if isinstance(expected, list):
+        assert isinstance(actual, list)
+        assert len(actual) == len(expected)
+        for actual_item, expected_item in zip(actual, expected, strict=True):
+            assert_value_matches(actual_item, expected_item, field_name)
+        return
+    assert actual == expected
+
+
+def test_requirement_cli_outputs_match_contract_fixtures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+
+    draft = run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Reject expired bearer tokens",
+            "--statement",
+            "The API shall reject expired bearer tokens.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(draft, load_fixture("cli/requirement-draft-add.json"))
+
+    approved = run_json(
+        [
+            "req",
+            "approve",
+            "REQ-AUTH-0001",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--idempotency-key",
+            "approve-contract",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(approved, load_fixture("cli/requirement-approve.json"))
+
+
+def test_cli_error_output_matches_contract_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+
+    error = run_json(
+        ["req", "add", "--title", "Missing actor", "--statement", "No actor."],
+        capsys,
+        expected_status=2,
+    )
+    assert_matches_fixture(error, load_fixture("cli/error-missing-actor.json"))
+
+
+def test_trace_cli_outputs_match_contract_fixtures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+
+    proposed = run_json(
+        [
+            "trace",
+            "propose",
+            "--from-kind",
+            "test_selector",
+            "--from-id",
+            "tests/test_auth.py::test_expired",
+            "--relation",
+            "provides_evidence_for",
+            "--to-kind",
+            "verification_method",
+            "--to-id",
+            "VERM-0001",
+            "--actor",
+            "agent:codex",
+            "--confidence",
+            "0.82",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(proposed, load_fixture("cli/trace-propose.json"))
+
+    accepted = run_json(["trace", "accept", "LINK-0001", "--actor", "human:john"], capsys)
+    assert_matches_fixture(accepted, load_fixture("cli/trace-accept.json"))
+
+    second = run_json(
+        [
+            "trace",
+            "propose",
+            "--from-kind",
+            "file_ref",
+            "--from-id",
+            "src/auth.py",
+            "--relation",
+            "fragile_satisfies",
+            "--to-kind",
+            "requirement_version",
+            "--to-id",
+            "REQ-AUTH-0001@1",
+            "--actor",
+            "agent:codex",
+        ],
+        capsys,
+    )
+    assert second["data"]["id"] == "LINK-0002"
+
+    rejected = run_json(["trace", "reject", "LINK-0002", "--actor", "human:john", "--reason", "not relevant"], capsys)
+    assert_matches_fixture(rejected, load_fixture("cli/trace-reject.json"))
+
+    listed = run_json(["trace", "list", "--state", "accepted"], capsys)
+    assert_matches_fixture(listed, load_fixture("cli/trace-list-accepted.json"))
