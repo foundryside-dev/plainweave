@@ -39,3 +39,27 @@ class RequirementRecord:
     active_draft_id: str | None
     status: str
     current_version_record: RequirementVersion | None
+
+
+@dataclass(frozen=True)
+class AcceptanceCriterion:
+    id: str
+    requirement_id: str
+    draft_id: str | None
+    version: int | None
+    position: int
+    text: str
+    status: str
+    created_by: str
+
+    def with_version(self, version: int) -> AcceptanceCriterion:
+        return AcceptanceCriterion(
+            self.id,
+            self.requirement_id,
+            self.draft_id,
+            version,
+            self.position,
+            self.text,
+            self.status,
+            self.created_by,
+        )

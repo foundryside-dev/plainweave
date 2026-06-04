@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from charter.errors import CharterError, ErrorCode
-from charter.models import RequirementDraft, RequirementRecord, RequirementVersion
+from charter.models import AcceptanceCriterion, RequirementDraft, RequirementRecord, RequirementVersion
 from charter.store import connect, read_schema_meta
 
 
@@ -161,6 +161,10 @@ class CharterService:
                 """,
                 (version_number, "approved", now, requirement["requirement_id"]),
             )
+            connection.execute(
+                "update acceptance_criteria set version = ? where requirement_id = ? and draft_id = ?",
+                (version_number, requirement["requirement_id"], draft_id),
+            )
             self._record_event(
                 connection,
                 "requirement_approved",
@@ -294,6 +298,100 @@ class CharterService:
             self._store_idempotency(connection, idempotency_key, "deprecate_requirement", requirement_id, record)
             connection.commit()
             return record
+
+    def add_acceptance_criterion(
+        self,
+        requirement_id: str,
+        text: str,
+        *,
+        actor: str,
+        position: int | None = None,
+    ) -> AcceptanceCriterion:
+        self._require_actor(actor)
+        now = self._now()
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            draft_id = requirement["active_draft_id"]
+            if not isinstance(draft_id, str):
+                raise self._error(ErrorCode.POLICY_REQUIRED, "acceptance criteria changes require an active draft")
+            next_position = position or self._next_criterion_position(
+                connection, str(requirement["requirement_id"]), draft_id
+            )
+            criterion_id = f"AC-{self._next_criterion_number(connection):04d}"
+            connection.execute(
+                """
+                insert into acceptance_criteria(
+                  criterion_id, requirement_id, draft_id, version, position,
+                  text, status, created_by, created_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    criterion_id,
+                    requirement["requirement_id"],
+                    draft_id,
+                    None,
+                    next_position,
+                    text,
+                    "active",
+                    actor,
+                    now,
+                ),
+            )
+            self._record_event(
+                connection,
+                "acceptance_criterion_added",
+                "requirement",
+                str(requirement["requirement_id"]),
+                actor,
+                None,
+                {"criterion_id": criterion_id, "draft_id": draft_id},
+                now,
+            )
+            connection.commit()
+            return AcceptanceCriterion(
+                criterion_id,
+                str(requirement["requirement_id"]),
+                draft_id,
+                None,
+                next_position,
+                text,
+                "active",
+                actor,
+            )
+
+    def list_acceptance_criteria(self, requirement_id: str, version: int | None = None) -> list[AcceptanceCriterion]:
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            if version is not None:
+                rows = connection.execute(
+                    """
+                    select * from acceptance_criteria
+                    where requirement_id = ? and version = ?
+                    order by position, criterion_id
+                    """,
+                    (requirement["requirement_id"], version),
+                ).fetchall()
+            else:
+                active_draft_id = requirement["active_draft_id"]
+                if isinstance(active_draft_id, str):
+                    rows = connection.execute(
+                        """
+                        select * from acceptance_criteria
+                        where requirement_id = ? and draft_id = ?
+                        order by position, criterion_id
+                        """,
+                        (requirement["requirement_id"], active_draft_id),
+                    ).fetchall()
+                else:
+                    rows = connection.execute(
+                        """
+                        select * from acceptance_criteria
+                        where requirement_id = ? and version = ?
+                        order by position, criterion_id
+                        """,
+                        (requirement["requirement_id"], int(requirement["current_version"])),
+                    ).fetchall()
+            return [self._criterion_from_row(row) for row in rows]
 
     def get_requirement(self, requirement_id: str) -> RequirementRecord:
         with connect(self.db_path) as connection:
@@ -444,6 +542,29 @@ class CharterService:
     def _next_requirement_number(self, connection: sqlite3.Connection) -> int:
         count = int(connection.execute("select count(*) from requirements").fetchone()[0])
         return count + 1
+
+    def _next_criterion_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from acceptance_criteria").fetchone()[0])
+        return count + 1
+
+    def _next_criterion_position(self, connection: sqlite3.Connection, requirement_id: str, draft_id: str) -> int:
+        value = connection.execute(
+            "select max(position) from acceptance_criteria where requirement_id = ? and draft_id = ?",
+            (requirement_id, draft_id),
+        ).fetchone()[0]
+        return int(value) + 1 if value is not None else 1
+
+    def _criterion_from_row(self, row: sqlite3.Row) -> AcceptanceCriterion:
+        return AcceptanceCriterion(
+            str(row["criterion_id"]),
+            str(row["requirement_id"]),
+            row["draft_id"] if isinstance(row["draft_id"], str) else None,
+            self._optional_int(row["version"]),
+            int(row["position"]),
+            str(row["text"]),
+            str(row["status"]),
+            str(row["created_by"]),
+        )
 
     def _record_event(
         self,
