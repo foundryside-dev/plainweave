@@ -24,7 +24,7 @@ The replacement bar is not "copy DOORS." The bar is:
 
 | Gap | Why it matters | Current state | Priority |
 |---|---|---|---|
-| Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Deferred. | P0 |
+| Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Implemented in the baseline-core local slice. | P0 |
 | Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Deferred. | P0 |
 | Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Deferred. | P0 |
 | Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Deferred. | P0 |
@@ -430,6 +430,10 @@ or UI features before Charter can answer the core questions:
 
 Goal: make approved requirement sets auditable.
 
+Status: implemented on `codex/baseline-core`. Evidence includes immutable
+baseline storage, `charter baseline create/show/list/diff`, baseline JSON
+fixtures, state tests, CLI tests, and final local gates.
+
 Suggested Filigree breakdown:
 
 - design baseline schema and contract fixture;
@@ -441,9 +445,9 @@ Suggested Filigree breakdown:
 
 Exit criteria:
 
-- a release can name and inspect a frozen requirement-version set;
-- baseline diff is machine-readable;
-- existing v0.1 tests still pass.
+- Complete: a release can name and inspect a frozen requirement-version set.
+- Complete: baseline diff is machine-readable.
+- Complete: existing v0.1 tests still pass with the baseline suite included.
 
 ### Package B: Verification And Satisfaction
 
@@ -492,4 +496,3 @@ Exit criteria:
 - Never make Charter depend on peer tools for local requirements use.
 - Never hide stale, waived, or orphaned facts; label them and explain the
   consequence.
-

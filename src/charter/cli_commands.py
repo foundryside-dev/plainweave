@@ -9,6 +9,10 @@ from charter.envelopes import error_envelope, list_envelope, success_envelope
 from charter.errors import CharterError, ErrorCode
 from charter.models import (
     AcceptanceCriterion,
+    Baseline,
+    BaselineDiff,
+    BaselineDiffItem,
+    BaselineMember,
     RequirementDraft,
     RequirementRecord,
     RequirementVersion,
@@ -41,6 +45,10 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     trace_parser = subparsers.add_parser("trace", help="Manage trace links.")
     trace_subparsers = trace_parser.add_subparsers(dest="trace_command", required=True)
     _register_trace_commands(trace_subparsers)
+
+    baseline_parser = subparsers.add_parser("baseline", help="Manage requirement baselines.")
+    baseline_subparsers = baseline_parser.add_subparsers(dest="baseline_command", required=True)
+    _register_baseline_commands(baseline_subparsers)
 
 
 def _register_requirement_commands(
@@ -157,6 +165,31 @@ def _register_trace_commands(
     list_parser.add_argument("--state")
     list_parser.add_argument("--json", action="store_true")
     list_parser.set_defaults(handler=handle_trace_list)
+
+
+def _register_baseline_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    create_parser = subparsers.add_parser("create", help="Create a locked baseline of approved requirements.")
+    create_parser.add_argument("--name", required=True)
+    create_parser.add_argument("--description")
+    create_parser.add_argument("--actor", default="")
+    create_parser.add_argument("--json", action="store_true")
+    create_parser.set_defaults(handler=handle_baseline_create)
+
+    show_parser = subparsers.add_parser("show", help="Show a baseline.")
+    show_parser.add_argument("baseline_id")
+    show_parser.add_argument("--json", action="store_true")
+    show_parser.set_defaults(handler=handle_baseline_show)
+
+    list_parser = subparsers.add_parser("list", help="List baselines.")
+    list_parser.add_argument("--json", action="store_true")
+    list_parser.set_defaults(handler=handle_baseline_list)
+
+    diff_parser = subparsers.add_parser("diff", help="Diff a baseline against current approved requirements.")
+    diff_parser.add_argument("baseline_id")
+    diff_parser.add_argument("--json", action="store_true")
+    diff_parser.set_defaults(handler=handle_baseline_diff)
 
 
 def handle_init(args: argparse.Namespace) -> int:
@@ -362,6 +395,44 @@ def handle_trace_list(args: argparse.Namespace) -> int:
     )
 
 
+def handle_baseline_create(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.baseline.v1",
+        lambda service: _baseline_dict(
+            service.create_baseline(
+                str(args.name),
+                actor=str(args.actor),
+                description=args.description if isinstance(args.description, str) else None,
+            )
+        ),
+    )
+
+
+def handle_baseline_show(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.baseline.v1",
+        lambda service: _baseline_dict(service.show_baseline(str(args.baseline_id))),
+    )
+
+
+def handle_baseline_list(args: argparse.Namespace) -> int:
+    return _handle_service_list(
+        args,
+        "loom.charter.baseline_list.v1",
+        lambda service: [_baseline_dict(item) for item in service.list_baselines()],
+    )
+
+
+def handle_baseline_diff(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.baseline_diff.v1",
+        lambda service: _baseline_diff_dict(service.diff_baseline(str(args.baseline_id))),
+    )
+
+
 def initialize_project(root: Path, project_key: str) -> dict[str, object]:
     db_path = charter_db_path(root)
     created = not db_path.exists()
@@ -534,4 +605,48 @@ def _trace_dict(link: TraceLink) -> dict[str, object]:
         "created_by": link.created_by,
         "accepted_by": link.accepted_by,
         "target_snapshot": link.target_snapshot,
+    }
+
+
+def _baseline_member_dict(member: BaselineMember) -> dict[str, object]:
+    return {
+        "requirement_id": member.requirement_id,
+        "id": member.id,
+        "stable_id": member.stable_id,
+        "version": member.version,
+        "statement_hash": member.statement_hash,
+        "status_at_baseline": member.status_at_baseline,
+    }
+
+
+def _baseline_dict(baseline: Baseline) -> dict[str, object]:
+    return {
+        "id": baseline.id,
+        "name": baseline.name,
+        "description": baseline.description,
+        "locked": baseline.locked,
+        "created_by": baseline.created_by,
+        "created_at": baseline.created_at,
+        "members": [_baseline_member_dict(member) for member in baseline.members],
+    }
+
+
+def _baseline_diff_item_dict(item: BaselineDiffItem) -> dict[str, object]:
+    return {
+        "requirement_id": item.requirement_id,
+        "id": item.id,
+        "stable_id": item.stable_id,
+        "baseline_version": item.baseline_version,
+        "current_version": item.current_version,
+        "status": item.status,
+        "baseline_statement_hash": item.baseline_statement_hash,
+        "current_statement_hash": item.current_statement_hash,
+    }
+
+
+def _baseline_diff_dict(diff: BaselineDiff) -> dict[str, object]:
+    return {
+        "baseline_id": diff.baseline_id,
+        "summary": diff.summary,
+        "items": [_baseline_diff_item_dict(item) for item in diff.items],
     }

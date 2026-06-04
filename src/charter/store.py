@@ -113,6 +113,56 @@ def migrate(db_path: Path, *, project_key: str) -> None:
               target_snapshot_json text not null
             );
 
+            create table if not exists baselines (
+              baseline_id text primary key,
+              name text not null,
+              description text not null,
+              locked integer not null,
+              created_by text not null,
+              created_at text not null
+            );
+
+            create trigger if not exists locked_baselines_immutable_update
+            before update on baselines
+            for each row
+            when old.locked = 1
+            begin
+              select raise(abort, 'locked baselines are immutable');
+            end;
+
+            create trigger if not exists locked_baselines_immutable_delete
+            before delete on baselines
+            for each row
+            when old.locked = 1
+            begin
+              select raise(abort, 'locked baselines are immutable');
+            end;
+
+            create table if not exists baseline_members (
+              baseline_id text not null references baselines(baseline_id),
+              requirement_id text not null references requirements(requirement_id),
+              version integer not null,
+              display_id text not null,
+              stable_id text not null,
+              statement_hash text not null,
+              status_at_baseline text not null,
+              primary key(baseline_id, requirement_id, version)
+            );
+
+            create trigger if not exists baseline_members_immutable_update
+            before update on baseline_members
+            for each row
+            begin
+              select raise(abort, 'baseline members are immutable');
+            end;
+
+            create trigger if not exists baseline_members_immutable_delete
+            before delete on baseline_members
+            for each row
+            begin
+              select raise(abort, 'baseline members are immutable');
+            end;
+
             create table if not exists events (
               event_id text primary key,
               event_type text not null,

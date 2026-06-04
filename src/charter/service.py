@@ -12,6 +12,10 @@ from typing import Any, cast
 from charter.errors import CharterError, ErrorCode
 from charter.models import (
     AcceptanceCriterion,
+    Baseline,
+    BaselineDiff,
+    BaselineDiffItem,
+    BaselineMember,
     RequirementDraft,
     RequirementRecord,
     RequirementVersion,
@@ -24,6 +28,156 @@ from charter.store import connect, read_schema_meta
 class CharterService:
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
+
+    def create_baseline(self, name: str, *, actor: str, description: str | None = None) -> Baseline:
+        self._require_actor(actor)
+        now = self._now()
+        with connect(self.db_path) as connection:
+            baseline_id = f"BASELINE-{self._next_baseline_number(connection):04d}"
+            connection.execute(
+                """
+                insert into baselines(
+                  baseline_id, name, description, locked, created_by, created_at
+                ) values (?, ?, ?, ?, ?, ?)
+                """,
+                (baseline_id, name, description or "", 1, actor, now),
+            )
+            rows = connection.execute(
+                """
+                select r.requirement_id, r.display_id, r.stable_id, v.version,
+                       v.statement_hash, v.status
+                from requirements r
+                join requirement_versions v
+                  on v.requirement_id = r.requirement_id
+                 and v.version = r.current_version
+                where r.current_version > 0
+                  and r.status in ('approved', 'deprecated')
+                  and v.status in ('approved', 'deprecated')
+                order by r.display_id
+                """
+            ).fetchall()
+            for row in rows:
+                connection.execute(
+                    """
+                    insert into baseline_members(
+                      baseline_id, requirement_id, version, display_id, stable_id,
+                      statement_hash, status_at_baseline
+                    ) values (?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        baseline_id,
+                        row["requirement_id"],
+                        row["version"],
+                        row["display_id"],
+                        row["stable_id"],
+                        row["statement_hash"],
+                        row["status"],
+                    ),
+                )
+            baseline = self._baseline_from_row(connection, self._baseline_row(connection, baseline_id))
+            self._record_event(
+                connection,
+                "baseline_created",
+                "baseline",
+                baseline_id,
+                actor,
+                None,
+                {"baseline_id": baseline_id, "name": name, "members": len(baseline.members)},
+                now,
+            )
+            connection.commit()
+            return baseline
+
+    def show_baseline(self, baseline_id: str) -> Baseline:
+        with connect(self.db_path) as connection:
+            return self._baseline_from_row(connection, self._baseline_row(connection, baseline_id))
+
+    def list_baselines(self) -> list[Baseline]:
+        with connect(self.db_path) as connection:
+            rows = connection.execute("select * from baselines order by baseline_id").fetchall()
+            return [self._baseline_from_row(connection, row) for row in rows]
+
+    def diff_baseline(self, baseline_id: str) -> BaselineDiff:
+        with connect(self.db_path) as connection:
+            self._baseline_row(connection, baseline_id)
+            baseline_members = self._baseline_members(connection, baseline_id)
+            baseline_by_requirement = {member.requirement_id: member for member in baseline_members}
+            items: list[BaselineDiffItem] = []
+            summary = {
+                "unchanged": 0,
+                "changed": 0,
+                "missing_current": 0,
+                "new_since_baseline": 0,
+                "superseded_since_baseline": 0,
+            }
+            for member in baseline_members:
+                requirement = connection.execute(
+                    "select * from requirements where requirement_id = ?",
+                    (member.requirement_id,),
+                ).fetchone()
+                current_version = int(requirement["current_version"]) if requirement is not None else None
+                current = (
+                    self._version_by_number(connection, member.requirement_id, current_version)
+                    if current_version
+                    else None
+                )
+                if current is None:
+                    status = "missing_current"
+                    current_hash = None
+                elif current.version != member.version:
+                    status = "superseded_since_baseline"
+                    current_hash = current.statement_hash
+                elif current.statement_hash != member.statement_hash:
+                    status = "changed"
+                    current_hash = current.statement_hash
+                else:
+                    status = "unchanged"
+                    current_hash = current.statement_hash
+                summary[status] += 1
+                items.append(
+                    BaselineDiffItem(
+                        member.requirement_id,
+                        member.id,
+                        member.stable_id,
+                        member.version,
+                        current_version,
+                        status,
+                        member.statement_hash,
+                        current_hash,
+                    )
+                )
+            rows = connection.execute(
+                """
+                select r.requirement_id, r.display_id, r.stable_id, v.version,
+                       v.statement_hash
+                from requirements r
+                join requirement_versions v
+                  on v.requirement_id = r.requirement_id
+                 and v.version = r.current_version
+                where r.current_version > 0
+                  and r.status in ('approved', 'deprecated')
+                  and v.status in ('approved', 'deprecated')
+                order by r.display_id
+                """
+            ).fetchall()
+            for row in rows:
+                requirement_id = str(row["requirement_id"])
+                if requirement_id in baseline_by_requirement:
+                    continue
+                summary["new_since_baseline"] += 1
+                items.append(
+                    BaselineDiffItem(
+                        requirement_id,
+                        str(row["display_id"]),
+                        str(row["stable_id"]),
+                        None,
+                        int(row["version"]),
+                        "new_since_baseline",
+                        None,
+                        str(row["statement_hash"]),
+                    )
+                )
+            return BaselineDiff(baseline_id, summary, items)
 
     def create_requirement(
         self,
@@ -744,6 +898,49 @@ class CharterService:
     def _next_link_number(self, connection: sqlite3.Connection) -> int:
         count = int(connection.execute("select count(*) from trace_links").fetchone()[0])
         return count + 1
+
+    def _next_baseline_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from baselines").fetchone()[0])
+        return count + 1
+
+    def _baseline_row(self, connection: sqlite3.Connection, baseline_id: str) -> sqlite3.Row:
+        row = connection.execute("select * from baselines where baseline_id = ?", (baseline_id,)).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"baseline not found: {baseline_id}")
+        return cast(sqlite3.Row, row)
+
+    def _baseline_members(self, connection: sqlite3.Connection, baseline_id: str) -> list[BaselineMember]:
+        rows = connection.execute(
+            """
+            select * from baseline_members
+            where baseline_id = ?
+            order by display_id, version
+            """,
+            (baseline_id,),
+        ).fetchall()
+        return [
+            BaselineMember(
+                str(row["requirement_id"]),
+                str(row["display_id"]),
+                str(row["stable_id"]),
+                int(row["version"]),
+                str(row["statement_hash"]),
+                str(row["status_at_baseline"]),
+            )
+            for row in rows
+        ]
+
+    def _baseline_from_row(self, connection: sqlite3.Connection, row: sqlite3.Row) -> Baseline:
+        baseline_id = str(row["baseline_id"])
+        return Baseline(
+            baseline_id,
+            str(row["name"]),
+            str(row["description"]),
+            bool(row["locked"]),
+            str(row["created_by"]),
+            str(row["created_at"]),
+            self._baseline_members(connection, baseline_id),
+        )
 
     def _criterion_from_row(self, row: sqlite3.Row) -> AcceptanceCriterion:
         return AcceptanceCriterion(

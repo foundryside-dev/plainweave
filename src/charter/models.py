@@ -87,3 +87,43 @@ class TraceLink:
     created_by: str
     accepted_by: str | None
     target_snapshot: dict[str, Any]
+
+
+@dataclass(frozen=True)
+class BaselineMember:
+    requirement_id: str
+    id: str
+    stable_id: str
+    version: int
+    statement_hash: str
+    status_at_baseline: str
+
+
+@dataclass(frozen=True)
+class Baseline:
+    id: str
+    name: str
+    description: str
+    locked: bool
+    created_by: str
+    created_at: str
+    members: list[BaselineMember]
+
+
+@dataclass(frozen=True)
+class BaselineDiffItem:
+    requirement_id: str
+    id: str
+    stable_id: str
+    baseline_version: int | None
+    current_version: int | None
+    status: str
+    baseline_statement_hash: str | None
+    current_statement_hash: str | None
+
+
+@dataclass(frozen=True)
+class BaselineDiff:
+    baseline_id: str
+    summary: dict[str, int]
+    items: list[BaselineDiffItem]

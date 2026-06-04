@@ -259,3 +259,108 @@ def test_trace_cli_outputs_match_contract_fixtures(
 
     listed = run_json(["trace", "list", "--state", "accepted"], capsys)
     assert_matches_fixture(listed, load_fixture("cli/trace-list-json.json"))
+
+
+def test_baseline_cli_outputs_match_contract_fixtures(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Reject expired bearer tokens",
+            "--statement",
+            "The API shall reject expired bearer tokens.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "req",
+            "approve",
+            "REQ-AUTH-0001",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--idempotency-key",
+            "approve-baseline-contract",
+        ],
+        capsys,
+    )
+
+    created = run_json(
+        [
+            "baseline",
+            "create",
+            "--name",
+            "Release 1.0 requirements",
+            "--description",
+            "Approved requirements for release 1.0.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(created, load_fixture("cli/baseline-create-json.json"))
+
+    shown = run_json(["baseline", "show", "BASELINE-0001"], capsys)
+    assert_matches_fixture(shown, load_fixture("cli/baseline-show-json.json"))
+
+    listed = run_json(["baseline", "list"], capsys)
+    assert_matches_fixture(listed, load_fixture("cli/baseline-list-json.json"))
+
+    run_json(
+        [
+            "req",
+            "supersede",
+            "REQ-AUTH-0001",
+            "--title",
+            "Reject invalid bearer tokens",
+            "--statement",
+            "The API shall reject expired or malformed bearer tokens.",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "1",
+            "--idempotency-key",
+            "supersede-baseline-contract",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Log token failures",
+            "--statement",
+            "The API shall log token failures.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    run_json(
+        [
+            "req",
+            "approve",
+            "REQ-AUTH-0002",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--idempotency-key",
+            "approve-baseline-new-contract",
+        ],
+        capsys,
+    )
+
+    diff = run_json(["baseline", "diff", "BASELINE-0001"], capsys)
+    assert_matches_fixture(diff, load_fixture("cli/baseline-diff-json.json"))

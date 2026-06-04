@@ -32,6 +32,8 @@ TRACE_AUTHORITIES = {
 TRACE_FRESHNESS = {"current", "stale", "unknown", "orphaned", "not_applicable"}
 
 REQUIRED_FIXTURES = {
+    "baselines/baseline.json",
+    "baselines/baseline-diff.json",
     "envelopes/success.json",
     "envelopes/error-validation.json",
     "envelopes/error-conflict.json",
@@ -55,6 +57,10 @@ REQUIRED_FIXTURES = {
     "cli/trace-list-json.json",
     "cli/error-validation-json.json",
     "cli/error-conflict-json.json",
+    "cli/baseline-create-json.json",
+    "cli/baseline-show-json.json",
+    "cli/baseline-list-json.json",
+    "cli/baseline-diff-json.json",
 }
 
 
@@ -275,3 +281,78 @@ def test_mcp_side_effect_metadata_fixture_contract() -> None:
     assert fixture["supports_dry_run"] is True
     assert fixture["peer_side_effects"] == []
     assert fixture["retry_contract"]
+
+
+def test_baseline_fixture_contract() -> None:
+    fixture = load_fixture("baselines/baseline.json")
+
+    assert set(fixture) == {
+        "schema",
+        "id",
+        "name",
+        "description",
+        "locked",
+        "created_by",
+        "created_at",
+        "members",
+    }
+    assert fixture["schema"] == "loom.charter.baseline.v1"
+    assert fixture["id"].startswith("BASELINE-")
+    assert fixture["name"]
+    assert isinstance(fixture["description"], str)
+    assert fixture["locked"] is True
+    assert fixture["created_by"].startswith(("human:", "agent:"))
+    assert isinstance(fixture["members"], list)
+    assert fixture["members"]
+    for member in fixture["members"]:
+        assert set(member) == {
+            "requirement_id",
+            "id",
+            "stable_id",
+            "version",
+            "statement_hash",
+            "status_at_baseline",
+        }
+        assert member["id"].startswith("REQ-AUTH-")
+        assert member["stable_id"].startswith("charter:req:AUTH:")
+        assert isinstance(member["version"], int)
+        assert member["statement_hash"].startswith("sha256:")
+        assert member["status_at_baseline"] in {"approved", "deprecated"}
+
+
+def test_baseline_diff_fixture_contract() -> None:
+    fixture = load_fixture("baselines/baseline-diff.json")
+
+    assert set(fixture) == {"schema", "baseline_id", "summary", "items"}
+    assert fixture["schema"] == "loom.charter.baseline_diff.v1"
+    assert fixture["baseline_id"].startswith("BASELINE-")
+    assert set(fixture["summary"]) == {
+        "unchanged",
+        "changed",
+        "missing_current",
+        "new_since_baseline",
+        "superseded_since_baseline",
+    }
+    for count in fixture["summary"].values():
+        assert isinstance(count, int)
+        assert count >= 0
+    assert isinstance(fixture["items"], list)
+    assert fixture["items"]
+    for item in fixture["items"]:
+        assert set(item) == {
+            "requirement_id",
+            "id",
+            "stable_id",
+            "baseline_version",
+            "current_version",
+            "status",
+            "baseline_statement_hash",
+            "current_statement_hash",
+        }
+        assert item["status"] in {
+            "unchanged",
+            "changed",
+            "missing_current",
+            "new_since_baseline",
+            "superseded_since_baseline",
+        }
