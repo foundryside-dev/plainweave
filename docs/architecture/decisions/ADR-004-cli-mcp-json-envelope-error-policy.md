@@ -1,6 +1,6 @@
 # ADR-004: CLI/MCP JSON Envelope And Error Policy
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-06-04
 **Deciders**: Charter maintainers
 **Context**: Agent-facing CLI and MCP surfaces must be structured, retry-safe, and recoverable.

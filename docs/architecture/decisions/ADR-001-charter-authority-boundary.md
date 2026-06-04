@@ -1,6 +1,6 @@
 # ADR-001: Charter Authority Boundary
 
-**Status**: Proposed
+**Status**: Accepted
 **Date**: 2026-06-04
 **Deciders**: Charter maintainers
 **Context**: Charter must enter Loom as a peer federation member, not as a hidden suite runtime or an extension of an existing tool.
