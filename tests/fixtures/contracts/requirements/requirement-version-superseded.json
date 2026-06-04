@@ -1,0 +1,13 @@
+{
+  "schema": "loom.charter.requirement_version.v1",
+  "id": "REQ-AUTH-017",
+  "stable_id": "charter:req:AUTH:017",
+  "version": 1,
+  "title": "Reject expired bearer tokens",
+  "statement": "The API shall reject expired bearer tokens.",
+  "statement_hash": "sha256:3d8a6f8d59adba1a1d33ff5f8f9f4b2f410f60c8e8f7a3d3e762c3b7b719257c",
+  "status": "superseded",
+  "approved_by": "human:john",
+  "approved_at": "2026-06-04T10:00:00+10:00",
+  "superseded_by_version": 2
+}

@@ -98,6 +98,14 @@ def _register_requirement_commands(
     deprecate_parser.add_argument("--json", action="store_true")
     deprecate_parser.set_defaults(handler=handle_req_deprecate)
 
+    reject_parser = subparsers.add_parser("reject", help="Reject the active requirement draft.")
+    reject_parser.add_argument("requirement_id")
+    reject_parser.add_argument("--actor", default="")
+    reject_parser.add_argument("--expected-version", required=True, type=int)
+    reject_parser.add_argument("--reason", required=True)
+    reject_parser.add_argument("--json", action="store_true")
+    reject_parser.set_defaults(handler=handle_req_reject)
+
 
 def _register_criterion_commands(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
@@ -266,6 +274,21 @@ def handle_req_deprecate(args: argparse.Namespace) -> int:
     )
 
 
+def handle_req_reject(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "loom.charter.requirement.v1",
+        lambda service: _record_dict(
+            service.reject_requirement(
+                str(args.requirement_id),
+                actor=str(args.actor),
+                expected_version=int(args.expected_version),
+                reason=str(args.reason),
+            )
+        ),
+    )
+
+
 def handle_criterion_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
@@ -420,7 +443,16 @@ def _emit_error(args: argparse.Namespace, exc: CharterError) -> int:
 
 
 def _service() -> CharterService:
-    return CharterService(charter_db_path(project_root()))
+    db_path = charter_db_path(project_root())
+    if not db_path.exists():
+        raise CharterError(
+            ErrorCode.NOT_FOUND,
+            "Charter project is not initialized",
+            recoverable=True,
+            hint="Run `charter init` in this project and retry.",
+            details={"db_path": str(db_path)},
+        )
+    return CharterService(db_path)
 
 
 def _current_project_key() -> str | None:
@@ -485,6 +517,7 @@ def _criterion_dict(criterion: AcceptanceCriterion) -> dict[str, object]:
         "text": criterion.text,
         "status": criterion.status,
         "created_by": criterion.created_by,
+        "created_at": criterion.created_at,
     }
 
 

@@ -92,6 +92,102 @@ def test_approval_same_idempotency_key_with_different_expected_version_conflicts
     assert exc_info.value.code == ErrorCode.CONFLICT
 
 
+def test_same_idempotency_key_cannot_replay_across_operations(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    draft = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+    service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="same")
+
+    with pytest.raises(CharterError) as exc_info:
+        service.supersede_requirement(
+            draft.id,
+            title="Reject invalid bearer tokens",
+            statement="The API shall reject expired or malformed bearer tokens.",
+            actor="human:john",
+            expected_version=1,
+            idempotency_key="same",
+        )
+
+    assert exc_info.value.code == ErrorCode.CONFLICT
+
+
+def test_same_idempotency_key_cannot_replay_across_requirements(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    first = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+    second = service.create_requirement(
+        "Log token failures", "The API shall log token validation failures.", "human:john"
+    )
+    service.approve_requirement(first.id, actor="human:john", expected_version=0, idempotency_key="same")
+
+    with pytest.raises(CharterError) as exc_info:
+        service.approve_requirement(second.id, actor="human:john", expected_version=0, idempotency_key="same")
+
+    assert exc_info.value.code == ErrorCode.CONFLICT
+
+
+def test_same_idempotency_key_with_different_supersede_payload_conflicts(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    draft = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+    service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
+    first = service.supersede_requirement(
+        draft.id,
+        title="Reject invalid bearer tokens",
+        statement="The API shall reject expired or malformed bearer tokens.",
+        actor="human:john",
+        expected_version=1,
+        idempotency_key="same",
+    )
+
+    with pytest.raises(CharterError) as exc_info:
+        service.supersede_requirement(
+            draft.id,
+            title="Reject malformed bearer tokens",
+            statement="The API shall reject malformed bearer tokens.",
+            actor="human:john",
+            expected_version=1,
+            idempotency_key="same",
+        )
+
+    assert first.title == "Reject invalid bearer tokens"
+    assert exc_info.value.code == ErrorCode.CONFLICT
+
+
+def test_legacy_idempotency_row_without_request_hash_fails_closed(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    draft = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+    service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
+    service.supersede_requirement(
+        draft.id,
+        title="Reject invalid bearer tokens",
+        statement="The API shall reject expired or malformed bearer tokens.",
+        actor="human:john",
+        expected_version=1,
+        idempotency_key="same",
+    )
+    with connect(service.db_path) as connection:
+        connection.execute("update idempotency_keys set request_hash = null where key = ?", ("same",))
+        connection.commit()
+
+    with pytest.raises(CharterError) as exc_info:
+        service.supersede_requirement(
+            draft.id,
+            title="Reject invalid bearer tokens",
+            statement="The API shall reject expired or malformed bearer tokens.",
+            actor="human:john",
+            expected_version=1,
+            idempotency_key="same",
+        )
+
+    assert exc_info.value.code == ErrorCode.CONFLICT
+
+
 def test_stale_expected_version_returns_conflict(tmp_path: Path) -> None:
     service = service_for(tmp_path)
     draft = service.create_requirement(
@@ -182,6 +278,34 @@ def test_update_draft_stale_revision_returns_conflict(tmp_path: Path) -> None:
         service.update_draft(draft.id, statement="Changed.", actor="human:john", expected_draft_revision=99)
 
     assert exc_info.value.code == ErrorCode.CONFLICT
+
+
+def test_reject_draft_marks_requirement_rejected_and_records_event(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    draft = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+
+    rejected = service.reject_requirement(draft.id, actor="human:john", expected_version=0, reason="out of scope")
+
+    assert rejected.id == draft.id
+    assert rejected.status == "rejected"
+    assert rejected.current_version == 0
+    assert rejected.active_draft_id is None
+    assert event_count(service) == 2
+
+
+def test_reject_draft_requires_active_draft(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    draft = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+    service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
+
+    with pytest.raises(CharterError) as exc_info:
+        service.reject_requirement(draft.id, actor="human:john", expected_version=1, reason="too late")
+
+    assert exc_info.value.code == ErrorCode.POLICY_REQUIRED
 
 
 def test_search_and_missing_requirement_errors(tmp_path: Path) -> None:

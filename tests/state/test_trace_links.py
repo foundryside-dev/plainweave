@@ -16,6 +16,14 @@ def service_for(tmp_path: Path) -> CharterService:
     return CharterService(db_path)
 
 
+def approved_requirement_ref(service: CharterService) -> str:
+    draft = service.create_requirement(
+        "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
+    )
+    version = service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
+    return f"{version.id}@{version.version}"
+
+
 def test_propose_trace_link_creates_agent_proposed_current_link(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
@@ -63,17 +71,18 @@ def test_accept_and_reject_trace_links_preserve_actor_attribution(tmp_path: Path
 
 def test_stale_and_orphaned_states_remain_distinct(tmp_path: Path) -> None:
     service = service_for(tmp_path)
+    requirement_version_ref = approved_requirement_ref(service)
     stale = service.create_trace_link(
         TraceRef("file_ref", "src/auth.py"),
         "fragile_satisfies",
-        TraceRef("requirement_version", "REQ-AUTH-0001@1"),
+        TraceRef("requirement_version", requirement_version_ref),
         actor="human:john",
         authority="accepted",
     )
     orphaned = service.create_trace_link(
         TraceRef("clarion_entity", "sei:abc123"),
         "satisfies",
-        TraceRef("requirement_version", "REQ-AUTH-0001@1"),
+        TraceRef("requirement_version", requirement_version_ref),
         actor="human:john",
         authority="accepted",
     )
@@ -114,3 +123,18 @@ def test_high_risk_code_links_remain_proposed_until_accepted(tmp_path: Path) -> 
 
     assert link.state == "proposed"
     assert link.authority == "agent_proposed"
+
+
+def test_accepting_local_requirement_version_trace_requires_existing_version(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    link = service.propose_trace_link(
+        TraceRef("file_ref", "src/auth.py"),
+        "fragile_satisfies",
+        TraceRef("requirement_version", "REQ-AUTH-9999@1"),
+        actor="agent:codex",
+    )
+
+    with pytest.raises(CharterError) as exc_info:
+        service.accept_trace_link(link.id, actor="human:john")
+
+    assert exc_info.value.code == ErrorCode.NOT_FOUND

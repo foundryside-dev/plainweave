@@ -49,6 +49,14 @@ def test_store_connections_enable_foreign_keys(tmp_path: Path) -> None:
         assert connection.execute("pragma foreign_keys").fetchone()[0] == 1
 
 
+def test_store_connections_configure_busy_timeout(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert int(connection.execute("pragma busy_timeout").fetchone()[0]) >= 5000
+
+
 def test_requirements_table_does_not_store_mutable_approved_text(tmp_path: Path) -> None:
     db_path = tmp_path / ".charter" / "charter.db"
     migrate(db_path, project_key="AUTH")
@@ -112,3 +120,37 @@ def test_requirement_version_statement_is_immutable(tmp_path: Path) -> None:
                 """,
                 ("Changed text.", "sha256:new", "req-1", 1),
             )
+
+
+def test_events_are_append_only(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into events(
+              event_id, event_type, aggregate_type, aggregate_id,
+              actor, idempotency_key, payload_json, created_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "EVT-1",
+                "requirement_created",
+                "requirement",
+                "req-1",
+                "human:john",
+                None,
+                "{}",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="events are append-only"):
+            connection.execute(
+                "update events set payload_json = ? where event_id = ?",
+                ('{"changed": true}', "EVT-1"),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError, match="events are append-only"):
+            connection.execute("delete from events where event_id = ?", ("EVT-1",))

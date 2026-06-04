@@ -31,9 +31,41 @@ TRACE_AUTHORITIES = {
 }
 TRACE_FRESHNESS = {"current", "stale", "unknown", "orphaned", "not_applicable"}
 
+REQUIRED_FIXTURES = {
+    "envelopes/success.json",
+    "envelopes/error-validation.json",
+    "envelopes/error-conflict.json",
+    "envelopes/list.json",
+    "envelopes/batch.json",
+    "requirements/requirement-draft.json",
+    "requirements/requirement-version-approved.json",
+    "requirements/requirement-version-superseded.json",
+    "traces/trace-link-proposed.json",
+    "traces/trace-link-accepted.json",
+    "traces/trace-link-stale.json",
+    "traces/trace-link-orphaned.json",
+    "mcp/side-effect-metadata.json",
+    "cli/req-add-json.json",
+    "cli/req-show-json.json",
+    "cli/req-approve-json.json",
+    "cli/criterion-add-json.json",
+    "cli/trace-propose-json.json",
+    "cli/trace-accept-json.json",
+    "cli/trace-reject-json.json",
+    "cli/trace-list-json.json",
+    "cli/error-validation-json.json",
+    "cli/error-conflict-json.json",
+}
+
 
 def load_fixture(path: str) -> dict[str, Any]:
     return cast(dict[str, Any], json.loads((FIXTURE_ROOT / path).read_text(encoding="utf-8")))
+
+
+def test_required_fixture_plan_files_exist() -> None:
+    missing = sorted(path for path in REQUIRED_FIXTURES if not (FIXTURE_ROOT / path).is_file())
+
+    assert missing == []
 
 
 def assert_meta(envelope: dict[str, Any]) -> None:
@@ -153,9 +185,7 @@ def test_requirement_version_approved_fixture_contract() -> None:
     assert fixture["approved_by"].startswith(("human:", "agent:"))
 
 
-def test_trace_link_proposed_fixture_contract() -> None:
-    fixture = load_fixture("traces/trace-link-proposed.json")
-
+def assert_trace_link_fixture(fixture: dict[str, Any], *, expected_state: str) -> None:
     assert set(fixture) == {
         "schema",
         "id",
@@ -173,17 +203,55 @@ def test_trace_link_proposed_fixture_contract() -> None:
     assert fixture["schema"] == "loom.charter.trace_link.v1"
     assert fixture["id"].startswith("LINK-")
     assert fixture["state"] in TRACE_STATES
-    assert fixture["state"] == "proposed"
+    assert fixture["state"] == expected_state
     assert set(fixture["from"]) == {"kind", "id"}
     assert set(fixture["to"]) == {"kind", "id"}
     assert fixture["relation"]
     assert fixture["authority"] in TRACE_AUTHORITIES
-    assert fixture["authority"] == "agent_proposed"
     assert fixture["freshness"] in TRACE_FRESHNESS
-    assert 0 <= fixture["confidence"] <= 1
+    if fixture["confidence"] is not None:
+        assert 0 <= fixture["confidence"] <= 1
     assert fixture["created_by"].startswith(("human:", "agent:"))
-    assert fixture["accepted_by"] is None
     assert isinstance(fixture["target_snapshot"], dict)
+
+
+def test_requirement_version_superseded_fixture_contract() -> None:
+    fixture = load_fixture("requirements/requirement-version-superseded.json")
+
+    assert fixture["schema"] == "loom.charter.requirement_version.v1"
+    assert fixture["version"] == 1
+    assert fixture["status"] == "superseded"
+    assert fixture["superseded_by_version"] == 2
+
+
+def test_trace_link_proposed_fixture_contract() -> None:
+    fixture = load_fixture("traces/trace-link-proposed.json")
+
+    assert_trace_link_fixture(fixture, expected_state="proposed")
+    assert fixture["authority"] == "agent_proposed"
+    assert fixture["accepted_by"] is None
+
+
+def test_trace_link_accepted_fixture_contract() -> None:
+    fixture = load_fixture("traces/trace-link-accepted.json")
+
+    assert_trace_link_fixture(fixture, expected_state="accepted")
+    assert fixture["authority"] == "accepted"
+    assert fixture["accepted_by"].startswith(("human:", "agent:"))
+
+
+def test_trace_link_stale_fixture_contract() -> None:
+    fixture = load_fixture("traces/trace-link-stale.json")
+
+    assert_trace_link_fixture(fixture, expected_state="stale")
+    assert fixture["freshness"] == "stale"
+
+
+def test_trace_link_orphaned_fixture_contract() -> None:
+    fixture = load_fixture("traces/trace-link-orphaned.json")
+
+    assert_trace_link_fixture(fixture, expected_state="orphaned")
+    assert fixture["freshness"] == "orphaned"
 
 
 def test_mcp_side_effect_metadata_fixture_contract() -> None:

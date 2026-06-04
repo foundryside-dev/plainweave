@@ -52,6 +52,7 @@ class AcceptanceCriterion:
     text: str
     status: str
     created_by: str
+    created_at: str
 
     def with_version(self, version: int) -> AcceptanceCriterion:
         return AcceptanceCriterion(
@@ -63,6 +64,7 @@ class AcceptanceCriterion:
             self.text,
             self.status,
             self.created_by,
+            self.created_at,
         )
 
 

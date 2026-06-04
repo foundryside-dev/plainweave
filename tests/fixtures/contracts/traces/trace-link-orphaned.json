@@ -1,0 +1,20 @@
+{
+  "schema": "loom.charter.trace_link.v1",
+  "id": "LINK-0001",
+  "state": "orphaned",
+  "from": {
+    "kind": "clarion_entity",
+    "id": "sei:abc123"
+  },
+  "relation": "satisfies",
+  "to": {
+    "kind": "requirement_version",
+    "id": "REQ-AUTH-017@1"
+  },
+  "authority": "accepted",
+  "freshness": "orphaned",
+  "confidence": null,
+  "created_by": "agent:codex",
+  "accepted_by": "human:john",
+  "target_snapshot": {}
+}

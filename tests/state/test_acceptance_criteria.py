@@ -29,6 +29,7 @@ def test_add_acceptance_criterion_to_active_draft(tmp_path: Path) -> None:
     assert criterion.version is None
     assert criterion.position == 1
     assert criterion.text == "Expired tokens return 401."
+    assert criterion.created_at
     assert service.list_acceptance_criteria(draft.id) == [criterion]
 
 

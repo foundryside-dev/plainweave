@@ -124,15 +124,35 @@ def migrate(db_path: Path, *, project_key: str) -> None:
               created_at text not null
             );
 
+            create trigger if not exists events_append_only_update
+            before update on events
+            for each row
+            begin
+              select raise(abort, 'events are append-only');
+            end;
+
+            create trigger if not exists events_append_only_delete
+            before delete on events
+            for each row
+            begin
+              select raise(abort, 'events are append-only');
+            end;
+
             create table if not exists idempotency_keys (
               key text primary key,
               operation text not null,
               target_id text not null,
+              request_hash text,
               response_json text not null,
               created_at text not null
             );
             """
         )
+        existing_columns = {
+            str(row["name"]) for row in connection.execute("pragma table_info(idempotency_keys)").fetchall()
+        }
+        if "request_hash" not in existing_columns:
+            connection.execute("alter table idempotency_keys add column request_hash text")
         connection.executemany(
             "insert or ignore into schema_meta(key, value) values (?, ?)",
             [("project_key", project_key), ("schema_version", str(SCHEMA_VERSION))],

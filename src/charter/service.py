@@ -145,7 +145,11 @@ class CharterService:
         idempotency_key: str | None = None,
     ) -> RequirementVersion:
         self._require_actor(actor)
-        cached = self._idempotent_version(idempotency_key)
+        cached = self._idempotent_version(
+            idempotency_key,
+            operation="approve_requirement",
+            request={"expected_version": expected_version},
+        )
         if cached is not None:
             if not self._matches_requirement(cached, requirement_id) or expected_version != cached.version - 1:
                 raise self._error(ErrorCode.CONFLICT, "idempotency key conflicts with this approval request")
@@ -182,7 +186,14 @@ class CharterService:
                 asdict(version),
                 now,
             )
-            self._store_idempotency(connection, idempotency_key, "approve_requirement", requirement_id, version)
+            self._store_idempotency(
+                connection,
+                idempotency_key,
+                "approve_requirement",
+                str(requirement["requirement_id"]),
+                version,
+                request={"expected_version": expected_version},
+            )
             connection.commit()
             return version
 
@@ -197,8 +208,14 @@ class CharterService:
         idempotency_key: str | None = None,
     ) -> RequirementVersion:
         self._require_actor(actor)
-        cached = self._idempotent_version(idempotency_key)
+        cached = self._idempotent_version(
+            idempotency_key,
+            operation="supersede_requirement",
+            request={"expected_version": expected_version, "title": title, "statement": statement},
+        )
         if cached is not None:
+            if not self._matches_requirement(cached, requirement_id) or expected_version != cached.version - 1:
+                raise self._error(ErrorCode.CONFLICT, "idempotency key conflicts with this supersede request")
             return cached
         now = self._now()
         with connect(self.db_path) as connection:
@@ -263,9 +280,54 @@ class CharterService:
                 asdict(version),
                 now,
             )
-            self._store_idempotency(connection, idempotency_key, "supersede_requirement", requirement_id, version)
+            self._store_idempotency(
+                connection,
+                idempotency_key,
+                "supersede_requirement",
+                str(requirement["requirement_id"]),
+                version,
+                request={"expected_version": expected_version, "title": title, "statement": statement},
+            )
             connection.commit()
             return version
+
+    def reject_requirement(
+        self,
+        requirement_id: str,
+        *,
+        actor: str,
+        expected_version: int,
+        reason: str,
+    ) -> RequirementRecord:
+        self._require_actor(actor)
+        now = self._now()
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            self._require_current_version(requirement, expected_version)
+            draft_id = requirement["active_draft_id"]
+            if not isinstance(draft_id, str):
+                raise self._error(ErrorCode.POLICY_REQUIRED, "requirement has no active draft")
+            connection.execute(
+                """
+                update requirements
+                set active_draft_id = null, status = ?, updated_at = ?
+                where requirement_id = ?
+                """,
+                ("rejected", now, requirement["requirement_id"]),
+            )
+            record = self._get_requirement(connection, requirement_id)
+            self._record_event(
+                connection,
+                "requirement_rejected",
+                "requirement",
+                str(requirement["requirement_id"]),
+                actor,
+                None,
+                {"draft_id": draft_id, "reason": reason},
+                now,
+            )
+            connection.commit()
+            return record
 
     def deprecate_requirement(
         self,
@@ -276,8 +338,14 @@ class CharterService:
         idempotency_key: str | None = None,
     ) -> RequirementRecord:
         self._require_actor(actor)
-        cached = self._idempotent_record(idempotency_key)
+        cached = self._idempotent_record(
+            idempotency_key,
+            operation="deprecate_requirement",
+            request={"expected_version": expected_version},
+        )
         if cached is not None:
+            if not self._matches_record(cached, requirement_id) or expected_version != cached.current_version:
+                raise self._error(ErrorCode.CONFLICT, "idempotency key conflicts with this deprecate request")
             return cached
         now = self._now()
         with connect(self.db_path) as connection:
@@ -302,7 +370,14 @@ class CharterService:
                 self._record_dict(record),
                 now,
             )
-            self._store_idempotency(connection, idempotency_key, "deprecate_requirement", requirement_id, record)
+            self._store_idempotency(
+                connection,
+                idempotency_key,
+                "deprecate_requirement",
+                str(requirement["requirement_id"]),
+                record,
+                request={"expected_version": expected_version},
+            )
             connection.commit()
             return record
 
@@ -364,6 +439,7 @@ class CharterService:
                 text,
                 "active",
                 actor,
+                now,
             )
 
     def list_acceptance_criteria(self, requirement_id: str, version: int | None = None) -> list[AcceptanceCriterion]:
@@ -434,6 +510,8 @@ class CharterService:
         state = "accepted" if authority == "accepted" else "proposed"
         accepted_by = actor if authority == "accepted" else None
         with connect(self.db_path) as connection:
+            if state == "accepted":
+                self._require_accepted_trace_targets(connection, to_ref)
             link_id = f"LINK-{self._next_link_number(connection):04d}"
             connection.execute(
                 """
@@ -677,6 +755,7 @@ class CharterService:
             str(row["text"]),
             str(row["status"]),
             str(row["created_by"]),
+            str(row["created_at"]),
         )
 
     def _transition_trace(
@@ -694,6 +773,8 @@ class CharterService:
         with connect(self.db_path) as connection:
             row = self._trace_row(connection, link_id)
             self._validate_trace_transition(str(row["state"]), state)
+            if state == "accepted":
+                self._require_accepted_trace_targets(connection, TraceRef(str(row["to_kind"]), str(row["to_id"])))
             next_authority = authority or str(row["authority"])
             next_freshness = freshness or str(row["freshness"])
             accepted_by = actor if state == "accepted" else row["accepted_by"]
@@ -803,6 +884,8 @@ class CharterService:
         operation: str,
         target_id: str,
         response: RequirementVersion | RequirementRecord,
+        *,
+        request: dict[str, object],
     ) -> None:
         if key is None:
             return
@@ -810,34 +893,62 @@ class CharterService:
             payload = {"kind": "version", "data": asdict(response)}
         else:
             payload = {"kind": "record", "data": self._record_dict(response)}
+        request_hash = self._request_hash(request)
         connection.execute(
             """
-            insert into idempotency_keys(key, operation, target_id, response_json, created_at)
-            values (?, ?, ?, ?, ?)
+            insert into idempotency_keys(key, operation, target_id, request_hash, response_json, created_at)
+            values (?, ?, ?, ?, ?, ?)
             """,
-            (key, operation, target_id, json.dumps(payload, sort_keys=True), self._now()),
+            (key, operation, target_id, request_hash, json.dumps(payload, sort_keys=True), self._now()),
         )
 
-    def _idempotent_version(self, key: str | None) -> RequirementVersion | None:
-        payload = self._idempotency_payload(key)
+    def _idempotent_version(
+        self,
+        key: str | None,
+        *,
+        operation: str,
+        request: dict[str, object],
+    ) -> RequirementVersion | None:
+        payload = self._idempotency_payload(key, operation=operation, request=request)
         if payload is None or payload["kind"] != "version":
             return None
         return self._version_from_dict(payload["data"])
 
-    def _idempotent_record(self, key: str | None) -> RequirementRecord | None:
-        payload = self._idempotency_payload(key)
+    def _idempotent_record(
+        self,
+        key: str | None,
+        *,
+        operation: str,
+        request: dict[str, object],
+    ) -> RequirementRecord | None:
+        payload = self._idempotency_payload(key, operation=operation, request=request)
         if payload is None or payload["kind"] != "record":
             return None
         return self._record_from_dict(payload["data"])
 
-    def _idempotency_payload(self, key: str | None) -> dict[str, Any] | None:
+    def _idempotency_payload(
+        self,
+        key: str | None,
+        *,
+        operation: str,
+        request: dict[str, object],
+    ) -> dict[str, Any] | None:
         if key is None:
             return None
         with connect(self.db_path) as connection:
-            row = connection.execute("select response_json from idempotency_keys where key = ?", (key,)).fetchone()
+            row = connection.execute(
+                "select operation, target_id, request_hash, response_json from idempotency_keys where key = ?",
+                (key,),
+            ).fetchone()
         if row is None:
             return None
-        payload = json.loads(str(row[0]))
+        if str(row["operation"]) != operation:
+            raise self._error(ErrorCode.CONFLICT, "idempotency key was used for a different operation")
+        if row["request_hash"] is None:
+            raise self._error(ErrorCode.CONFLICT, "idempotency key has no request fingerprint")
+        if str(row["request_hash"]) != self._request_hash(request):
+            raise self._error(ErrorCode.CONFLICT, "idempotency key was used for a different payload")
+        payload = json.loads(str(row["response_json"]))
         if not isinstance(payload, dict):
             return None
         return payload
@@ -886,8 +997,30 @@ class CharterService:
     def _statement_hash(self, statement: str) -> str:
         return "sha256:" + hashlib.sha256(statement.encode("utf-8")).hexdigest()
 
+    def _request_hash(self, request: dict[str, object]) -> str:
+        payload = json.dumps(request, sort_keys=True, separators=(",", ":"))
+        return "sha256:" + hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
     def _matches_requirement(self, version: RequirementVersion, requirement_id: str) -> bool:
         return requirement_id in {version.id, version.requirement_id, version.stable_id}
+
+    def _matches_record(self, record: RequirementRecord, requirement_id: str) -> bool:
+        return requirement_id in {record.id, record.requirement_id, record.stable_id}
+
+    def _require_accepted_trace_targets(self, connection: sqlite3.Connection, to_ref: TraceRef) -> None:
+        if to_ref.kind != "requirement_version":
+            return
+        try:
+            requirement_id, version_text = to_ref.id.rsplit("@", 1)
+            version = int(version_text)
+        except ValueError:
+            raise self._error(
+                ErrorCode.VALIDATION,
+                "requirement_version trace target must use REQ-ID@version",
+            ) from None
+        requirement = self._requirement_row(connection, requirement_id)
+        if self._version_by_number(connection, str(requirement["requirement_id"]), version) is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"requirement version not found: {to_ref.id}")
 
     def _require_actor(self, actor: str) -> None:
         if not actor:

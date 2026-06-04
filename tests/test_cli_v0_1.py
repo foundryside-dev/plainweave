@@ -150,6 +150,45 @@ def test_requirement_supersede_and_deprecate_cli(
     assert deprecated["data"]["status"] == "deprecated"
 
 
+def test_requirement_reject_cli(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    run_json(
+        [
+            "req",
+            "add",
+            "--title",
+            "Draft only",
+            "--statement",
+            "This draft will be rejected.",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+
+    rejected = run_json(
+        [
+            "req",
+            "reject",
+            "REQ-AUTH-0001",
+            "--actor",
+            "human:john",
+            "--expected-version",
+            "0",
+            "--reason",
+            "out of scope",
+        ],
+        capsys,
+    )
+
+    assert rejected["schema"] == "loom.charter.requirement.v1"
+    assert rejected["data"]["status"] == "rejected"
+
+
 def test_criteria_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
     init_project(tmp_path, monkeypatch, capsys)
     run_json(
@@ -180,6 +219,7 @@ def test_criteria_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: p
     )
     assert added["schema"] == "loom.charter.acceptance_criterion.v1"
     assert added["data"]["id"] == "AC-0001"
+    assert added["data"]["created_at"]
 
     listed = run_json(["criterion", "list", "REQ-AUTH-0001"], capsys)
     assert listed["schema"] == "loom.charter.acceptance_criterion_list.v1"
@@ -256,3 +296,32 @@ def test_cli_json_validation_error_envelope(
     assert envelope["schema"] == "loom.charter.error.v1"
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "VALIDATION"
+
+
+def test_cli_json_error_envelope_when_project_is_not_initialized(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    assert (
+        main(
+            [
+                "req",
+                "add",
+                "--title",
+                "Missing project",
+                "--statement",
+                "Project has not been initialized.",
+                "--actor",
+                "human:john",
+                "--json",
+            ]
+        )
+        == 2
+    )
+    envelope = json_output(capsys.readouterr().out)
+    assert envelope["schema"] == "loom.charter.error.v1"
+    assert envelope["ok"] is False
+    assert envelope["error"]["code"] == "NOT_FOUND"
