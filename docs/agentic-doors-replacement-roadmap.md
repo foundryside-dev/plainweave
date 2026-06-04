@@ -8,11 +8,11 @@ first-class agentic replacement for DOORS-style requirements management.
 Current state: Charter local core is installed on `main`. It can store
 repo-local requirements, drafts, immutable approved versions, acceptance
 criteria, local trace links, append-only events, named locked baselines,
-verification methods, evidence records, computed verification status, and JSON
-CLI envelopes. The `codex/requirement-dossiers` branch adds computed local
-requirement dossiers with JSON and compact human CLI output. That is enough to
-start storing requirements and verification state. It is not yet enough to
-replace a mature requirements-management system.
+verification methods, evidence records, computed verification status, computed
+local requirement dossiers, and JSON CLI envelopes. That is enough to start
+storing requirements and verification state, and enough for an agent to fetch a
+dense local dossier before acting. It is not yet enough to replace a mature
+requirements-management system.
 
 The replacement bar is not "copy DOORS." The bar is:
 
@@ -39,13 +39,12 @@ Installed capabilities are available in the integrated `main` branch:
   `unsatisfied`, `unverified`, `stale`, `unknown`, and `waived`, machine-readable
   reason codes, `verify` CLI commands, `status` CLI commands, and verification
   contract fixtures.
-- **Requirement dossiers** on `codex/requirement-dossiers`: computed local
-  read models with no new storage, `charter dossier REQ_ID --json`, compact
-  human dossier output, `loom.charter.requirement_dossier.v1`, and CLI contract
-  fixture parity. Dossiers preserve approved/draft separation, criteria
-  separation, trace authority/freshness, verification status, baseline exposure,
-  ephemeral computed gaps, local-only peer facts, and machine-readable next
-  actions.
+- **Requirement dossiers**: computed local read models with no new storage,
+  `charter dossier REQ_ID --json`, compact human dossier output,
+  `loom.charter.requirement_dossier.v1`, and CLI contract fixture parity.
+  Dossiers preserve approved/draft separation, criteria separation, trace
+  authority/freshness, verification status, baseline exposure, ephemeral
+  computed gaps, local-only peer facts, and machine-readable next actions.
 
 Installed command groups:
 
@@ -63,17 +62,36 @@ charter status requirement|unverified|stale
 charter dossier REQ_ID
 ```
 
+## Progress Checkpoint
+
+Completed on `main`:
+
+- Package A, Baseline Core: immutable named baselines and baseline diff.
+- Package B, Verification And Satisfaction: verification methods, evidence,
+  derived status, unverified/stale reporting, and authority-preserving evidence
+  rules.
+- Package C, local Requirement Dossiers: one-call local dossier read model and
+  CLI contract.
+- Loom federation pointer docs: Charter now points federation roster, Axiom, and
+  SEI material at Loom as the hub rather than duplicating peer authority.
+
+Still open:
+
+- Complete Package C by adding the read-only MCP surface over the installed CLI
+  contracts.
+- Start P1 operational work after MCP read: impact analysis, durable gap
+  tracking, MCP mutation, review queues, and import/export.
+- Defer federation integrations, human UI/TUI, collaboration hardening, scale
+  validation, and enterprise adapters until the local agent loop is complete.
+
 ## Remaining Work
 
 Highest-priority remaining work:
 
-- **P0 Requirement dossiers**: one dense agent-safe object per requirement,
-  combining requirement version, criteria, traces, verification, gaps, peer
-  facts, and next actions without calling live peers. Installed on
-  `codex/requirement-dossiers`; merge to `main` remains.
 - **P0 MCP read/query surface**: read-only MCP tools for requirement search/show,
   dossiers, baselines, verification status, and traces, using the same stable
-  JSON contracts as the CLI. This is the next P0 after dossiers.
+  JSON contracts as the CLI. This is now the remaining P0 bridge from local CLI
+  authority to first-class agentic use.
 
 P1 operational work still deferred:
 
@@ -98,8 +116,8 @@ P2/P3 adoption work still deferred:
 | Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Installed on `main`. | P0 |
 | Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Installed on `main`. | P0 |
 | Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Installed on `main`. | P0 |
-| Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Installed on `codex/requirement-dossiers`; computed local read model, no new storage. | P0 |
-| MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Next P0 after dossier merge; deferred except inert contract fixture. | P0 |
+| Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Installed on `main`; computed local read model, no new storage. | P0 |
+| MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Remaining P0; deferred except inert contract fixture. | P0 |
 | Impact analysis | The main product value is "what obligations does this change touch?" | Deferred. | P1 |
 | Gap tracking | Missing or stale evidence must become durable work candidates. | Deferred. | P1 |
 | MCP mutation surface | Agents should propose requirements, links, evidence, and gaps with actor attribution and idempotency. | Deferred. | P1 |
@@ -199,7 +217,7 @@ Definition of done:
 
 #### 4. Requirement Dossiers
 
-Status: implemented on `codex/requirement-dossiers`; pending merge to `main`.
+Status: installed on `main`.
 
 Deliver:
 
@@ -227,7 +245,7 @@ Definition of done:
 
 #### 5. MCP Read Surface
 
-Status: next P0 after requirement dossiers are merged.
+Status: remaining P0 after local requirement dossiers landed on `main`.
 
 Deliver:
 
@@ -557,22 +575,22 @@ Exit criteria:
 
 Goal: make Charter useful as an agent-facing requirements authority.
 
-Status: in progress. Requirement dossiers are implemented on
-`codex/requirement-dossiers`; read-only MCP tools remain deferred.
+Status: in progress. Requirement dossiers are installed on `main`; read-only
+MCP tools remain deferred.
 
 Suggested Filigree breakdown:
 
-- design `requirement_dossier.v1` (implemented on `codex/requirement-dossiers`);
-- implement local dossier computation (implemented on `codex/requirement-dossiers`);
-- add CLI dossier command (implemented on `codex/requirement-dossiers`);
+- design `requirement_dossier.v1` (installed on `main`);
+- implement local dossier computation (installed on `main`);
+- add CLI dossier command (installed on `main`);
 - add read-only MCP server skeleton;
 - expose read tools for requirements, traces, status, baselines, and dossiers;
 - add MCP contract tests and no-mutation safety tests.
 
 Exit criteria:
 
-- Complete on `codex/requirement-dossiers`: an agent can fetch a full
-  requirement context from the local CLI in one dossier call;
+- Complete on `main`: an agent can fetch a full requirement context from the
+  local CLI in one dossier call;
 - Remaining: an agent can fetch the same full requirement context in one MCP
   tool call;
 - MCP tools are read-only and schema-stable;
