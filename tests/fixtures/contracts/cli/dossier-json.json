@@ -1,0 +1,144 @@
+{
+  "schema": "loom.charter.requirement_dossier.v1",
+  "ok": true,
+  "data": {
+    "identity": {
+      "requirement_id": "req-1",
+      "id": "REQ-AUTH-0001",
+      "stable_id": "charter:req:AUTH:0001",
+      "current_version": 1
+    },
+    "authority_summary": {
+      "status": "approved",
+      "current_approved_version": 1,
+      "current_statement_hash": "sha256:afbf9263ca21bffd56489a1e30c46c5a6915cc9d0be4bbca0ce5490de3695c45",
+      "has_active_draft": false,
+      "active_draft_id": null,
+      "verification_status": "unverified",
+      "baseline_count": 0
+    },
+    "requirement": {
+      "record": {
+        "requirement_id": "req-1",
+        "id": "REQ-AUTH-0001",
+        "stable_id": "charter:req:AUTH:0001",
+        "current_version": 1,
+        "active_draft_id": null,
+        "status": "approved",
+        "current_version_record": {
+          "requirement_id": "req-1",
+          "id": "REQ-AUTH-0001",
+          "stable_id": "charter:req:AUTH:0001",
+          "version": 1,
+          "title": "Reject expired bearer tokens",
+          "statement": "The API shall reject expired bearer tokens.",
+          "statement_hash": "sha256:afbf9263ca21bffd56489a1e30c46c5a6915cc9d0be4bbca0ce5490de3695c45",
+          "status": "approved",
+          "approved_by": "human:john",
+          "approved_at": "2026-06-04T19:24:39.274084+00:00"
+        }
+      },
+      "current_version": {
+        "requirement_id": "req-1",
+        "id": "REQ-AUTH-0001",
+        "stable_id": "charter:req:AUTH:0001",
+        "version": 1,
+        "title": "Reject expired bearer tokens",
+        "statement": "The API shall reject expired bearer tokens.",
+        "statement_hash": "sha256:afbf9263ca21bffd56489a1e30c46c5a6915cc9d0be4bbca0ce5490de3695c45",
+        "status": "approved",
+        "approved_by": "human:john",
+        "approved_at": "2026-06-04T19:24:39.274084+00:00"
+      },
+      "active_draft": null
+    },
+    "acceptance_criteria": {
+      "current_version": [
+        {
+          "id": "AC-0001",
+          "requirement_id": "req-1",
+          "draft_id": "DRAFT-0001",
+          "version": 1,
+          "position": 1,
+          "text": "Expired tokens return 401.",
+          "status": "active",
+          "created_by": "human:john",
+          "created_at": "2026-06-04T19:24:39.214967+00:00"
+        }
+      ],
+      "active_draft": []
+    },
+    "traces": {
+      "incoming": [],
+      "outgoing": [],
+      "by_state": {},
+      "by_relation": {},
+      "items": []
+    },
+    "verification": {
+      "status": "unverified",
+      "reasons": [
+        {
+          "code": "no_verification_method",
+          "message": "No verification method has been defined.",
+          "evidence_id": null
+        }
+      ],
+      "current_evidence": [],
+      "stale_evidence": []
+    },
+    "baseline_exposure": {
+      "summary": {
+        "current": 0,
+        "changed": 0,
+        "missing_current": 0,
+        "superseded_since_baseline": 0
+      },
+      "items": []
+    },
+    "computed_gaps": [
+      {
+        "code": "no_verification_method",
+        "severity": "high",
+        "message": "No verification method has been defined.",
+        "source": "verification"
+      }
+    ],
+    "peer_facts": {
+      "live_peer_calls": false,
+      "sources": [],
+      "notes": [
+        "Dossier is computed from the local Charter store only."
+      ]
+    },
+    "next_actions": [
+      {
+        "action": "add_verification_method",
+        "priority": 40,
+        "reason": "Define a verification method for the current version.",
+        "command": "charter verify method add REQ-AUTH-0001 --method test --target tests/path.py::test_behavior --actor human:reviewer --json",
+        "blocked_by": [
+          "no_verification_method"
+        ]
+      },
+      {
+        "action": "do_not_treat_as_satisfied",
+        "priority": 100,
+        "reason": "Do not treat this requirement as satisfied until blocking gaps are resolved.",
+        "command": null,
+        "blocked_by": [
+          "no_verification_method"
+        ]
+      }
+    ]
+  },
+  "warnings": [],
+  "meta": {
+    "producer": {
+      "tool": "charter",
+      "version": "0.1.0"
+    },
+    "generated_at": "2026-06-04T19:24:39.332569+00:00",
+    "project": "AUTH"
+  }
+}

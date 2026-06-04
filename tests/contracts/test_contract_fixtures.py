@@ -67,6 +67,7 @@ REQUIRED_FIXTURES = {
     "cli/req-show-json.json",
     "cli/req-approve-json.json",
     "cli/criterion-add-json.json",
+    "cli/dossier-json.json",
     "cli/trace-propose-json.json",
     "cli/trace-accept-json.json",
     "cli/trace-reject-json.json",
