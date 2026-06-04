@@ -122,6 +122,22 @@ def migrate(db_path: Path, *, project_key: str) -> None:
               created_at text not null
             );
 
+            create trigger if not exists locked_baselines_immutable_update
+            before update on baselines
+            for each row
+            when old.locked = 1
+            begin
+              select raise(abort, 'locked baselines are immutable');
+            end;
+
+            create trigger if not exists locked_baselines_immutable_delete
+            before delete on baselines
+            for each row
+            when old.locked = 1
+            begin
+              select raise(abort, 'locked baselines are immutable');
+            end;
+
             create table if not exists baseline_members (
               baseline_id text not null references baselines(baseline_id),
               requirement_id text not null references requirements(requirement_id),

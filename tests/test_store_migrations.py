@@ -277,3 +277,34 @@ def test_baseline_members_are_immutable(tmp_path: Path) -> None:
                 """,
                 ("BASELINE-0001", "req-1", 1),
             )
+
+
+def test_locked_baselines_are_immutable(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into baselines(
+              baseline_id, name, description, locked, created_by, created_at
+            ) values (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "BASELINE-0001",
+                "Release 1.0 requirements",
+                "Approved requirements for release 1.0.",
+                1,
+                "human:john",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="locked baselines are immutable"):
+            connection.execute(
+                "update baselines set name = ? where baseline_id = ?",
+                ("Changed baseline", "BASELINE-0001"),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError, match="locked baselines are immutable"):
+            connection.execute("delete from baselines where baseline_id = ?", ("BASELINE-0001",))
