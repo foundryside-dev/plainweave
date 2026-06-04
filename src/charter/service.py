@@ -16,6 +16,16 @@ from charter.models import (
     BaselineDiff,
     BaselineDiffItem,
     BaselineMember,
+    DossierAcceptanceCriteriaSection,
+    DossierAuthoritySummary,
+    DossierBaselineExposure,
+    DossierBaselineExposureItem,
+    DossierComputedGap,
+    DossierNextAction,
+    DossierPeerFacts,
+    DossierRequirementSection,
+    DossierTraceSection,
+    RequirementDossier,
     RequirementDraft,
     RequirementRecord,
     RequirementVerificationStatus,
@@ -144,6 +154,48 @@ class CharterService:
         with connect(self.db_path) as connection:
             requirement = self._requirement_row(connection, requirement_id)
             return self._verification_status_for_row(connection, requirement)
+
+    def requirement_dossier(self, requirement_id: str) -> RequirementDossier:
+        with connect(self.db_path) as connection:
+            requirement_row = self._requirement_row(connection, requirement_id)
+            record = self._record_from_row(connection, requirement_row)
+            active_draft = self._active_draft_for_row(connection, requirement_row)
+            criteria = self._dossier_acceptance_criteria(connection, requirement_row)
+            traces = self._dossier_traces(connection, record)
+            verification = self._verification_status_for_row(connection, requirement_row)
+            baseline_exposure = self._dossier_baseline_exposure(connection, requirement_row, record)
+            gaps = self._dossier_computed_gaps(record, active_draft, criteria, traces, verification, baseline_exposure)
+            next_actions = self._dossier_next_actions(record, active_draft, gaps, verification)
+            current_version = record.current_version_record
+            return RequirementDossier(
+                {
+                    "requirement_id": record.requirement_id,
+                    "id": record.id,
+                    "stable_id": record.stable_id,
+                    "current_version": record.current_version,
+                },
+                DossierAuthoritySummary(
+                    record.status,
+                    current_version.version if current_version else None,
+                    current_version.statement_hash if current_version else None,
+                    active_draft is not None,
+                    active_draft.draft_id if active_draft else None,
+                    verification.status,
+                    len(baseline_exposure.items),
+                ),
+                DossierRequirementSection(record, current_version, active_draft),
+                criteria,
+                traces,
+                verification,
+                baseline_exposure,
+                gaps,
+                DossierPeerFacts(
+                    False,
+                    [],
+                    ["Dossier is computed from the local Charter store only."],
+                ),
+                next_actions,
+            )
 
     def list_unverified_requirements(self) -> list[RequirementVerificationStatus]:
         return self._list_requirement_statuses({"unverified"})
@@ -903,6 +955,404 @@ class CharterService:
             str(row["status"]),
             version,
         )
+
+    def _active_draft_for_row(
+        self,
+        connection: sqlite3.Connection,
+        requirement: sqlite3.Row,
+    ) -> RequirementDraft | None:
+        draft_id = requirement["active_draft_id"]
+        if not isinstance(draft_id, str):
+            return None
+        draft = self._draft_row(connection, draft_id)
+        return RequirementDraft(
+            str(requirement["requirement_id"]),
+            str(requirement["display_id"]),
+            str(requirement["stable_id"]),
+            draft_id,
+            self._optional_int(draft["base_version"]),
+            int(draft["draft_revision"]),
+            str(draft["title"]),
+            str(draft["statement"]),
+            "draft",
+        )
+
+    def _dossier_acceptance_criteria(
+        self,
+        connection: sqlite3.Connection,
+        requirement: sqlite3.Row,
+    ) -> DossierAcceptanceCriteriaSection:
+        requirement_id = str(requirement["requirement_id"])
+        current_version = int(requirement["current_version"])
+        current_rows = (
+            connection.execute(
+                """
+                select * from acceptance_criteria
+                where requirement_id = ? and version = ?
+                order by position, criterion_id
+                """,
+                (requirement_id, current_version),
+            ).fetchall()
+            if current_version
+            else []
+        )
+        active_draft_id = requirement["active_draft_id"]
+        draft_rows = (
+            connection.execute(
+                """
+                select * from acceptance_criteria
+                where requirement_id = ? and draft_id = ? and version is null
+                order by position, criterion_id
+                """,
+                (requirement_id, active_draft_id),
+            ).fetchall()
+            if isinstance(active_draft_id, str)
+            else []
+        )
+        return DossierAcceptanceCriteriaSection(
+            [self._criterion_from_row(row) for row in current_rows],
+            [self._criterion_from_row(row) for row in draft_rows],
+        )
+
+    def _dossier_traces(self, connection: sqlite3.Connection, record: RequirementRecord) -> DossierTraceSection:
+        requirement_refs = {record.requirement_id, record.id, record.stable_id}
+        method_refs = self._verification_method_ids_for_requirement(connection, record.requirement_id)
+        exact_refs = requirement_refs | method_refs
+        ref_patterns = [f"{ref}@%" for ref in requirement_refs]
+        exact_placeholders = ",".join("?" for _ in exact_refs)
+        pattern_clauses = " or ".join(["from_id like ?"] * len(ref_patterns) + ["to_id like ?"] * len(ref_patterns))
+        rows = connection.execute(
+            f"""
+            select * from trace_links
+            where from_id in ({exact_placeholders})
+               or to_id in ({exact_placeholders})
+               or {pattern_clauses}
+            order by link_id
+            """,
+            [*exact_refs, *exact_refs, *ref_patterns, *ref_patterns],
+        ).fetchall()
+        incoming: list[TraceLink] = []
+        outgoing: list[TraceLink] = []
+        by_state: dict[str, int] = {}
+        by_relation: dict[str, int] = {}
+        items: list[TraceLink] = []
+        for row in rows:
+            item = self._trace_from_row(row)
+            is_incoming = self._trace_ref_matches_requirement(item.to_ref, requirement_refs) or (
+                item.to_ref.kind == "verification_method" and item.to_ref.id in method_refs
+            )
+            is_outgoing = self._trace_ref_matches_requirement(item.from_ref, requirement_refs) or (
+                item.from_ref.kind == "verification_method" and item.from_ref.id in method_refs
+            )
+            if not is_incoming and not is_outgoing:
+                continue
+            items.append(item)
+            if is_incoming:
+                incoming.append(item)
+            if is_outgoing:
+                outgoing.append(item)
+            by_state[item.state] = by_state.get(item.state, 0) + 1
+            by_relation[item.relation] = by_relation.get(item.relation, 0) + 1
+        return DossierTraceSection(
+            incoming,
+            outgoing,
+            dict(sorted(by_state.items())),
+            dict(sorted(by_relation.items())),
+            items,
+        )
+
+    def _trace_ref_matches_requirement(self, trace_ref: TraceRef, requirement_refs: set[str]) -> bool:
+        if trace_ref.id in requirement_refs:
+            return True
+        prefix, separator, _version = trace_ref.id.rpartition("@")
+        return trace_ref.kind == "requirement_version" and separator == "@" and prefix in requirement_refs
+
+    def _verification_method_ids_for_requirement(
+        self,
+        connection: sqlite3.Connection,
+        requirement_id: str,
+    ) -> set[str]:
+        rows = connection.execute(
+            """
+            select method_id from verification_methods
+            where requirement_id = ?
+            order by method_id
+            """,
+            (requirement_id,),
+        ).fetchall()
+        return {str(row["method_id"]) for row in rows}
+
+    def _dossier_baseline_exposure(
+        self,
+        connection: sqlite3.Connection,
+        requirement: sqlite3.Row,
+        record: RequirementRecord,
+    ) -> DossierBaselineExposure:
+        rows = connection.execute(
+            """
+            select b.baseline_id, b.name, b.locked, b.created_by, b.created_at,
+                   bm.version, bm.statement_hash
+            from baseline_members bm
+            join baselines b on b.baseline_id = bm.baseline_id
+            where bm.requirement_id = ?
+            order by b.baseline_id
+            """,
+            (requirement["requirement_id"],),
+        ).fetchall()
+        summary = {
+            "current": 0,
+            "changed": 0,
+            "missing_current": 0,
+            "superseded_since_baseline": 0,
+        }
+        items: list[DossierBaselineExposureItem] = []
+        current_version = int(requirement["current_version"])
+        current = (
+            self._version_by_number(connection, str(requirement["requirement_id"]), current_version)
+            if current_version
+            else None
+        )
+        for row in rows:
+            baseline_version = int(row["version"])
+            baseline_hash = str(row["statement_hash"])
+            if current is None:
+                state = "missing_current"
+                current_hash = None
+            elif current.version != baseline_version:
+                state = "superseded_since_baseline"
+                current_hash = current.statement_hash
+            elif current.statement_hash != baseline_hash:
+                state = "changed"
+                current_hash = current.statement_hash
+            else:
+                state = "current"
+                current_hash = current.statement_hash
+            summary[state] += 1
+            items.append(
+                DossierBaselineExposureItem(
+                    str(row["baseline_id"]),
+                    str(row["name"]),
+                    bool(row["locked"]),
+                    str(row["created_by"]),
+                    str(row["created_at"]),
+                    baseline_version,
+                    baseline_hash,
+                    current.version if current else record.current_version if current_version else None,
+                    current_hash,
+                    state,
+                )
+            )
+        return DossierBaselineExposure(summary, items)
+
+    def _dossier_computed_gaps(
+        self,
+        record: RequirementRecord,
+        active_draft: RequirementDraft | None,
+        criteria: DossierAcceptanceCriteriaSection,
+        traces: DossierTraceSection,
+        verification: RequirementVerificationStatus,
+        baseline_exposure: DossierBaselineExposure,
+    ) -> list[DossierComputedGap]:
+        gaps: list[DossierComputedGap] = []
+        if record.current_version_record is None:
+            gaps.append(
+                DossierComputedGap(
+                    "no_approved_version",
+                    "high",
+                    "Requirement has no approved current version.",
+                    "requirement",
+                )
+            )
+        if active_draft is not None:
+            gaps.append(
+                DossierComputedGap(
+                    "active_draft_pending_review",
+                    "medium",
+                    "Requirement has an active draft that is not approved.",
+                    "requirement",
+                )
+            )
+        if record.current_version > 0 and not criteria.current_version:
+            gaps.append(
+                DossierComputedGap(
+                    "no_acceptance_criteria",
+                    "high",
+                    "Current approved version has no acceptance criteria.",
+                    "acceptance_criteria",
+                )
+            )
+        for reason in verification.reasons:
+            if reason.code in {
+                "no_verification_method",
+                "no_current_evidence",
+                "failing_evidence",
+                "stale_evidence",
+            }:
+                gaps.append(DossierComputedGap(reason.code, "high", reason.message, "verification"))
+        if any(item.state == "proposed" for item in traces.items):
+            gaps.append(
+                DossierComputedGap(
+                    "proposed_trace_pending_review",
+                    "medium",
+                    "Requirement has proposed trace links awaiting review.",
+                    "traces",
+                )
+            )
+        if any(item.state in {"stale", "orphaned"} for item in traces.items):
+            gaps.append(
+                DossierComputedGap(
+                    "stale_or_orphaned_trace",
+                    "high",
+                    "Requirement has stale or orphaned trace links.",
+                    "traces",
+                )
+            )
+        if any(item.state != "current" for item in baseline_exposure.items):
+            gaps.append(
+                DossierComputedGap(
+                    "baseline_version_drift",
+                    "medium",
+                    "Requirement differs from at least one containing baseline.",
+                    "baseline_exposure",
+                )
+            )
+        return gaps
+
+    def _dossier_next_actions(
+        self,
+        record: RequirementRecord,
+        active_draft: RequirementDraft | None,
+        gaps: list[DossierComputedGap],
+        verification: RequirementVerificationStatus,
+    ) -> list[DossierNextAction]:
+        gap_codes = {gap.code for gap in gaps}
+        verification_reason_codes = {reason.code for reason in verification.reasons}
+        actions: list[DossierNextAction] = []
+        if active_draft is not None or "active_draft_pending_review" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "approve_or_reject_draft",
+                    20,
+                    "Review and approve or reject the active draft.",
+                    f"charter req approve {record.id} --actor human:reviewer "
+                    f"--expected-version {record.current_version} --json",
+                    ["active_draft_pending_review"],
+                )
+            )
+        if "no_acceptance_criteria" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "add_acceptance_criteria",
+                    30,
+                    "Define acceptance criteria through the proper draft/change flow.",
+                    None,
+                    ["no_acceptance_criteria"],
+                )
+            )
+        if "no_verification_method" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "add_verification_method",
+                    40,
+                    "Define a verification method for the current version.",
+                    f"charter verify method add {record.id} --method test "
+                    "--target tests/path.py::test_behavior --actor human:reviewer --json",
+                    ["no_verification_method"],
+                )
+            )
+        if "no_current_evidence" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "record_current_evidence",
+                    45,
+                    "Record verification evidence for the current version.",
+                    None,
+                    ["no_current_evidence"],
+                )
+            )
+        if "failing_evidence" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "investigate_failing_evidence",
+                    50,
+                    "Investigate failing verification evidence.",
+                    None,
+                    ["failing_evidence"],
+                )
+            )
+        if "stale_evidence" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "refresh_stale_evidence",
+                    60,
+                    "Refresh verification evidence for the current version.",
+                    None,
+                    ["stale_evidence"],
+                )
+            )
+        if "human_waiver" in verification_reason_codes:
+            actions.append(
+                DossierNextAction(
+                    "review_waiver",
+                    70,
+                    "Review current waiver evidence.",
+                    None,
+                    ["human_waiver"],
+                )
+            )
+        if "proposed_trace_pending_review" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "review_proposed_traces",
+                    80,
+                    "Review proposed trace links.",
+                    None,
+                    ["proposed_trace_pending_review"],
+                )
+            )
+        if "stale_or_orphaned_trace" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "repair_stale_or_orphaned_traces",
+                    85,
+                    "Repair stale or orphaned trace links.",
+                    None,
+                    ["stale_or_orphaned_trace"],
+                )
+            )
+        if "baseline_version_drift" in gap_codes:
+            actions.append(
+                DossierNextAction(
+                    "run_impact_analysis_when_available",
+                    90,
+                    "Analyze the impact of requirement drift against containing baselines.",
+                    None,
+                    ["baseline_version_drift"],
+                )
+            )
+        blockers = [
+            code
+            for code in (
+                "no_acceptance_criteria",
+                "no_verification_method",
+                "no_current_evidence",
+                "failing_evidence",
+                "stale_evidence",
+                "stale_or_orphaned_trace",
+            )
+            if code in gap_codes
+        ]
+        if blockers:
+            actions.append(
+                DossierNextAction(
+                    "do_not_treat_as_satisfied",
+                    100,
+                    "Do not treat this requirement as satisfied until blocking gaps are resolved.",
+                    None,
+                    blockers,
+                )
+            )
+        return actions
 
     def _insert_version(
         self,
