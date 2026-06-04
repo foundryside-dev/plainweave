@@ -36,6 +36,8 @@ def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> 
             "trace_links",
             "baselines",
             "baseline_members",
+            "verification_methods",
+            "verification_evidence",
             "events",
             "idempotency_keys",
         }
@@ -308,3 +310,111 @@ def test_locked_baselines_are_immutable(tmp_path: Path) -> None:
 
         with pytest.raises(sqlite3.IntegrityError, match="locked baselines are immutable"):
             connection.execute("delete from baselines where baseline_id = ?", ("BASELINE-0001",))
+
+
+def test_verification_tables_are_created_and_migration_is_idempotent(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+
+    migrate(db_path, project_key="AUTH")
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        assert columns(connection, "verification_methods") == {
+            "method_id",
+            "requirement_id",
+            "requirement_version",
+            "method_type",
+            "target",
+            "status",
+            "created_by",
+            "created_at",
+        }
+        assert columns(connection, "verification_evidence") == {
+            "evidence_id",
+            "method_id",
+            "requirement_id",
+            "requirement_version",
+            "status",
+            "evidence_ref",
+            "authority",
+            "freshness",
+            "recorded_by",
+            "recorded_at",
+            "payload_json",
+        }
+
+
+def test_verification_evidence_is_append_only(tmp_path: Path) -> None:
+    db_path = tmp_path / ".charter" / "charter.db"
+    migrate(db_path, project_key="AUTH")
+
+    with connect(db_path) as connection:
+        connection.execute(
+            """
+            insert into requirements(
+              requirement_id, display_id, stable_id, current_version, active_draft_id,
+              status, type, criticality, created_at, updated_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "req-1",
+                "REQ-AUTH-0001",
+                "charter:req:AUTH:0001",
+                1,
+                None,
+                "approved",
+                "functional",
+                "medium",
+                "2026-06-04T10:00:00+10:00",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+        connection.execute(
+            """
+            insert into verification_methods(
+              method_id, requirement_id, requirement_version, method_type,
+              target, status, created_by, created_at
+            ) values (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "VERM-0001",
+                "req-1",
+                1,
+                "test",
+                "tests/test_auth.py::test_expired",
+                "active",
+                "human:john",
+                "2026-06-04T10:00:00+10:00",
+            ),
+        )
+        connection.execute(
+            """
+            insert into verification_evidence(
+              evidence_id, method_id, requirement_id, requirement_version,
+              status, evidence_ref, authority, freshness, recorded_by,
+              recorded_at, payload_json
+            ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                "EVID-0001",
+                "VERM-0001",
+                "req-1",
+                1,
+                "passing",
+                "pytest:tests/test_auth.py::test_expired",
+                "test_derived",
+                "current",
+                "agent:codex",
+                "2026-06-04T10:00:00+10:00",
+                "{}",
+            ),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError, match="verification evidence is append-only"):
+            connection.execute(
+                "update verification_evidence set status = ? where evidence_id = ?",
+                ("failing", "EVID-0001"),
+            )
+
+        with pytest.raises(sqlite3.IntegrityError, match="verification evidence is append-only"):
+            connection.execute("delete from verification_evidence where evidence_id = ?", ("EVID-0001",))

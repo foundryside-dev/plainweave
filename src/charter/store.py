@@ -163,6 +163,45 @@ def migrate(db_path: Path, *, project_key: str) -> None:
               select raise(abort, 'baseline members are immutable');
             end;
 
+            create table if not exists verification_methods (
+              method_id text primary key,
+              requirement_id text not null references requirements(requirement_id),
+              requirement_version integer not null,
+              method_type text not null,
+              target text not null,
+              status text not null,
+              created_by text not null,
+              created_at text not null
+            );
+
+            create table if not exists verification_evidence (
+              evidence_id text primary key,
+              method_id text not null references verification_methods(method_id),
+              requirement_id text not null references requirements(requirement_id),
+              requirement_version integer not null,
+              status text not null,
+              evidence_ref text not null,
+              authority text not null,
+              freshness text not null,
+              recorded_by text not null,
+              recorded_at text not null,
+              payload_json text not null
+            );
+
+            create trigger if not exists verification_evidence_append_only_update
+            before update on verification_evidence
+            for each row
+            begin
+              select raise(abort, 'verification evidence is append-only');
+            end;
+
+            create trigger if not exists verification_evidence_append_only_delete
+            before delete on verification_evidence
+            for each row
+            begin
+              select raise(abort, 'verification evidence is append-only');
+            end;
+
             create table if not exists events (
               event_id text primary key,
               event_type text not null,
