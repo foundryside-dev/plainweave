@@ -430,6 +430,7 @@ def test_current_waiver_evidence_emits_review_waiver_action(tmp_path: Path) -> N
         target="waiver:release-manager",
         actor="human:john",
     )
+    service.register_actor("human:john", kind="human", actor="human:john")
     service.record_verification_evidence(
         method.id,
         status="waived",

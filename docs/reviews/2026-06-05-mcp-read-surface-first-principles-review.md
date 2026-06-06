@@ -49,13 +49,13 @@ Evidence:
 - `src/charter/mcp_surface.py` uses `success_envelope` and `error_envelope`
   from `src/charter/envelopes.py`.
 - Tool methods return existing schema names such as
-  `loom.charter.requirement_dossier.v1`,
-  `loom.charter.baseline.v1`,
-  `loom.charter.baseline_diff.v1`, and
-  `loom.charter.requirement_verification_status.v1`.
+  `weft.charter.requirement_dossier.v1`,
+  `weft.charter.baseline.v1`,
+  `weft.charter.baseline_diff.v1`, and
+  `weft.charter.requirement_verification_status.v1`.
 - `tests/test_mcp_read_surface.py` asserts schema, `ok`, warnings, producer,
   and project metadata on successful envelopes.
-- Error tests assert `loom.charter.error.v1`, closed error code, recoverability,
+- Error tests assert `weft.charter.error.v1`, closed error code, recoverability,
   and recovery hint.
 
 ### Read-Only And Local-Only Behavior

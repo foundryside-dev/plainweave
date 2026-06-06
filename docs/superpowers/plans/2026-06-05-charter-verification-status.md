@@ -51,7 +51,7 @@ def test_verification_method_fixture_contract() -> None:
         "schema", "id", "requirement_id", "requirement_version",
         "method", "target", "status", "created_by", "created_at",
     }
-    assert fixture["schema"] == "loom.charter.verification_method.v1"
+    assert fixture["schema"] == "weft.charter.verification_method.v1"
     assert fixture["id"].startswith("VERM-")
     assert fixture["method"] in {"test", "analysis", "inspection", "manual"}
     assert fixture["status"] == "active"
@@ -64,7 +64,7 @@ def test_verification_evidence_fixture_contract() -> None:
         "requirement_version", "status", "evidence_ref", "authority",
         "freshness", "recorded_by", "recorded_at", "payload",
     }
-    assert fixture["schema"] == "loom.charter.verification_evidence.v1"
+    assert fixture["schema"] == "weft.charter.verification_evidence.v1"
     assert fixture["id"].startswith("EVID-")
     assert fixture["status"] in {"passing", "failing", "inconclusive", "waived"}
     assert fixture["authority"] in {"test_derived", "human_attested", "agent_reported", "waiver"}
@@ -77,7 +77,7 @@ def test_requirement_verification_status_fixture_contract() -> None:
         "schema", "requirement_id", "id", "stable_id", "current_version",
         "status", "reasons", "current_evidence", "stale_evidence",
     }
-    assert fixture["schema"] == "loom.charter.requirement_verification_status.v1"
+    assert fixture["schema"] == "weft.charter.requirement_verification_status.v1"
     assert fixture["status"] in {"satisfied", "unsatisfied", "unverified", "stale", "unknown", "waived"}
     assert isinstance(fixture["reasons"], list)
 ```
@@ -283,9 +283,9 @@ Expected: fails because `verify` and `status` commands are not registered.
 
 Register `verify method add`, `verify evidence record`, `verify status`,
 `status requirement`, `status unverified`, and `status stale`. Return schemas
-`loom.charter.verification_method.v1`,
-`loom.charter.verification_evidence.v1`, and
-`loom.charter.requirement_verification_status.v1`.
+`weft.charter.verification_method.v1`,
+`weft.charter.verification_evidence.v1`, and
+`weft.charter.requirement_verification_status.v1`.
 
 - [ ] **Step 4: Add CLI fixtures and parity assertions**
 

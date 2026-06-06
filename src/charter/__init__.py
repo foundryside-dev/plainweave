@@ -1,4 +1,4 @@
-"""Charter - local-first requirements and verification authority for Loom."""
+"""Charter - local-first requirements and verification authority for Weft."""
 
 from charter._version import __version__
 

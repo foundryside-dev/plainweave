@@ -12,14 +12,14 @@ GENERATED_AT = "2026-06-04T10:00:00+10:00"
 
 def test_success_envelope_has_standard_shape() -> None:
     envelope = success_envelope(
-        "loom.charter.requirement_version.v1",
+        "weft.charter.requirement_version.v1",
         {"id": "REQ-AUTH-001"},
         project="AUTH",
         generated_at=GENERATED_AT,
     )
 
     assert envelope == {
-        "schema": "loom.charter.requirement_version.v1",
+        "schema": "weft.charter.requirement_version.v1",
         "ok": True,
         "data": {"id": "REQ-AUTH-001"},
         "warnings": [],
@@ -43,7 +43,7 @@ def test_error_envelope_has_recovery_fields_and_closed_code() -> None:
     )
 
     assert envelope == {
-        "schema": "loom.charter.error.v1",
+        "schema": "weft.charter.error.v1",
         "ok": False,
         "error": {
             "code": "VALIDATION",
@@ -74,7 +74,7 @@ def test_error_envelope_rejects_unknown_error_codes() -> None:
 
 def test_list_envelope_wraps_items_and_pagination() -> None:
     envelope = list_envelope(
-        "loom.charter.requirement_list.v1",
+        "weft.charter.requirement_list.v1",
         [{"id": "REQ-AUTH-001"}],
         has_more=True,
         next_offset=25,
@@ -95,7 +95,7 @@ def test_list_envelope_wraps_items_and_pagination() -> None:
 
 def test_batch_envelope_wraps_succeeded_and_failed_items() -> None:
     envelope = batch_envelope(
-        "loom.charter.batch.v1",
+        "weft.charter.batch.v1",
         succeeded=[{"id": "REQ-AUTH-001"}],
         failed=[{"id": "REQ-AUTH-002", "error": {"code": "CONFLICT"}}],
         generated_at=GENERATED_AT,

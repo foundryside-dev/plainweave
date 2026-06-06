@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.acceptance_criterion.v1",
+  "schema": "weft.charter.acceptance_criterion.v1",
   "ok": true,
   "data": {
     "id": "AC-0001",

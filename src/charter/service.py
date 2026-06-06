@@ -12,6 +12,7 @@ from typing import Any, cast
 from charter.errors import CharterError, ErrorCode
 from charter.models import (
     AcceptanceCriterion,
+    Actor,
     Baseline,
     BaselineDiff,
     BaselineDiffItem,
@@ -40,8 +41,87 @@ from charter.store import connect, read_schema_meta
 
 
 class CharterService:
+    #: Actor kinds permitted to record external/manual attestation authority
+    #: (waiver, manual attestation, human-attested evidence). Authority is
+    #: derived from the registered ``actors`` record, never from the raw actor
+    #: string — a free-form ``--actor human:fake`` is not an attester unless it
+    #: has been deliberately registered (an audited ``actor_registered`` event).
+    ATTESTER_KINDS = frozenset({"human", "attester"})
+    #: All kinds accepted by :meth:`register_actor`.
+    ACTOR_KINDS = frozenset({"human", "agent", "attester"})
+
     def __init__(self, db_path: Path) -> None:
         self.db_path = db_path
+
+    def register_actor(
+        self,
+        actor_id: str,
+        *,
+        kind: str,
+        display_name: str | None = None,
+        actor: str,
+    ) -> Actor:
+        """Register (or update) an actor identity in the project registry.
+
+        The registry is the source of truth for attestation authority. It is
+        the trust boundary for this local-first store: registration is a
+        deliberate, event-logged act, so promoting an actor to a human/attester
+        kind leaves an auditable ``actor_registered`` trail rather than being an
+        implicit claim smuggled into every evidence call. Registration is also
+        the shared actor/owner surface other Weft tools (Filigree, Clarion)
+        bind to.
+        """
+        self._require_actor(actor)
+        if not actor_id:
+            raise self._error(ErrorCode.VALIDATION, "actor_id is required")
+        if kind not in self.ACTOR_KINDS:
+            raise self._error(
+                ErrorCode.VALIDATION,
+                f"actor kind must be one of {sorted(self.ACTOR_KINDS)}",
+            )
+        now = self._now()
+        with connect(self.db_path) as connection:
+            # A registration is privileged if it would *grant* attester authority
+            # (target kind) or *modify an actor that already holds it* (so an
+            # agent cannot neuter an attester by re-registering them as an agent).
+            grants_authority = kind in self.ATTESTER_KINDS
+            touches_attester = self._actor_kind(connection, actor_id) in self.ATTESTER_KINDS
+            if grants_authority or touches_attester:
+                # Privileged. Open only for the genesis grant (no attester exists
+                # yet, bootstrap); after that, only an existing registered
+                # attester may perform it — so an agent cannot mint a fake human
+                # and then attest. Genesis itself is first-come and should be
+                # performed out-of-band at project setup; the filesystem remains
+                # the ultimate trust boundary.
+                attester_exists = self._attester_exists(connection)
+                registrant_is_attester = self._actor_kind(connection, actor) in self.ATTESTER_KINDS
+                if attester_exists and not registrant_is_attester:
+                    raise self._error(
+                        ErrorCode.POLICY_REQUIRED,
+                        "registering or modifying a human/attester actor requires an existing registered attester",
+                    )
+            connection.execute(
+                """
+                insert into actors(actor_id, kind, display_name)
+                values (?, ?, ?)
+                on conflict(actor_id) do update set
+                  kind = excluded.kind,
+                  display_name = excluded.display_name
+                """,
+                (actor_id, kind, display_name),
+            )
+            self._record_event(
+                connection,
+                "actor_registered",
+                "actor",
+                actor_id,
+                actor,
+                None,
+                {"actor_id": actor_id, "kind": kind, "display_name": display_name},
+                now,
+            )
+            connection.commit()
+        return Actor(actor_id=actor_id, kind=kind, display_name=display_name)
 
     def add_verification_method(
         self,
@@ -109,7 +189,7 @@ class CharterService:
         with connect(self.db_path) as connection:
             method = self._verification_method_row(connection, method_id)
             requirement = self._requirement_row(connection, str(method["requirement_id"]))
-            authority = self._evidence_authority(str(method["method_type"]), status, actor)
+            authority = self._evidence_authority(connection, str(method["method_type"]), status, actor)
             evidence_id = f"EVID-{self._next_evidence_number(connection):04d}"
             current_version = int(requirement["current_version"])
             connection.execute(
@@ -1992,17 +2072,45 @@ class CharterService:
         if status not in {"passing", "failing", "inconclusive", "waived"}:
             raise self._error(ErrorCode.VALIDATION, "verification evidence status is not supported")
 
-    def _evidence_authority(self, method: str, status: str, actor: str) -> str:
-        actor_is_agent = actor.startswith("agent:")
+    def _actor_kind(self, connection: sqlite3.Connection, actor: str) -> str | None:
+        """Return the registered kind for ``actor`` or ``None`` if unregistered."""
+        row = connection.execute("select kind from actors where actor_id = ?", (actor,)).fetchone()
+        return str(row["kind"]) if row is not None and row["kind"] is not None else None
+
+    def _attester_exists(self, connection: sqlite3.Connection) -> bool:
+        """True if any human/attester actor is already registered (genesis done)."""
+        placeholders = ", ".join("?" for _ in self.ATTESTER_KINDS)
+        row = connection.execute(
+            f"select 1 from actors where kind in ({placeholders}) limit 1",
+            tuple(sorted(self.ATTESTER_KINDS)),
+        ).fetchone()
+        return row is not None
+
+    def _evidence_authority(
+        self, connection: sqlite3.Connection, method: str, status: str, actor: str
+    ) -> str:
+        # Authority is resolved from the registered actor record, not from the
+        # honour-system actor string. An unregistered actor (no prefix, a
+        # spoofed ``human:`` prefix, or anything else) defaults to the
+        # least-privileged ``agent_reported`` and is denied waiver/manual
+        # attestation. Only a registered human/attester may carry external or
+        # manual attestation authority.
+        is_attester = self._actor_kind(connection, actor) in self.ATTESTER_KINDS
         if status == "waived":
-            if actor_is_agent:
-                raise self._error(ErrorCode.POLICY_REQUIRED, "agents cannot record waiver evidence")
+            if not is_attester:
+                raise self._error(
+                    ErrorCode.POLICY_REQUIRED,
+                    "waiver evidence requires a registered human attester",
+                )
             return "waiver"
-        if method == "manual" and actor_is_agent:
-            raise self._error(ErrorCode.POLICY_REQUIRED, "agents cannot record manual attestation evidence")
+        if method == "manual" and not is_attester:
+            raise self._error(
+                ErrorCode.POLICY_REQUIRED,
+                "manual attestation evidence requires a registered human attester",
+            )
         if method == "test":
             return "test_derived"
-        if actor.startswith("human:"):
+        if is_attester:
             return "human_attested"
         return "agent_reported"
 

@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.error.v1",
+  "schema": "weft.charter.error.v1",
   "ok": false,
   "error": {
     "code": "VALIDATION",

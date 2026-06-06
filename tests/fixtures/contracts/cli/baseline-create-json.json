@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.baseline.v1",
+  "schema": "weft.charter.baseline.v1",
   "ok": true,
   "data": {
     "id": "BASELINE-0001",

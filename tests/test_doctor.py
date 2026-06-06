@@ -23,7 +23,7 @@ def test_doctor_json_reports_uninitialized_project(
     assert main(["doctor", "--json"]) == 0
 
     envelope = read_json_output(capsys.readouterr().out)
-    assert envelope["schema"] == "loom.charter.doctor.v1"
+    assert envelope["schema"] == "weft.charter.doctor.v1"
     assert envelope["ok"] is True
     assert envelope["data"] == {
         "initialized": False,

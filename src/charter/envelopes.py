@@ -64,7 +64,7 @@ def error_envelope(
 ) -> JsonObject:
     error_code = _error_code(code)
     return {
-        "schema": "loom.charter.error.v1",
+        "schema": "weft.charter.error.v1",
         "ok": False,
         "error": {
             "code": error_code.value,

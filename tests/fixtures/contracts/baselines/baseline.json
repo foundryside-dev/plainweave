@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.baseline.v1",
+  "schema": "weft.charter.baseline.v1",
   "id": "BASELINE-0001",
   "name": "Release 1.0 requirements",
   "description": "Approved requirements for release 1.0.",

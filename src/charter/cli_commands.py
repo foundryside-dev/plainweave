@@ -9,6 +9,7 @@ from charter.envelopes import error_envelope, list_envelope, success_envelope
 from charter.errors import CharterError, ErrorCode
 from charter.models import (
     AcceptanceCriterion,
+    Actor,
     Baseline,
     BaselineDiff,
     BaselineDiffItem,
@@ -63,6 +64,10 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     baseline_parser = subparsers.add_parser("baseline", help="Manage requirement baselines.")
     baseline_subparsers = baseline_parser.add_subparsers(dest="baseline_command", required=True)
     _register_baseline_commands(baseline_subparsers)
+
+    actor_parser = subparsers.add_parser("actor", help="Manage the project actor registry.")
+    actor_subparsers = actor_parser.add_subparsers(dest="actor_command", required=True)
+    _register_actor_commands(actor_subparsers)
 
     verify_parser = subparsers.add_parser("verify", help="Manage verification methods and evidence.")
     verify_subparsers = verify_parser.add_subparsers(dest="verify_command", required=True)
@@ -219,6 +224,22 @@ def _register_baseline_commands(
     diff_parser.set_defaults(handler=handle_baseline_diff)
 
 
+def _register_actor_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    register_parser = subparsers.add_parser(
+        "register", help="Register an actor identity and its attestation kind."
+    )
+    register_parser.add_argument("actor_id")
+    register_parser.add_argument(
+        "--kind", required=True, choices=["human", "agent", "attester"]
+    )
+    register_parser.add_argument("--display-name", default=None)
+    register_parser.add_argument("--actor", default="")
+    register_parser.add_argument("--json", action="store_true")
+    register_parser.set_defaults(handler=handle_actor_register)
+
+
 def _register_verify_commands(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
@@ -272,7 +293,7 @@ def handle_init(args: argparse.Namespace) -> int:
     project_key = str(args.project_key or default_project_key(root))
     result = initialize_project(root, project_key)
     if bool(args.json):
-        print(json.dumps(success_envelope("loom.charter.init.v1", result, project=project_key)))
+        print(json.dumps(success_envelope("weft.charter.init.v1", result, project=project_key)))
     else:
         status = "created" if result["created"] else "already initialized"
         print(f"Charter store {status}: {result['db_path']}")
@@ -284,7 +305,7 @@ def handle_doctor(args: argparse.Namespace) -> int:
     result = inspect_project(root)
     project = result["project_key"] if isinstance(result["project_key"], str) else None
     if bool(args.json):
-        print(json.dumps(success_envelope("loom.charter.doctor.v1", result, project=project)))
+        print(json.dumps(success_envelope("weft.charter.doctor.v1", result, project=project)))
     else:
         status = "initialized" if result["initialized"] else "not initialized"
         print(f"Charter project {status}: {result['db_path']}")
@@ -294,7 +315,7 @@ def handle_doctor(args: argparse.Namespace) -> int:
 def handle_req_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement_draft.v1",
+        "weft.charter.requirement_draft.v1",
         lambda service: _draft_dict(
             service.create_requirement(str(args.title), str(args.statement), actor=str(args.actor))
         ),
@@ -304,7 +325,7 @@ def handle_req_add(args: argparse.Namespace) -> int:
 def handle_req_edit(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement_draft.v1",
+        "weft.charter.requirement_draft.v1",
         lambda service: _draft_dict(
             service.update_draft(
                 str(args.requirement_id),
@@ -322,7 +343,7 @@ def handle_req_edit(args: argparse.Namespace) -> int:
 def handle_req_show(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement.v1",
+        "weft.charter.requirement.v1",
         lambda service: _record_dict(service.get_requirement(str(args.requirement_id))),
     )
 
@@ -330,7 +351,7 @@ def handle_req_show(args: argparse.Namespace) -> int:
 def handle_req_search(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "loom.charter.requirement_list.v1",
+        "weft.charter.requirement_list.v1",
         lambda service: [_record_dict(item) for item in service.search_requirements(_optional_str(args.query))],
     )
 
@@ -338,7 +359,7 @@ def handle_req_search(args: argparse.Namespace) -> int:
 def handle_req_approve(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement_version.v1",
+        "weft.charter.requirement_version.v1",
         lambda service: _version_dict(
             service.approve_requirement(
                 str(args.requirement_id),
@@ -353,7 +374,7 @@ def handle_req_approve(args: argparse.Namespace) -> int:
 def handle_req_supersede(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement_version.v1",
+        "weft.charter.requirement_version.v1",
         lambda service: _version_dict(
             service.supersede_requirement(
                 str(args.requirement_id),
@@ -370,7 +391,7 @@ def handle_req_supersede(args: argparse.Namespace) -> int:
 def handle_req_deprecate(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement.v1",
+        "weft.charter.requirement.v1",
         lambda service: _record_dict(
             service.deprecate_requirement(
                 str(args.requirement_id),
@@ -385,7 +406,7 @@ def handle_req_deprecate(args: argparse.Namespace) -> int:
 def handle_req_reject(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement.v1",
+        "weft.charter.requirement.v1",
         lambda service: _record_dict(
             service.reject_requirement(
                 str(args.requirement_id),
@@ -400,7 +421,7 @@ def handle_req_reject(args: argparse.Namespace) -> int:
 def handle_criterion_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.acceptance_criterion.v1",
+        "weft.charter.acceptance_criterion.v1",
         lambda service: _criterion_dict(
             service.add_acceptance_criterion(
                 str(args.requirement_id),
@@ -415,7 +436,7 @@ def handle_criterion_add(args: argparse.Namespace) -> int:
 def handle_criterion_list(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "loom.charter.acceptance_criterion_list.v1",
+        "weft.charter.acceptance_criterion_list.v1",
         lambda service: [
             _criterion_dict(item)
             for item in service.list_acceptance_criteria(
@@ -429,7 +450,7 @@ def handle_criterion_list(args: argparse.Namespace) -> int:
 def handle_trace_propose(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.trace_link.v1",
+        "weft.charter.trace_link.v1",
         lambda service: _trace_dict(
             service.propose_trace_link(
                 TraceRef(str(args.from_kind), str(args.from_id)),
@@ -445,7 +466,7 @@ def handle_trace_propose(args: argparse.Namespace) -> int:
 def handle_trace_accept(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.trace_link.v1",
+        "weft.charter.trace_link.v1",
         lambda service: _trace_dict(service.accept_trace_link(str(args.link_id), actor=str(args.actor))),
     )
 
@@ -453,7 +474,7 @@ def handle_trace_accept(args: argparse.Namespace) -> int:
 def handle_trace_reject(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.trace_link.v1",
+        "weft.charter.trace_link.v1",
         lambda service: _trace_dict(
             service.reject_trace_link(str(args.link_id), actor=str(args.actor), reason=str(args.reason))
         ),
@@ -465,7 +486,7 @@ def handle_trace_list(args: argparse.Namespace) -> int:
     state = _optional_str(args.state)
     return _handle_service_list(
         args,
-        "loom.charter.trace_link_list.v1",
+        "weft.charter.trace_link_list.v1",
         lambda service: [_trace_dict(item) for item in service.trace_for(requirement_id=requirement_id, state=state)],
     )
 
@@ -473,7 +494,7 @@ def handle_trace_list(args: argparse.Namespace) -> int:
 def handle_baseline_create(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.baseline.v1",
+        "weft.charter.baseline.v1",
         lambda service: _baseline_dict(
             service.create_baseline(
                 str(args.name),
@@ -487,7 +508,7 @@ def handle_baseline_create(args: argparse.Namespace) -> int:
 def handle_baseline_show(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.baseline.v1",
+        "weft.charter.baseline.v1",
         lambda service: _baseline_dict(service.show_baseline(str(args.baseline_id))),
     )
 
@@ -495,7 +516,7 @@ def handle_baseline_show(args: argparse.Namespace) -> int:
 def handle_baseline_list(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "loom.charter.baseline_list.v1",
+        "weft.charter.baseline_list.v1",
         lambda service: [_baseline_dict(item) for item in service.list_baselines()],
     )
 
@@ -503,15 +524,30 @@ def handle_baseline_list(args: argparse.Namespace) -> int:
 def handle_baseline_diff(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.baseline_diff.v1",
+        "weft.charter.baseline_diff.v1",
         lambda service: _baseline_diff_dict(service.diff_baseline(str(args.baseline_id))),
+    )
+
+
+def handle_actor_register(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.charter.actor.v1",
+        lambda service: _actor_dict(
+            service.register_actor(
+                str(args.actor_id),
+                kind=str(args.kind),
+                display_name=args.display_name if args.display_name is None else str(args.display_name),
+                actor=str(args.actor),
+            )
+        ),
     )
 
 
 def handle_verify_method_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.verification_method.v1",
+        "weft.charter.verification_method.v1",
         lambda service: _verification_method_dict(
             service.add_verification_method(
                 str(args.requirement_id),
@@ -526,7 +562,7 @@ def handle_verify_method_add(args: argparse.Namespace) -> int:
 def handle_verify_evidence_record(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.verification_evidence.v1",
+        "weft.charter.verification_evidence.v1",
         lambda service: _verification_evidence_dict(
             service.record_verification_evidence(
                 str(args.method_id),
@@ -541,7 +577,7 @@ def handle_verify_evidence_record(args: argparse.Namespace) -> int:
 def handle_verify_status(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "loom.charter.requirement_verification_status.v1",
+        "weft.charter.requirement_verification_status.v1",
         lambda service: _requirement_verification_status_dict(service.verification_status(str(args.requirement_id))),
     )
 
@@ -553,7 +589,7 @@ def handle_status_requirement(args: argparse.Namespace) -> int:
 def handle_status_unverified(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "loom.charter.requirement_verification_status_list.v1",
+        "weft.charter.requirement_verification_status_list.v1",
         lambda service: [
             _requirement_verification_status_dict(item) for item in service.list_unverified_requirements()
         ],
@@ -563,7 +599,7 @@ def handle_status_unverified(args: argparse.Namespace) -> int:
 def handle_status_stale(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "loom.charter.requirement_verification_status_list.v1",
+        "weft.charter.requirement_verification_status_list.v1",
         lambda service: [_requirement_verification_status_dict(item) for item in service.list_stale_requirements()],
     )
 
@@ -578,7 +614,7 @@ def handle_dossier(args: argparse.Namespace) -> int:
         print(
             json.dumps(
                 success_envelope(
-                    "loom.charter.requirement_dossier.v1",
+                    "weft.charter.requirement_dossier.v1",
                     dossier_data,
                     project=_current_project_key(),
                 )
@@ -689,6 +725,14 @@ def _current_project_key() -> str | None:
 
 def _optional_str(value: object) -> str | None:
     return value if isinstance(value, str) else None
+
+
+def _actor_dict(actor: Actor) -> dict[str, object]:
+    return {
+        "actor_id": actor.actor_id,
+        "kind": actor.kind,
+        "display_name": actor.display_name,
+    }
 
 
 def _draft_dict(draft: RequirementDraft) -> dict[str, object]:

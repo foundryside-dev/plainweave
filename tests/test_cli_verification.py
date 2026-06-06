@@ -77,7 +77,7 @@ def test_verify_cli_method_evidence_and_status(
         ],
         capsys,
     )
-    assert method["schema"] == "loom.charter.verification_method.v1"
+    assert method["schema"] == "weft.charter.verification_method.v1"
     assert method["data"]["id"] == "VERM-0001"
     assert method["data"]["method"] == "test"
 
@@ -96,12 +96,12 @@ def test_verify_cli_method_evidence_and_status(
         ],
         capsys,
     )
-    assert evidence["schema"] == "loom.charter.verification_evidence.v1"
+    assert evidence["schema"] == "weft.charter.verification_evidence.v1"
     assert evidence["data"]["id"] == "EVID-0001"
     assert evidence["data"]["authority"] == "test_derived"
 
     status = run_json(["verify", "status", "REQ-AUTH-0001"], capsys)
-    assert status["schema"] == "loom.charter.requirement_verification_status.v1"
+    assert status["schema"] == "weft.charter.requirement_verification_status.v1"
     assert status["data"]["status"] == "satisfied"
     assert [item["id"] for item in status["data"]["current_evidence"]] == ["EVID-0001"]
 
@@ -196,6 +196,124 @@ def test_status_cli_lists_unverified_and_stale(
     assert requirement["data"]["status"] == "stale"
     assert [item["id"] for item in stale["data"]["items"]] == ["REQ-AUTH-0001"]
     assert [item["id"] for item in unverified["data"]["items"]] == ["REQ-AUTH-0002"]
+
+
+def test_cli_unregistered_human_prefix_cannot_waive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    approve_requirement(capsys)
+    run_json(
+        [
+            "verify",
+            "method",
+            "add",
+            "REQ-AUTH-0001",
+            "--method",
+            "manual",
+            "--target",
+            "manual:operator",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+
+    spoofed = run_json(
+        [
+            "verify",
+            "evidence",
+            "record",
+            "VERM-0001",
+            "--status",
+            "waived",
+            "--evidence-ref",
+            "waiver:spoofed",
+            "--actor",
+            "human:fake",
+        ],
+        capsys,
+        expected_status=2,
+    )
+    assert spoofed["error"]["code"] == "POLICY_REQUIRED"
+
+
+def test_cli_actor_register_enables_waiver(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    approve_requirement(capsys)
+    run_json(
+        [
+            "verify",
+            "method",
+            "add",
+            "REQ-AUTH-0001",
+            "--method",
+            "manual",
+            "--target",
+            "manual:operator",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+
+    registered = run_json(
+        [
+            "actor",
+            "register",
+            "human:john",
+            "--kind",
+            "human",
+            "--display-name",
+            "John",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    assert registered["schema"] == "weft.charter.actor.v1"
+    assert registered["data"]["kind"] == "human"
+
+    evidence = run_json(
+        [
+            "verify",
+            "evidence",
+            "record",
+            "VERM-0001",
+            "--status",
+            "waived",
+            "--evidence-ref",
+            "waiver:release-manager",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    assert evidence["data"]["authority"] == "waiver"
+
+
+def test_cli_agent_cannot_register_attester_after_genesis(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+    # Genesis attester established at setup.
+    run_json(["actor", "register", "human:john", "--kind", "human", "--actor", "human:john"], capsys)
+
+    # An agent cannot then mint a fake human via the shipped CLI.
+    blocked = run_json(
+        ["actor", "register", "human:fake", "--kind", "human", "--actor", "agent:codex"],
+        capsys,
+        expected_status=2,
+    )
+    assert blocked["error"]["code"] == "POLICY_REQUIRED"
 
 
 def test_verify_cli_policy_and_not_found_errors(

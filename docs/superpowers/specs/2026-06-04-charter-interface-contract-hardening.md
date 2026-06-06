@@ -46,7 +46,7 @@ the protocol itself requires a different wrapper:
 
 ```json
 {
-  "schema": "loom.charter.<object>.v1",
+  "schema": "weft.charter.<object>.v1",
   "ok": true,
   "data": {},
   "warnings": [],
@@ -62,7 +62,7 @@ the protocol itself requires a different wrapper:
 
 ```json
 {
-  "schema": "loom.charter.error.v1",
+  "schema": "weft.charter.error.v1",
   "ok": false,
   "error": {
     "code": "VALIDATION",
@@ -310,7 +310,7 @@ Rules:
 
 ```json
 {
-  "schema": "loom.charter.trace_link.v1",
+  "schema": "weft.charter.trace_link.v1",
   "id": "LINK-42",
   "state": "proposed",
   "from": {"kind": "clarion_entity", "id": "clarion:eid:abc"},
@@ -410,7 +410,7 @@ controlled and uses the standard envelopes.
 
 ```json
 {
-  "schema": "loom.charter.list.v1",
+  "schema": "weft.charter.list.v1",
   "ok": true,
   "data": {
     "items": [],
@@ -426,7 +426,7 @@ controlled and uses the standard envelopes.
 
 ```json
 {
-  "schema": "loom.charter.batch.v1",
+  "schema": "weft.charter.batch.v1",
   "ok": true,
   "data": {
     "succeeded": [],
@@ -535,7 +535,7 @@ Charter never derives, parses, or remints SEI.
 
 ```json
 {
-  "schema": "loom.charter.gap.v1",
+  "schema": "weft.charter.gap.v1",
   "id": "GAP-0007",
   "kind": "stale_verification",
   "requirement_id": "REQ-AUTH-017",
@@ -616,7 +616,7 @@ Charter table knowledge.
 
 ```json
 {
-  "schema": "loom.charter.preflight_facts.v1",
+  "schema": "weft.charter.preflight_facts.v1",
   "producer": {
     "tool": "charter",
     "version": "0.1.0",
@@ -678,7 +678,7 @@ block in any configured mode.
 
 ```json
 {
-  "schema": "loom.charter.event.v1",
+  "schema": "weft.charter.event.v1",
   "id": "EVT-0001",
   "timestamp": "2026-06-04T10:00:00+10:00",
   "actor": "agent:codex",

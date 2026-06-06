@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.requirement_verification_status.v1",
+  "schema": "weft.charter.requirement_verification_status.v1",
   "requirement_id": "req-1",
   "id": "REQ-AUTH-0001",
   "stable_id": "charter:req:AUTH:0001",

@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.requirement_dossier.v1",
+  "schema": "weft.charter.requirement_dossier.v1",
   "ok": true,
   "data": {
     "identity": {

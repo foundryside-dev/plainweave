@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.verification_method.v1",
+  "schema": "weft.charter.verification_method.v1",
   "ok": true,
   "data": {
     "id": "VERM-0001",

@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.trace_link.v1",
+  "schema": "weft.charter.trace_link.v1",
   "id": "LINK-0001",
   "state": "accepted",
   "from": {

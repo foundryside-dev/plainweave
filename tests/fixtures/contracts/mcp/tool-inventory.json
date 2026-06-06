@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.mcp_tool_inventory.v1",
+  "schema": "weft.charter.mcp_tool_inventory.v1",
   "tools": [
     {
       "name": "charter_baseline_diff",

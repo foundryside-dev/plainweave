@@ -7,7 +7,7 @@
 
 ## Summary
 
-Charter will expose a versioned `loom.charter.preflight_facts.v1` envelope for Legis. The envelope contains scoped facts, provenance, freshness, and summary counts. It does not contain commit allow/block decisions.
+Charter will expose a versioned `weft.charter.preflight_facts.v1` envelope for Legis. The envelope contains scoped facts, provenance, freshness, and summary counts. It does not contain commit allow/block decisions.
 
 ## Context
 
@@ -92,7 +92,7 @@ untraced_change
 
 ## Federation References
 
-The `loom.charter.preflight_facts.v1` envelope defined here is Charter-owned;
+The `weft.charter.preflight_facts.v1` envelope defined here is Charter-owned;
 this ADR is its authoritative spec. It is registered in the Loom hub's
 cross-product contract index for discovery: `~/loom/contracts-index.md`. The
 federation model and SEI keying it builds on are authoritative in

@@ -81,7 +81,7 @@ def test_baseline_cli_create_show_list_and_diff(
         capsys,
     )
 
-    assert created["schema"] == "loom.charter.baseline.v1"
+    assert created["schema"] == "weft.charter.baseline.v1"
     assert created["data"]["id"] == "BASELINE-0001"
     assert created["data"]["locked"] is True
     assert [member["id"] for member in created["data"]["members"]] == ["REQ-AUTH-0001"]
@@ -90,7 +90,7 @@ def test_baseline_cli_create_show_list_and_diff(
     assert shown["data"] == created["data"]
 
     listed = run_json(["baseline", "list"], capsys)
-    assert listed["schema"] == "loom.charter.baseline_list.v1"
+    assert listed["schema"] == "weft.charter.baseline_list.v1"
     assert listed["data"]["items"] == [created["data"]]
 
     run_json(
@@ -140,7 +140,7 @@ def test_baseline_cli_create_show_list_and_diff(
     )
 
     diff = run_json(["baseline", "diff", "BASELINE-0001"], capsys)
-    assert diff["schema"] == "loom.charter.baseline_diff.v1"
+    assert diff["schema"] == "weft.charter.baseline_diff.v1"
     assert diff["data"]["summary"] == {
         "unchanged": 0,
         "changed": 0,
@@ -167,7 +167,7 @@ def test_baseline_cli_requires_actor(
         expected_status=2,
     )
 
-    assert error["schema"] == "loom.charter.error.v1"
+    assert error["schema"] == "weft.charter.error.v1"
     assert error["error"]["code"] == "VALIDATION"
 
 
@@ -180,5 +180,5 @@ def test_baseline_cli_missing_baseline_error(
 
     error = run_json(["baseline", "show", "BASELINE-9999"], capsys, expected_status=2)
 
-    assert error["schema"] == "loom.charter.error.v1"
+    assert error["schema"] == "weft.charter.error.v1"
     assert error["error"]["code"] == "NOT_FOUND"

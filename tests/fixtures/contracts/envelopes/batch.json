@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.batch.v1",
+  "schema": "weft.charter.batch.v1",
   "ok": true,
   "data": {
     "succeeded": [],

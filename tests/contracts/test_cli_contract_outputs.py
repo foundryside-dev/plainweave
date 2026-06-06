@@ -56,6 +56,30 @@ def assert_value_matches(actual: Any, expected: Any, field_name: str) -> None:
     assert actual == expected
 
 
+def test_actor_register_cli_output_matches_contract_fixture(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    init_project(tmp_path, monkeypatch, capsys)
+
+    actor = run_json(
+        [
+            "actor",
+            "register",
+            "human:john",
+            "--kind",
+            "human",
+            "--display-name",
+            "John",
+            "--actor",
+            "human:john",
+        ],
+        capsys,
+    )
+    assert_matches_fixture(actor, load_fixture("cli/actor-register-json.json"))
+
+
 def test_requirement_cli_outputs_match_contract_fixtures(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

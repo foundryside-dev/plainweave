@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.verification_evidence.v1",
+  "schema": "weft.charter.verification_evidence.v1",
   "id": "EVID-0001",
   "method_id": "VERM-0001",
   "requirement_id": "REQ-AUTH-0001",

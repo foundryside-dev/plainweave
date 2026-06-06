@@ -30,7 +30,7 @@ def test_init_json_creates_project_store(
     db_path = tmp_path / ".charter" / "charter.db"
     assert db_path.is_file()
     envelope = read_json_output(capsys.readouterr().out)
-    assert envelope["schema"] == "loom.charter.init.v1"
+    assert envelope["schema"] == "weft.charter.init.v1"
     assert envelope["ok"] is True
     assert envelope["data"] == {
         "created": True,

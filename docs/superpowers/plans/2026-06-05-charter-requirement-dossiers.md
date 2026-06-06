@@ -12,7 +12,7 @@
 
 ## File Structure
 
-- Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`: canonical data fixture for `loom.charter.requirement_dossier.v1`.
+- Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`: canonical data fixture for `weft.charter.requirement_dossier.v1`.
 - Create `tests/fixtures/contracts/cli/dossier-json.json`: canonical CLI envelope fixture for `charter dossier REQ-AUTH-0001 --json`.
 - Modify `tests/contracts/test_contract_fixtures.py`: register dossier fixtures and validate dossier section shapes.
 - Modify `tests/contracts/test_cli_contract_outputs.py`: add parsed-shape CLI parity test for dossier JSON output.
@@ -46,7 +46,7 @@ The CLI envelope uses:
 
 ```json
 {
-  "schema": "loom.charter.requirement_dossier.v1",
+  "schema": "weft.charter.requirement_dossier.v1",
   "ok": true,
   "data": {
     "identity": {},
@@ -100,7 +100,7 @@ def test_requirement_dossier_fixture_contract() -> None:
         "peer_facts",
         "next_actions",
     }
-    assert fixture["schema"] == "loom.charter.requirement_dossier.v1"
+    assert fixture["schema"] == "weft.charter.requirement_dossier.v1"
     assert set(fixture["identity"]) == {"requirement_id", "id", "stable_id", "current_version"}
     assert set(fixture["authority_summary"]) == {
         "status",
@@ -142,7 +142,7 @@ Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`:
 
 ```json
 {
-  "schema": "loom.charter.requirement_dossier.v1",
+  "schema": "weft.charter.requirement_dossier.v1",
   "identity": {
     "requirement_id": "req_auth_0001",
     "id": "REQ-AUTH-0001",
@@ -1122,7 +1122,7 @@ def test_dossier_cli_json_output(
 
     output = run_json(["dossier", "REQ-AUTH-0001"], capsys)
 
-    assert output["schema"] == "loom.charter.requirement_dossier.v1"
+    assert output["schema"] == "weft.charter.requirement_dossier.v1"
     assert output["ok"] is True
     assert output["data"]["identity"]["id"] == "REQ-AUTH-0001"
     assert output["data"]["authority_summary"]["status"] == "approved"
@@ -1156,7 +1156,7 @@ def test_dossier_cli_missing_requirement_error(
 
     error = run_json(["dossier", "REQ-AUTH-9999"], capsys, expected_status=2)
 
-    assert error["schema"] == "loom.charter.error.v1"
+    assert error["schema"] == "weft.charter.error.v1"
     assert error["error"]["code"] == "NOT_FOUND"
 ```
 
@@ -1207,7 +1207,7 @@ def handle_dossier(args: argparse.Namespace) -> int:
     service = _service()
     dossier = service.requirement_dossier(str(args.requirement_id))
     if bool(args.json):
-        print(json.dumps(success_envelope("loom.charter.requirement_dossier.v1", _dossier_dict(dossier))))
+        print(json.dumps(success_envelope("weft.charter.requirement_dossier.v1", _dossier_dict(dossier))))
         return 0
     print(_dossier_human(dossier))
     return 0
@@ -1467,7 +1467,7 @@ python -m charter.cli req approve REQ-AUTH-0001 --actor human:john --expected-ve
 python -m charter.cli dossier REQ-AUTH-0001 --json
 ```
 
-Expected: a JSON envelope whose top-level `schema` is `loom.charter.requirement_dossier.v1`.
+Expected: a JSON envelope whose top-level `schema` is `weft.charter.requirement_dossier.v1`.
 
 - [ ] **Step 4: Save and normalize the fixture**
 
@@ -1477,7 +1477,7 @@ The fixture must include:
 
 ```json
 {
-  "schema": "loom.charter.requirement_dossier.v1",
+  "schema": "weft.charter.requirement_dossier.v1",
   "ok": true,
   "data": {
     "identity": {

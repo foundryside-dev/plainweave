@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.requirement_dossier.v1",
+  "schema": "weft.charter.requirement_dossier.v1",
   "identity": {
     "requirement_id": "req-1",
     "id": "REQ-AUTH-0001",

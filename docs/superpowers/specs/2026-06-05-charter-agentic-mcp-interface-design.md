@@ -24,7 +24,7 @@ Installed on `main`:
 - Verification and status core for methods, evidence, derived status,
   unverified/stale reporting, and verification fixtures.
 - Local requirement dossiers with `charter dossier REQ_ID --json`,
-  `loom.charter.requirement_dossier.v1`, compact human output, and CLI contract
+  `weft.charter.requirement_dossier.v1`, compact human output, and CLI contract
   parity.
 
 Remaining P0 work:
@@ -153,7 +153,7 @@ Parameters:
 }
 ```
 
-Returns `loom.charter.requirement_dossier.v1`. This is the preferred one-call
+Returns `weft.charter.requirement_dossier.v1`. This is the preferred one-call
 context object before an agent edits, reviews, or plans around a requirement.
 
 Required sections:
@@ -232,7 +232,7 @@ Parameters:
 }
 ```
 
-Returns `loom.charter.baseline.v1`.
+Returns `weft.charter.baseline.v1`.
 
 Required facts:
 
@@ -254,7 +254,7 @@ Parameters:
 }
 ```
 
-Returns `loom.charter.baseline_diff.v1`.
+Returns `weft.charter.baseline_diff.v1`.
 
 Required statuses:
 
@@ -276,7 +276,7 @@ Parameters:
 }
 ```
 
-Returns `loom.charter.requirement_verification_status.v1`.
+Returns `weft.charter.requirement_verification_status.v1`.
 
 Required facts:
 
@@ -315,23 +315,23 @@ Stable project context and authority summary. This may duplicate
 `charter_project_context_get` for hosts that prefer attaching project context as
 a resource.
 
-### `charter://contracts/loom.charter.error.v1`
+### `charter://contracts/weft.charter.error.v1`
 
 Error envelope contract and recovery expectations.
 
-### `charter://contracts/loom.charter.requirement_dossier.v1`
+### `charter://contracts/weft.charter.requirement_dossier.v1`
 
 Requirement dossier contract.
 
-### `charter://contracts/loom.charter.baseline.v1`
+### `charter://contracts/weft.charter.baseline.v1`
 
 Baseline contract.
 
-### `charter://contracts/loom.charter.baseline_diff.v1`
+### `charter://contracts/weft.charter.baseline_diff.v1`
 
 Baseline diff contract.
 
-### `charter://contracts/loom.charter.requirement_verification_status.v1`
+### `charter://contracts/weft.charter.requirement_verification_status.v1`
 
 Verification status contract.
 
@@ -344,7 +344,7 @@ Every successful tool returns the existing Charter envelope:
 
 ```json
 {
-  "schema": "loom.charter.<contract>.v1",
+  "schema": "weft.charter.<contract>.v1",
   "ok": true,
   "data": {},
   "warnings": [],
@@ -374,11 +374,11 @@ creating a parallel MCP-only truth shape.
 
 ## Error Contract
 
-Errors return `loom.charter.error.v1`:
+Errors return `weft.charter.error.v1`:
 
 ```json
 {
-  "schema": "loom.charter.error.v1",
+  "schema": "weft.charter.error.v1",
   "ok": false,
   "error": {
     "code": "NOT_FOUND",

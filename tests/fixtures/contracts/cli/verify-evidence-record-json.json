@@ -1,5 +1,5 @@
 {
-  "schema": "loom.charter.verification_evidence.v1",
+  "schema": "weft.charter.verification_evidence.v1",
   "ok": true,
   "data": {
     "id": "EVID-0001",

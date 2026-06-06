@@ -98,24 +98,24 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
 
 MCP_RESOURCE_URIS = [
     "charter://project/context",
-    "charter://contracts/loom.charter.error.v1",
-    "charter://contracts/loom.charter.requirement_dossier.v1",
-    "charter://contracts/loom.charter.baseline.v1",
-    "charter://contracts/loom.charter.baseline_diff.v1",
-    "charter://contracts/loom.charter.requirement_verification_status.v1",
+    "charter://contracts/weft.charter.error.v1",
+    "charter://contracts/weft.charter.requirement_dossier.v1",
+    "charter://contracts/weft.charter.baseline.v1",
+    "charter://contracts/weft.charter.baseline_diff.v1",
+    "charter://contracts/weft.charter.requirement_verification_status.v1",
 ]
 
 REQUIREMENT_STATUS_FILTERS = {"draft", "approved", "deprecated", "rejected"}
 TRACE_STATE_FILTERS = {"proposed", "accepted", "rejected", "stale", "orphaned"}
 
 CONTRACT_RESOURCES: dict[str, JsonObject] = {
-    "charter://contracts/loom.charter.error.v1": {
-        "contract": "loom.charter.error.v1",
+    "charter://contracts/weft.charter.error.v1": {
+        "contract": "weft.charter.error.v1",
         "required_keys": ["schema", "ok", "error", "warnings", "meta"],
         "recovery": "Switch on error.code and use error.hint; do not parse message text.",
     },
-    "charter://contracts/loom.charter.requirement_dossier.v1": {
-        "contract": "loom.charter.requirement_dossier.v1",
+    "charter://contracts/weft.charter.requirement_dossier.v1": {
+        "contract": "weft.charter.requirement_dossier.v1",
         "required_sections": [
             "identity",
             "authority_summary",
@@ -130,17 +130,17 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
         ],
         "authority_boundary": "Computed from local Charter state only in P0.",
     },
-    "charter://contracts/loom.charter.baseline.v1": {
-        "contract": "loom.charter.baseline.v1",
+    "charter://contracts/weft.charter.baseline.v1": {
+        "contract": "weft.charter.baseline.v1",
         "authority_boundary": "Immutable local snapshot of approved/deprecated requirement versions.",
     },
-    "charter://contracts/loom.charter.baseline_diff.v1": {
-        "contract": "loom.charter.baseline_diff.v1",
+    "charter://contracts/weft.charter.baseline_diff.v1": {
+        "contract": "weft.charter.baseline_diff.v1",
         "statuses": ["unchanged", "changed", "missing_current", "new_since_baseline", "superseded_since_baseline"],
         "authority_boundary": "Diff facts only; not a release-readiness verdict.",
     },
-    "charter://contracts/loom.charter.requirement_verification_status.v1": {
-        "contract": "loom.charter.requirement_verification_status.v1",
+    "charter://contracts/weft.charter.requirement_verification_status.v1": {
+        "contract": "weft.charter.requirement_verification_status.v1",
         "statuses": ["satisfied", "unsatisfied", "unverified", "stale", "unknown", "waived"],
         "authority_boundary": "Derived local status with reason codes and evidence freshness.",
     },
@@ -166,7 +166,7 @@ class CharterMcpSurface:
         }
         if include_contracts:
             context["contract_resources"] = list(MCP_RESOURCE_URIS)
-        return success_envelope("loom.charter.project_context.v1", context, project=project)
+        return success_envelope("weft.charter.project_context.v1", context, project=project)
 
     def charter_requirement_search(
         self,
@@ -181,7 +181,7 @@ class CharterMcpSurface:
             if validation_error is not None:
                 return validation_error
         return self._result(
-            "loom.charter.requirement_list.v1",
+            "weft.charter.requirement_list.v1",
             lambda service: self._list(
                 [
                     _record_dict(item)
@@ -196,13 +196,13 @@ class CharterMcpSurface:
 
     def charter_requirement_get(self, requirement_id: str) -> JsonObject:
         return self._result(
-            "loom.charter.requirement.v1",
+            "weft.charter.requirement.v1",
             lambda service: _record_dict(service.get_requirement(requirement_id)),
         )
 
     def charter_requirement_dossier_get(self, requirement_id: str) -> JsonObject:
         return self._result(
-            "loom.charter.requirement_dossier.v1",
+            "weft.charter.requirement_dossier.v1",
             lambda service: _dossier_dict(service.requirement_dossier(requirement_id)),
         )
 
@@ -235,11 +235,11 @@ class CharterMcpSurface:
                 links.append(_trace_dict(link))
             return self._list(links, limit=limit, offset=offset)
 
-        return self._result("loom.charter.trace_link_list.v1", action, list_result=True)
+        return self._result("weft.charter.trace_link_list.v1", action, list_result=True)
 
     def charter_baseline_list(self, *, limit: int = 25, offset: int = 0) -> JsonObject:
         return self._result(
-            "loom.charter.baseline_list.v1",
+            "weft.charter.baseline_list.v1",
             lambda service: self._list(
                 [_baseline_dict(item) for item in service.list_baselines()],
                 limit=limit,
@@ -250,19 +250,19 @@ class CharterMcpSurface:
 
     def charter_baseline_get(self, baseline_id: str) -> JsonObject:
         return self._result(
-            "loom.charter.baseline.v1",
+            "weft.charter.baseline.v1",
             lambda service: _baseline_dict(service.show_baseline(baseline_id)),
         )
 
     def charter_baseline_diff(self, baseline_id: str) -> JsonObject:
         return self._result(
-            "loom.charter.baseline_diff.v1",
+            "weft.charter.baseline_diff.v1",
             lambda service: _baseline_diff_dict(service.diff_baseline(baseline_id)),
         )
 
     def charter_verification_status_get(self, requirement_id: str) -> JsonObject:
         return self._result(
-            "loom.charter.requirement_verification_status.v1",
+            "weft.charter.requirement_verification_status.v1",
             lambda service: _requirement_verification_status_dict(service.verification_status(requirement_id)),
         )
 
@@ -286,7 +286,7 @@ class CharterMcpSurface:
                 offset=offset,
             )
 
-        return self._result("loom.charter.requirement_verification_status_list.v1", action, list_result=True)
+        return self._result("weft.charter.requirement_verification_status_list.v1", action, list_result=True)
 
     def read_resource(self, uri: str) -> JsonObject:
         if uri == "charter://project/context":
@@ -302,7 +302,7 @@ class CharterMcpSurface:
                 )
             )
         return success_envelope(
-            "loom.charter.mcp_contract_resource.v1",
+            "weft.charter.mcp_contract_resource.v1",
             {"uri": uri, **CONTRACT_RESOURCES[uri]},
             project=self._project_key(),
         )

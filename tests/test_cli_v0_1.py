@@ -44,7 +44,7 @@ def test_requirement_cli_lifecycle(
         ],
         capsys,
     )
-    assert added["schema"] == "loom.charter.requirement_draft.v1"
+    assert added["schema"] == "weft.charter.requirement_draft.v1"
     assert added["data"]["id"] == "REQ-AUTH-0001"
 
     edited = run_json(
@@ -67,15 +67,15 @@ def test_requirement_cli_lifecycle(
         ],
         capsys,
     )
-    assert approved["schema"] == "loom.charter.requirement_version.v1"
+    assert approved["schema"] == "weft.charter.requirement_version.v1"
     assert approved["data"]["version"] == 1
 
     shown = run_json(["req", "show", "REQ-AUTH-0001"], capsys)
-    assert shown["schema"] == "loom.charter.requirement.v1"
+    assert shown["schema"] == "weft.charter.requirement.v1"
     assert shown["data"]["current_version"] == 1
 
     searched = run_json(["req", "search", "bearer"], capsys)
-    assert searched["schema"] == "loom.charter.requirement_list.v1"
+    assert searched["schema"] == "weft.charter.requirement_list.v1"
     assert [item["id"] for item in searched["data"]["items"]] == ["REQ-AUTH-0001"]
 
 
@@ -185,7 +185,7 @@ def test_requirement_reject_cli(
         capsys,
     )
 
-    assert rejected["schema"] == "loom.charter.requirement.v1"
+    assert rejected["schema"] == "weft.charter.requirement.v1"
     assert rejected["data"]["status"] == "rejected"
 
 
@@ -217,12 +217,12 @@ def test_criteria_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: p
         ],
         capsys,
     )
-    assert added["schema"] == "loom.charter.acceptance_criterion.v1"
+    assert added["schema"] == "weft.charter.acceptance_criterion.v1"
     assert added["data"]["id"] == "AC-0001"
     assert added["data"]["created_at"]
 
     listed = run_json(["criterion", "list", "REQ-AUTH-0001"], capsys)
-    assert listed["schema"] == "loom.charter.acceptance_criterion_list.v1"
+    assert listed["schema"] == "weft.charter.acceptance_criterion_list.v1"
     assert [item["id"] for item in listed["data"]["items"]] == ["AC-0001"]
 
 
@@ -250,7 +250,7 @@ def test_trace_cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pyte
         ],
         capsys,
     )
-    assert proposed["schema"] == "loom.charter.trace_link.v1"
+    assert proposed["schema"] == "weft.charter.trace_link.v1"
     assert proposed["data"]["state"] == "proposed"
 
     accepted = run_json(["trace", "accept", "LINK-0001", "--actor", "human:john"], capsys)
@@ -293,7 +293,7 @@ def test_cli_json_validation_error_envelope(
 
     assert main(["req", "add", "--title", "Missing actor", "--statement", "No actor.", "--json"]) == 2
     envelope = json_output(capsys.readouterr().out)
-    assert envelope["schema"] == "loom.charter.error.v1"
+    assert envelope["schema"] == "weft.charter.error.v1"
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "VALIDATION"
 
@@ -322,6 +322,6 @@ def test_cli_json_error_envelope_when_project_is_not_initialized(
         == 2
     )
     envelope = json_output(capsys.readouterr().out)
-    assert envelope["schema"] == "loom.charter.error.v1"
+    assert envelope["schema"] == "weft.charter.error.v1"
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == "NOT_FOUND"

@@ -48,7 +48,7 @@ def db_snapshot(db_path: Path) -> dict[str, list[tuple[Any, ...]]]:
 
 def data(envelope: dict[str, Any]) -> dict[str, Any]:
     assert envelope["ok"] is True
-    assert envelope["schema"].startswith("loom.charter.")
+    assert envelope["schema"].startswith("weft.charter.")
     assert envelope["warnings"] == []
     assert envelope["meta"]["producer"]["tool"] == "charter"
     assert envelope["meta"]["project"] == "AUTH"
@@ -56,7 +56,7 @@ def data(envelope: dict[str, Any]) -> dict[str, Any]:
 
 
 def assert_error(envelope: dict[str, Any], code: str) -> None:
-    assert envelope["schema"] == "loom.charter.error.v1"
+    assert envelope["schema"] == "weft.charter.error.v1"
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == code
     assert envelope["error"]["recoverable"] is True
@@ -99,7 +99,7 @@ def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources
     assert context["authority_boundary"]["local_only"] is True
     assert context["authority_boundary"]["live_peer_calls"] is False
     assert all(capability["mutates"] is False for capability in context["capabilities"])
-    assert "charter://contracts/loom.charter.requirement_dossier.v1" in context["contract_resources"]
+    assert "charter://contracts/weft.charter.requirement_dossier.v1" in context["contract_resources"]
 
 
 def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path) -> None:
@@ -187,4 +187,4 @@ def test_mcp_contract_resources_are_readable(tmp_path: Path) -> None:
         resource = surface.read_resource(uri)
         assert resource["ok"] is True
         assert isinstance(resource["schema"], str)
-        assert resource["schema"].startswith("loom.charter.")
+        assert resource["schema"].startswith("weft.charter.")

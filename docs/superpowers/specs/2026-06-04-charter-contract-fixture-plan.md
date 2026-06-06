@@ -59,7 +59,7 @@ Required keys:
 
 ```json
 {
-  "schema": "loom.charter.<object>.v1",
+  "schema": "weft.charter.<object>.v1",
   "ok": true,
   "data": {},
   "warnings": [],
@@ -74,7 +74,7 @@ Required keys:
 Semantic invariants:
 
 - `ok` is `true`.
-- `schema` starts with `loom.charter.` and ends with `.v1`.
+- `schema` starts with `weft.charter.` and ends with `.v1`.
 - `warnings` is always present and is always a list.
 - `meta.producer.tool` is `charter`.
 
@@ -84,7 +84,7 @@ Required keys:
 
 ```json
 {
-  "schema": "loom.charter.error.v1",
+  "schema": "weft.charter.error.v1",
   "ok": false,
   "error": {
     "code": "VALIDATION",
@@ -121,7 +121,7 @@ Required keys:
 
 ```json
 {
-  "schema": "loom.charter.requirement_version.v1",
+  "schema": "weft.charter.requirement_version.v1",
   "id": "REQ-AUTH-017",
   "stable_id": "charter:req:AUTH:017",
   "version": 1,
@@ -146,7 +146,7 @@ Required keys:
 
 ```json
 {
-  "schema": "loom.charter.trace_link.v1",
+  "schema": "weft.charter.trace_link.v1",
   "id": "LINK-0001",
   "state": "proposed",
   "from": {"kind": "test_selector", "id": "tests/test_auth.py::test_expired"},

@@ -41,7 +41,7 @@ Installed capabilities are available in the integrated `main` branch:
   contract fixtures.
 - **Requirement dossiers**: computed local read models with no new storage,
   `charter dossier REQ_ID --json`, compact human dossier output,
-  `loom.charter.requirement_dossier.v1`, and CLI contract fixture parity.
+  `weft.charter.requirement_dossier.v1`, and CLI contract fixture parity.
   Dossiers preserve approved/draft separation, criteria separation, trace
   authority/freshness, verification status, baseline exposure, ephemeral
   computed gaps, local-only peer facts, and machine-readable next actions.

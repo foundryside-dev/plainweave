@@ -5,6 +5,13 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class Actor:
+    actor_id: str
+    kind: str
+    display_name: str | None
+
+
+@dataclass(frozen=True)
 class RequirementDraft:
     requirement_id: str
     id: str

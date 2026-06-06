@@ -8,7 +8,7 @@ Build local, agent-first requirement dossiers before adding the read-only MCP su
 charter dossier REQ-AUTH-0001 --json
 ```
 
-The JSON schema is `loom.charter.requirement_dossier.v1`.
+The JSON schema is `weft.charter.requirement_dossier.v1`.
 
 ## Product Intent
 
@@ -32,7 +32,7 @@ Included:
 - immutable dataclasses for dossier sections;
 - `charter dossier REQ_ID --json`;
 - compact human output for `charter dossier REQ_ID`;
-- contract fixture for `loom.charter.requirement_dossier.v1`;
+- contract fixture for `weft.charter.requirement_dossier.v1`;
 - CLI contract fixture for dossier JSON output;
 - state and CLI tests;
 - roadmap update after implementation.
@@ -51,7 +51,7 @@ Excluded:
 
 Top-level dossier keys:
 
-- `schema`: `loom.charter.requirement_dossier.v1`
+- `schema`: `weft.charter.requirement_dossier.v1`
 - `identity`
 - `authority_summary`
 - `requirement`

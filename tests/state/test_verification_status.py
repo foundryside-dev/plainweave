@@ -155,6 +155,7 @@ def test_human_waiver_is_distinct_status(tmp_path: Path) -> None:
         target="waiver:release-manager",
         actor="human:john",
     )
+    service.register_actor("human:john", kind="human", actor="human:john")
 
     evidence = service.record_verification_evidence(
         method.id,
