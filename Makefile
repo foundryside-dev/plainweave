@@ -22,7 +22,7 @@ test:  ## Run tests
 	uv run pytest
 
 test-cov:  ## Run tests with coverage gate
-	uv run pytest --cov=charter --cov-report=term-missing --cov-fail-under=90
+	uv run pytest --cov=plainweave --cov-report=term-missing --cov-fail-under=90
 
 build:  ## Build sdist + wheel
 	uv build

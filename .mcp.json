@@ -6,10 +6,10 @@
       "args": [],
       "env": {}
     },
-    "charter": {
+    "plainweave": {
       "type": "stdio",
       "command": "/home/john/.local/bin/uv",
-      "args": ["--directory", "/home/john/charter", "run", "charter-mcp"],
+      "args": ["--directory", "/home/john/plainweave", "run", "plainweave-mcp"],
       "env": {}
     }
   }

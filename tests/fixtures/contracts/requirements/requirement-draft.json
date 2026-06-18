@@ -1,7 +1,7 @@
 {
-  "schema": "weft.charter.requirement_draft.v1",
+  "schema": "weft.plainweave.requirement_draft.v1",
   "id": "REQ-AUTH-017",
-  "stable_id": "charter:req:AUTH:017",
+  "stable_id": "plainweave:req:AUTH:017",
   "draft_id": "DRAFT-0001",
   "base_version": null,
   "draft_revision": 1,

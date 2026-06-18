@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import sys
 
-from charter.cli import main
+from plainweave.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())

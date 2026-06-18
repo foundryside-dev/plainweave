@@ -4,23 +4,23 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.service import CharterService
-from charter.store import connect, migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
-def event_count(service: CharterService) -> int:
+def event_count(service: PlainweaveService) -> int:
     with connect(service.db_path) as connection:
         return int(connection.execute("select count(*) from events").fetchone()[0])
 
 
-def approve_requirement(service: CharterService, title: str, statement: str, key: str) -> str:
+def approve_requirement(service: PlainweaveService, title: str, statement: str, key: str) -> str:
     draft = service.create_requirement(title, statement, "human:john")
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key=key)
     return draft.id
@@ -189,7 +189,7 @@ def test_baseline_diff_reports_missing_current_version(tmp_path: Path) -> None:
 def test_baseline_creation_requires_actor(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.create_baseline("Release 1.0 requirements", actor="")
 
     assert exc_info.value.code == ErrorCode.VALIDATION
@@ -198,7 +198,7 @@ def test_baseline_creation_requires_actor(tmp_path: Path) -> None:
 def test_missing_baseline_returns_not_found(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.show_baseline("BASELINE-9999")
 
     assert exc_info.value.code == ErrorCode.NOT_FOUND

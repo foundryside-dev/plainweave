@@ -9,8 +9,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
-from charter.errors import CharterError, ErrorCode
-from charter.models import (
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.models import (
     AcceptanceCriterion,
     Actor,
     Baseline,
@@ -37,10 +37,10 @@ from charter.models import (
     VerificationMethod,
     VerificationReason,
 )
-from charter.store import connect, read_schema_meta
+from plainweave.store import connect, read_schema_meta
 
 
-class CharterService:
+class PlainweaveService:
     #: Actor kinds permitted to record external/manual attestation authority
     #: (waiver, manual attestation, human-attested evidence). Authority is
     #: derived from the registered ``actors`` record, never from the raw actor
@@ -68,7 +68,7 @@ class CharterService:
         deliberate, event-logged act, so promoting an actor to a human/attester
         kind leaves an auditable ``actor_registered`` trail rather than being an
         implicit claim smuggled into every evidence call. Registration is also
-        the shared actor/owner surface other Weft tools (Filigree, Clarion)
+        the shared actor/owner surface other Weft tools (Filigree, Loomweave)
         bind to.
         """
         self._require_actor(actor)
@@ -272,7 +272,7 @@ class CharterService:
                 DossierPeerFacts(
                     False,
                     [],
-                    ["Dossier is computed from the local Charter store only."],
+                    ["Dossier is computed from the local Plainweave store only."],
                 ),
                 next_actions,
             )
@@ -447,7 +447,7 @@ class CharterService:
             number = self._next_requirement_number(connection)
             requirement_id = f"req-{number}"
             display_id = f"REQ-{project_key}-{number:04d}"
-            stable_id = f"charter:req:{project_key}:{number:04d}"
+            stable_id = f"plainweave:req:{project_key}:{number:04d}"
             draft_id = f"DRAFT-{number:04d}"
             connection.execute(
                 """
@@ -1314,7 +1314,7 @@ class CharterService:
                     "approve_or_reject_draft",
                     20,
                     "Review and approve or reject the active draft.",
-                    f"charter req approve {record.id} --actor human:reviewer "
+                    f"plainweave req approve {record.id} --actor human:reviewer "
                     f"--expected-version {record.current_version} --json",
                     ["active_draft_pending_review"],
                 )
@@ -1335,7 +1335,7 @@ class CharterService:
                     "add_verification_method",
                     40,
                     "Define a verification method for the current version.",
-                    f"charter verify method add {record.id} --method test "
+                    f"plainweave verify method add {record.id} --method test "
                     "--target tests/path.py::test_behavior --actor human:reviewer --json",
                     ["no_verification_method"],
                 )
@@ -1861,7 +1861,7 @@ class CharterService:
 
     def _validate_trace_relation(self, from_ref: TraceRef, relation: str, to_ref: TraceRef) -> None:
         allowed = {
-            ("clarion_entity", "satisfies", "requirement_version"),
+            ("loomweave_entity", "satisfies", "requirement_version"),
             ("file_ref", "fragile_satisfies", "requirement_version"),
             ("verification_method", "verifies", "requirement_version"),
             ("verification_record", "evidences", "verification_method"),
@@ -2086,9 +2086,7 @@ class CharterService:
         ).fetchone()
         return row is not None
 
-    def _evidence_authority(
-        self, connection: sqlite3.Connection, method: str, status: str, actor: str
-    ) -> str:
+    def _evidence_authority(self, connection: sqlite3.Connection, method: str, status: str, actor: str) -> str:
         # Authority is resolved from the registered actor record, not from the
         # honour-system actor string. An unregistered actor (no prefix, a
         # spoofed ``human:`` prefix, or anything else) defaults to the
@@ -2114,8 +2112,8 @@ class CharterService:
             return "human_attested"
         return "agent_reported"
 
-    def _error(self, code: ErrorCode, message: str) -> CharterError:
-        return CharterError(code, message, recoverable=True, hint="Refresh local Charter state and retry.")
+    def _error(self, code: ErrorCode, message: str) -> PlainweaveError:
+        return PlainweaveError(code, message, recoverable=True, hint="Refresh local Plainweave state and retry.")
 
     def _optional_int(self, value: object) -> int | None:
         return int(str(value)) if value is not None else None

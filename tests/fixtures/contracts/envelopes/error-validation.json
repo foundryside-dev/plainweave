@@ -1,5 +1,5 @@
 {
-  "schema": "weft.charter.error.v1",
+  "schema": "weft.plainweave.error.v1",
   "ok": false,
   "error": {
     "code": "VALIDATION",
@@ -11,8 +11,8 @@
   "warnings": [],
   "meta": {
     "producer": {
-      "tool": "charter",
-      "version": "0.1.0"
+      "tool": "plainweave",
+      "version": "0.0.1"
     },
     "generated_at": "2026-06-04T10:00:00+10:00",
     "project": "AUTH"

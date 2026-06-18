@@ -1,11 +1,11 @@
 {
-  "schema": "weft.charter.requirement_dossier.v1",
+  "schema": "weft.plainweave.requirement_dossier.v1",
   "ok": true,
   "data": {
     "identity": {
       "requirement_id": "req-1",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "current_version": 1
     },
     "authority_summary": {
@@ -21,14 +21,14 @@
       "record": {
         "requirement_id": "req-1",
         "id": "REQ-AUTH-0001",
-        "stable_id": "charter:req:AUTH:0001",
+        "stable_id": "plainweave:req:AUTH:0001",
         "current_version": 1,
         "active_draft_id": null,
         "status": "approved",
         "current_version_record": {
           "requirement_id": "req-1",
           "id": "REQ-AUTH-0001",
-          "stable_id": "charter:req:AUTH:0001",
+          "stable_id": "plainweave:req:AUTH:0001",
           "version": 1,
           "title": "Reject expired bearer tokens",
           "statement": "The API shall reject expired bearer tokens.",
@@ -41,7 +41,7 @@
       "current_version": {
         "requirement_id": "req-1",
         "id": "REQ-AUTH-0001",
-        "stable_id": "charter:req:AUTH:0001",
+        "stable_id": "plainweave:req:AUTH:0001",
         "version": 1,
         "title": "Reject expired bearer tokens",
         "statement": "The API shall reject expired bearer tokens.",
@@ -108,7 +108,7 @@
       "live_peer_calls": false,
       "sources": [],
       "notes": [
-        "Dossier is computed from the local Charter store only."
+        "Dossier is computed from the local Plainweave store only."
       ]
     },
     "next_actions": [
@@ -116,7 +116,7 @@
         "action": "add_verification_method",
         "priority": 40,
         "reason": "Define a verification method for the current version.",
-        "command": "charter verify method add REQ-AUTH-0001 --method test --target tests/path.py::test_behavior --actor human:reviewer --json",
+        "command": "plainweave verify method add REQ-AUTH-0001 --method test --target tests/path.py::test_behavior --actor human:reviewer --json",
         "blocked_by": [
           "no_verification_method"
         ]
@@ -135,8 +135,8 @@
   "warnings": [],
   "meta": {
     "producer": {
-      "tool": "charter",
-      "version": "0.1.0"
+      "tool": "plainweave",
+      "version": "0.0.1"
     },
     "generated_at": "2026-06-04T19:24:39.332569+00:00",
     "project": "AUTH"

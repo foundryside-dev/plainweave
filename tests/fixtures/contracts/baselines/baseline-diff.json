@@ -1,5 +1,5 @@
 {
-  "schema": "weft.charter.baseline_diff.v1",
+  "schema": "weft.plainweave.baseline_diff.v1",
   "baseline_id": "BASELINE-0001",
   "summary": {
     "unchanged": 0,
@@ -12,7 +12,7 @@
     {
       "requirement_id": "req-1",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "baseline_version": 1,
       "current_version": 2,
       "status": "superseded_since_baseline",
@@ -22,7 +22,7 @@
     {
       "requirement_id": "req-2",
       "id": "REQ-AUTH-0002",
-      "stable_id": "charter:req:AUTH:0002",
+      "stable_id": "plainweave:req:AUTH:0002",
       "baseline_version": null,
       "current_version": 1,
       "status": "new_since_baseline",

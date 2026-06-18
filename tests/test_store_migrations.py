@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.store import connect, migrate
+from plainweave.store import connect, migrate
 
 
 def table_names(connection: sqlite3.Connection) -> set[str]:
@@ -20,7 +20,7 @@ def columns(connection: sqlite3.Connection, table: str) -> set[str]:
 
 
 def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
 
     migrate(db_path, project_key="AUTH")
     migrate(db_path, project_key="AUTH")
@@ -46,7 +46,7 @@ def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> 
 
 
 def test_store_connections_enable_foreign_keys(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -54,7 +54,7 @@ def test_store_connections_enable_foreign_keys(tmp_path: Path) -> None:
 
 
 def test_store_connections_configure_busy_timeout(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -62,7 +62,7 @@ def test_store_connections_configure_busy_timeout(tmp_path: Path) -> None:
 
 
 def test_requirements_table_does_not_store_mutable_approved_text(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -71,7 +71,7 @@ def test_requirements_table_does_not_store_mutable_approved_text(tmp_path: Path)
 
 
 def test_requirement_version_statement_is_immutable(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -85,7 +85,7 @@ def test_requirement_version_statement_is_immutable(tmp_path: Path) -> None:
             (
                 "req-1",
                 "REQ-AUTH-001",
-                "charter:req:AUTH:001",
+                "plainweave:req:AUTH:001",
                 1,
                 None,
                 "approved",
@@ -127,7 +127,7 @@ def test_requirement_version_statement_is_immutable(tmp_path: Path) -> None:
 
 
 def test_events_are_append_only(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -161,7 +161,7 @@ def test_events_are_append_only(tmp_path: Path) -> None:
 
 
 def test_baseline_tables_store_locked_snapshot_members(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -185,7 +185,7 @@ def test_baseline_tables_store_locked_snapshot_members(tmp_path: Path) -> None:
 
 
 def test_baseline_members_are_immutable(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -199,7 +199,7 @@ def test_baseline_members_are_immutable(tmp_path: Path) -> None:
             (
                 "req-1",
                 "REQ-AUTH-0001",
-                "charter:req:AUTH:0001",
+                "plainweave:req:AUTH:0001",
                 1,
                 None,
                 "approved",
@@ -255,7 +255,7 @@ def test_baseline_members_are_immutable(tmp_path: Path) -> None:
                 "req-1",
                 1,
                 "REQ-AUTH-0001",
-                "charter:req:AUTH:0001",
+                "plainweave:req:AUTH:0001",
                 "sha256:old",
                 "approved",
             ),
@@ -282,7 +282,7 @@ def test_baseline_members_are_immutable(tmp_path: Path) -> None:
 
 
 def test_locked_baselines_are_immutable(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -313,7 +313,7 @@ def test_locked_baselines_are_immutable(tmp_path: Path) -> None:
 
 
 def test_verification_tables_are_created_and_migration_is_idempotent(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
 
     migrate(db_path, project_key="AUTH")
     migrate(db_path, project_key="AUTH")
@@ -345,7 +345,7 @@ def test_verification_tables_are_created_and_migration_is_idempotent(tmp_path: P
 
 
 def test_verification_evidence_is_append_only(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
 
     with connect(db_path) as connection:
@@ -359,7 +359,7 @@ def test_verification_evidence_is_append_only(tmp_path: Path) -> None:
             (
                 "req-1",
                 "REQ-AUTH-0001",
-                "charter:req:AUTH:0001",
+                "plainweave:req:AUTH:0001",
                 1,
                 None,
                 "approved",

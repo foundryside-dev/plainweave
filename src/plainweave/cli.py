@@ -4,16 +4,16 @@ import argparse
 from collections.abc import Callable, Sequence
 from typing import cast
 
-from charter import __version__
-from charter.cli_commands import register_commands
+from plainweave import __version__
+from plainweave.cli_commands import register_commands
 
-DESCRIPTION = "Charter requirements and verification authority."
+DESCRIPTION = "Plainweave requirements and verification authority."
 EPILOG = "Local-core commands are available for requirements, criteria, trace, init, and diagnostics."
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="charter", description=DESCRIPTION, epilog=EPILOG)
-    parser.add_argument("--version", action="store_true", help="Print the Charter version and exit.")
+    parser = argparse.ArgumentParser(prog="plainweave", description=DESCRIPTION, epilog=EPILOG)
+    parser.add_argument("--version", action="store_true", help="Print the Plainweave version and exit.")
     subparsers = parser.add_subparsers(dest="command")
     register_commands(subparsers)
     return parser
@@ -26,7 +26,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     args = parser.parse_args(argv)
     if args.version:
-        print(f"charter {__version__}")
+        print(f"plainweave {__version__}")
         return 0
     handler = getattr(args, "handler", None)
     if handler is not None:

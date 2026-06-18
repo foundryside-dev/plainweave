@@ -1,4 +1,4 @@
-# Charter Contract Fixture Plan
+# Plainweave Contract Fixture Plan
 
 ## Purpose
 
@@ -45,7 +45,7 @@ Federation fixtures are defined now but implemented in later slices:
 
 ```text
 tests/fixtures/contracts/federation/
-  clarion-sei-link.json
+  loomweave-sei-link.json
   filigree-gap-to-work.json
   wardline-finding-link.json
   legis-preflight-facts.json
@@ -59,12 +59,12 @@ Required keys:
 
 ```json
 {
-  "schema": "weft.charter.<object>.v1",
+  "schema": "weft.plainweave.<object>.v1",
   "ok": true,
   "data": {},
   "warnings": [],
   "meta": {
-    "producer": {"tool": "charter", "version": "0.1.0"},
+    "producer": {"tool": "plainweave", "version": "0.1.0"},
     "generated_at": "2026-06-04T10:00:00+10:00",
     "project": "AUTH"
   }
@@ -74,9 +74,9 @@ Required keys:
 Semantic invariants:
 
 - `ok` is `true`.
-- `schema` starts with `weft.charter.` and ends with `.v1`.
+- `schema` starts with `weft.plainweave.` and ends with `.v1`.
 - `warnings` is always present and is always a list.
-- `meta.producer.tool` is `charter`.
+- `meta.producer.tool` is `plainweave`.
 
 ### Error Envelope
 
@@ -84,7 +84,7 @@ Required keys:
 
 ```json
 {
-  "schema": "weft.charter.error.v1",
+  "schema": "weft.plainweave.error.v1",
   "ok": false,
   "error": {
     "code": "VALIDATION",
@@ -95,7 +95,7 @@ Required keys:
   },
   "warnings": [],
   "meta": {
-    "producer": {"tool": "charter", "version": "0.1.0"},
+    "producer": {"tool": "plainweave", "version": "0.1.0"},
     "generated_at": "2026-06-04T10:00:00+10:00",
     "project": "AUTH"
   }
@@ -121,9 +121,9 @@ Required keys:
 
 ```json
 {
-  "schema": "weft.charter.requirement_version.v1",
+  "schema": "weft.plainweave.requirement_version.v1",
   "id": "REQ-AUTH-017",
-  "stable_id": "charter:req:AUTH:017",
+  "stable_id": "plainweave:req:AUTH:017",
   "version": 1,
   "title": "Reject expired bearer tokens",
   "statement": "The API shall reject expired bearer tokens.",
@@ -146,7 +146,7 @@ Required keys:
 
 ```json
 {
-  "schema": "weft.charter.trace_link.v1",
+  "schema": "weft.plainweave.trace_link.v1",
   "id": "LINK-0001",
   "state": "proposed",
   "from": {"kind": "test_selector", "id": "tests/test_auth.py::test_expired"},
@@ -197,14 +197,14 @@ success/error envelope. Human output is covered by smoke tests only.
 
 Required v0.1 command fixture coverage:
 
-- `charter req add --json`
-- `charter req show --json`
-- `charter req approve --json`
-- `charter criterion add --json`
-- `charter trace propose --json`
-- `charter trace accept --json`
-- `charter trace reject --json`
-- `charter trace list --json`
+- `plainweave req add --json`
+- `plainweave req show --json`
+- `plainweave req approve --json`
+- `plainweave criterion add --json`
+- `plainweave trace propose --json`
+- `plainweave trace accept --json`
+- `plainweave trace reject --json`
+- `plainweave trace list --json`
 - representative `VALIDATION` error
 - representative `CONFLICT` error
 

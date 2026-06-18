@@ -1,4 +1,4 @@
-# Charter Defect Register — 2026-06-06
+# Plainweave Defect Register — 2026-06-06
 
 Source: six-subagent code audit of `main` (commit `cf0bf8a`) comparing the
 shipped code against the roadmap, plans, specs, and ADRs. 139 tests pass; these
@@ -18,9 +18,9 @@ Severity uses the project P-scale (P0 critical … P4 backlog).
 
 | Group | Primary file(s) | Defects |
 |---|---|---|
-| **SERVICE** | `src/charter/service.py` | D1, D4, D5, D11 |
-| **STORE** | `src/charter/store.py` (+ service ID alloc) | D2, D12 |
-| **MCP** | `src/charter/mcp_surface.py` | D8, D9, D13 |
+| **SERVICE** | `src/plainweave/service.py` | D1, D4, D5, D11 |
+| **STORE** | `src/plainweave/store.py` (+ service ID alloc) | D2, D12 |
+| **MCP** | `src/plainweave/mcp_surface.py` | D8, D9, D13 |
 | **TESTS** | `tests/**` (new/own files) | D6, D7 |
 | **DOCS** | `docs/**` | D15 |
 | **FEATURE** | spans service+store+cli+mcp | D3, D14 |
@@ -59,23 +59,23 @@ Recommended wave plan:
     filesystem is the ultimate trust boundary. The fix makes CLI fabrication a
     deliberate, **audit-logged** act (`actor_registered` events), not a
     one-liner; it is not cryptographic prevention.
-  - New `register_actor` service verb + `charter actor register` CLI wire the
+  - New `register_actor` service verb + `plainweave actor register` CLI wire the
     previously-dead `actors` table. Tests: `tests/state/test_actor_registry.py`
     + CLI coverage in `tests/test_cli_verification.py`.
   - **Note for D15:** the roadmap caveat for attestation authority should now
     read "registry-gated, audited; genesis + filesystem are the trust boundary,"
     not "honour-system pending actor registry."
   - **Tracked follow-ups (so the residual does not vanish):**
-    - `charter-59e4af3aaf` (feature, P2) — seed the genesis attester at
-      `charter init` to close the genesis land-grab race.
-    - `charter-606b6e0a94` (task, P3) — `register_actor` re-registration polish
+    - `plainweave-59e4af3aaf` (feature, P2) — seed the genesis attester at
+      `plainweave init` to close the genesis land-grab race.
+    - `plainweave-606b6e0a94` (task, P3) — `register_actor` re-registration polish
       (no-op idempotency + audited kind changes).
-    - The `charter actor register` verb now has full contract-fixture parity
+    - The `plainweave actor register` verb now has full contract-fixture parity
       with every other CLI verb (`cli/actor-register-json.json` + structural and
       live-output contract tests), so the agentic read surface stays consistent.
 - **Severity:** P1 · **Type:** integrity / security · **Group:** SERVICE
-- **Files:** `src/charter/service.py:1995-2007` (authority resolution),
-  `src/charter/store.py:32-36` (dead `actors` table)
+- **Files:** `src/plainweave/service.py:1995-2007` (authority resolution),
+  `src/plainweave/store.py:32-36` (dead `actors` table)
 - **Evidence (reproduced live by audit):**
   - Authority is decided solely by `actor.startswith("agent:")`.
   - An agent passing `--actor human:fake` records a `waived`/`manual`
@@ -108,8 +108,8 @@ Recommended wave plan:
 
 ### D2 — Approved requirement versions are DELETE-able (immutability hole + ID-reuse risk)
 - **Severity:** P2 · **Type:** integrity · **Group:** STORE
-- **Files:** `src/charter/store.py:76-84` (UPDATE-only trigger),
-  `src/charter/service.py:1456-1471` (`count(*)+1` ID allocation)
+- **Files:** `src/plainweave/store.py:76-84` (UPDATE-only trigger),
+  `src/plainweave/service.py:1456-1471` (`count(*)+1` ID allocation)
 - **Evidence:** `requirement_versions` has a `before update` trigger guarding
   title/statement/hash, but **no `before delete` trigger**. `DELETE FROM
   requirement_versions WHERE version=1` succeeds at runtime. Sibling immutable
@@ -154,10 +154,10 @@ Recommended wave plan:
 
 ### D4 — No re-draft/amend path for an approved requirement (ADR-002 `draft_revision`)
 - **Severity:** P2 · **Type:** feature gap / ADR compliance · **Group:** SERVICE
-- **Files:** `src/charter/service.py:399` (`base_version` always `None`),
+- **Files:** `src/plainweave/service.py:399` (`base_version` always `None`),
   `service.py:428-429` (`update_draft` rejects when no active draft),
   ADR-002 state machine `docs/architecture/decisions/ADR-002-*.md:70-75`,
-  `src/charter/store.py:54` (`base_version` column exists, unused)
+  `src/plainweave/store.py:54` (`base_version` column exists, unused)
 - **Evidence:** ADR-002 defines `approved → draft_revision → approved`. No
   service method opens a draft on an approved requirement; `supersede` (full
   inline restatement) is the only post-approval text-change route. The
@@ -173,9 +173,9 @@ Recommended wave plan:
 
 ### D5 — Evidence carry-forward absent (roadmap DoD vs spec divergence)
 - **Severity:** P2 · **Type:** divergence to reconcile · **Group:** SERVICE
-- **Files:** `src/charter/service.py` (no carry-forward anywhere; grep for
+- **Files:** `src/plainweave/service.py` (no carry-forward anywhere; grep for
   `carry`/`carried` returns zero), roadmap "Verification Core" DoD vs
-  `docs/superpowers/specs/2026-06-05-charter-verification-status-design.md`
+  `docs/superpowers/specs/2026-06-05-plainweave-verification-status-design.md`
 - **Evidence:** roadmap DoD: *"superseding a requirement makes prior evidence
   stale unless explicitly carried forward."* The staleness half works; the
   carry-forward escape hatch has no column, method, flag, or test. The design
@@ -194,15 +194,15 @@ Recommended wave plan:
 
 ### D13 — MCP read-only is by-construction, not structurally enforced
 - **Severity:** P2 · **Type:** hardening · **Group:** MCP
-- **Files:** `src/charter/mcp_surface.py:319-329` (`_service()` returns a full
-  read/write `CharterService`), `src/charter/store.py:12-19` (`connect()` opens
+- **Files:** `src/plainweave/mcp_surface.py:319-329` (`_service()` returns a full
+  read/write `PlainweaveService`), `src/plainweave/store.py:12-19` (`connect()` opens
   a writable connection — no `mode=ro`/`query_only`)
 - **Evidence:** no mutation is reachable through the *current* handler set, and
   a snapshot test guards it — but the guarantee is "handlers happen not to call
   mutators," not "mutation is impossible." A future handler edit could mutate
   and only break if the snapshot test's call list is extended.
 - **Fix approach:** give the surface a read-only path — either a read-only
-  `CharterService` view exposing only `_dossier_dict`/`_record_dict`/etc., or a
+  `PlainweaveService` view exposing only `_dossier_dict`/`_record_dict`/etc., or a
   `query_only=ON` / `mode=ro` connection for MCP reads. Keep the snapshot test
   as belt-and-braces.
 - **Acceptance criteria:** a deliberately-added mutation call inside an MCP
@@ -215,7 +215,7 @@ Recommended wave plan:
 
 ### D6 — Trace state-transition guard is untested
 - **Severity:** P3 · **Type:** test gap · **Group:** TESTS
-- **Files:** guard at `src/charter/service.py:1797-1805`; tests
+- **Files:** guard at `src/plainweave/service.py:1797-1805`; tests
   `tests/state/test_trace_links.py`
 - **Evidence:** `_validate_trace_transition` allow-map looks correct
   (double-accept and reject-terminality both raise `CONFLICT`) but **no test
@@ -227,7 +227,7 @@ Recommended wave plan:
 
 ### D7 — Append-only triggers not directly tested
 - **Severity:** P3 · **Type:** test gap · **Group:** TESTS
-- **Files:** triggers `src/charter/store.py:191-203` (evidence),
+- **Files:** triggers `src/plainweave/store.py:191-203` (evidence),
   `store.py:216-228` (events); tests `tests/test_store_migrations.py`
 - **Evidence:** the UPDATE/DELETE-abort triggers on `verification_evidence` and
   `events` fire at runtime (audit confirmed manually) but no test asserts it —
@@ -243,7 +243,7 @@ Recommended wave plan:
 
 ### D8 — Dead branch in MCP `_result`
 - **Severity:** P3 · **Type:** code smell · **Group:** MCP
-- **Files:** `src/charter/mcp_surface.py:310-317`
+- **Files:** `src/plainweave/mcp_surface.py:310-317`
 - **Evidence:** `if list_result: return success_envelope(...)` / `else: return
   success_envelope(...)` — both arms identical; `list_result` is threaded
   through but does nothing.
@@ -252,7 +252,7 @@ Recommended wave plan:
 
 ### D9 — List tools bypass `list_envelope` helper
 - **Severity:** P3 · **Type:** maintainability · **Group:** MCP
-- **Files:** `src/charter/mcp_surface.py:347-351` build `{items,has_more,
+- **Files:** `src/plainweave/mcp_surface.py:347-351` build `{items,has_more,
   next_offset}` by hand instead of using `envelopes.py:81-97 list_envelope`
 - **Evidence:** output shape is correct, but pagination structure is duplicated
   rather than sourced from the helper. Coordinate with D8 (same file).
@@ -262,7 +262,7 @@ Recommended wave plan:
 
 ### D11 — `update_draft` bumps revision on no-op edits
 - **Severity:** P3 · **Type:** code smell · **Group:** SERVICE
-- **Files:** `src/charter/service.py:433`
+- **Files:** `src/plainweave/service.py:433`
 - **Evidence:** calling `update_draft` with no changed fields still increments
   `draft_revision` and writes an event (fields default to existing values).
 - **Fix:** short-circuit when nothing changed (no revision bump, no event), or
@@ -272,7 +272,7 @@ Recommended wave plan:
 
 ### D12 — Dead `freshness` column on evidence
 - **Severity:** P3 · **Type:** schema cleanup · **Group:** STORE
-- **Files:** `src/charter/service.py:1573-1574,1615-1616` (freshness synthesized
+- **Files:** `src/plainweave/service.py:1573-1574,1615-1616` (freshness synthesized
   on read), persisted `freshness` column always `"current"`
 - **Evidence:** staleness is computed at read time from
   `requirement_version != current_version`; the stored `freshness` column is
@@ -290,7 +290,7 @@ Recommended wave plan:
 ### D3 — Trace staleness/orphaning is never computed and is unreachable via CLI/MCP
 - **Severity:** P1 (product value) but **deferred by plan** · **Type:** feature
   · **Group:** FEATURE
-- **Files:** `src/charter/service.py:528-620` (`supersede` doesn't touch
+- **Files:** `src/plainweave/service.py:528-620` (`supersede` doesn't touch
   `trace_links`), `mark_trace_stale`/`mark_trace_orphaned` (`service.py:891-895`)
   have no CLI/MCP exposure
 - **Evidence:** an `accepted` link to a now-superseded requirement stays
@@ -304,7 +304,7 @@ Recommended wave plan:
 
 ### D14 — Baseline diff `changed` status is structurally unreachable
 - **Severity:** P3 · **Type:** defensive-code decision · **Group:** FEATURE
-- **Files:** `src/charter/service.py:304-306`
+- **Files:** `src/plainweave/service.py:304-306`
 - **Evidence:** `changed` fires only when same version + different
   statement_hash, which immutability makes impossible; real changes surface as
   `superseded_since_baseline`. Harmless defensive branch, untested.

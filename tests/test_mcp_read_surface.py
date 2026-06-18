@@ -3,20 +3,20 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
-from charter.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA, CharterMcpSurface
-from charter.models import TraceRef
-from charter.service import CharterService
-from charter.store import connect, migrate
+from plainweave.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA, PlainweaveMcpSurface
+from plainweave.models import TraceRef
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
 def approve_requirement(
-    service: CharterService,
+    service: PlainweaveService,
     *,
     title: str = "Reject expired bearer tokens",
     statement: str = "The API shall reject expired bearer tokens.",
@@ -48,15 +48,15 @@ def db_snapshot(db_path: Path) -> dict[str, list[tuple[Any, ...]]]:
 
 def data(envelope: dict[str, Any]) -> dict[str, Any]:
     assert envelope["ok"] is True
-    assert envelope["schema"].startswith("weft.charter.")
+    assert envelope["schema"].startswith("weft.plainweave.")
     assert envelope["warnings"] == []
-    assert envelope["meta"]["producer"]["tool"] == "charter"
+    assert envelope["meta"]["producer"]["tool"] == "plainweave"
     assert envelope["meta"]["project"] == "AUTH"
     return cast(dict[str, Any], envelope["data"])
 
 
 def assert_error(envelope: dict[str, Any], code: str) -> None:
-    assert envelope["schema"] == "weft.charter.error.v1"
+    assert envelope["schema"] == "weft.plainweave.error.v1"
     assert envelope["ok"] is False
     assert envelope["error"]["code"] == code
     assert envelope["error"]["recoverable"] is True
@@ -65,16 +65,16 @@ def assert_error(envelope: dict[str, Any], code: str) -> None:
 
 def test_mcp_tool_inventory_is_agent_task_surface() -> None:
     expected_tools = {
-        "charter_project_context_get",
-        "charter_requirement_search",
-        "charter_requirement_get",
-        "charter_requirement_dossier_get",
-        "charter_trace_link_list",
-        "charter_baseline_list",
-        "charter_baseline_get",
-        "charter_baseline_diff",
-        "charter_verification_status_get",
-        "charter_verification_status_list",
+        "plainweave_project_context_get",
+        "plainweave_requirement_search",
+        "plainweave_requirement_get",
+        "plainweave_requirement_dossier_get",
+        "plainweave_trace_link_list",
+        "plainweave_baseline_list",
+        "plainweave_baseline_get",
+        "plainweave_baseline_diff",
+        "plainweave_verification_status_get",
+        "plainweave_verification_status_list",
     }
 
     assert set(MCP_TOOL_METADATA) == expected_tools
@@ -89,9 +89,9 @@ def test_mcp_tool_inventory_is_agent_task_surface() -> None:
 def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources(tmp_path: Path) -> None:
     service_for(tmp_path)
 
-    surface = CharterMcpSurface(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
 
-    context = data(surface.charter_project_context_get(include_contracts=True))
+    context = data(surface.plainweave_project_context_get(include_contracts=True))
 
     assert context["initialized"] is True
     assert context["project_key"] == "AUTH"
@@ -99,7 +99,7 @@ def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources
     assert context["authority_boundary"]["local_only"] is True
     assert context["authority_boundary"]["live_peer_calls"] is False
     assert all(capability["mutates"] is False for capability in context["capabilities"])
-    assert "charter://contracts/weft.charter.requirement_dossier.v1" in context["contract_resources"]
+    assert "plainweave://contracts/weft.plainweave.requirement_dossier.v1" in context["contract_resources"]
 
 
 def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path) -> None:
@@ -125,18 +125,18 @@ def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path)
         actor="human:john",
         authority="accepted",
     )
-    surface = CharterMcpSurface(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
     before = db_snapshot(service.db_path)
 
-    assert data(surface.charter_requirement_search(query="tokens"))["items"][0]["id"] == requirement_id
-    assert data(surface.charter_requirement_get(requirement_id))["id"] == requirement_id
-    assert data(surface.charter_requirement_dossier_get(requirement_id))["peer_facts"]["live_peer_calls"] is False
-    assert data(surface.charter_trace_link_list(requirement_id=requirement_id))["items"][0]["state"] == "accepted"
-    assert data(surface.charter_baseline_list())["items"][0]["id"] == baseline.id
-    assert data(surface.charter_baseline_get(baseline.id))["id"] == baseline.id
-    assert data(surface.charter_baseline_diff(baseline.id))["summary"]["unchanged"] == 1
-    assert data(surface.charter_verification_status_get(requirement_id))["status"] == "satisfied"
-    assert data(surface.charter_verification_status_list(status_filter="unverified"))["items"] == []
+    assert data(surface.plainweave_requirement_search(query="tokens"))["items"][0]["id"] == requirement_id
+    assert data(surface.plainweave_requirement_get(requirement_id))["id"] == requirement_id
+    assert data(surface.plainweave_requirement_dossier_get(requirement_id))["peer_facts"]["live_peer_calls"] is False
+    assert data(surface.plainweave_trace_link_list(requirement_id=requirement_id))["items"][0]["state"] == "accepted"
+    assert data(surface.plainweave_baseline_list())["items"][0]["id"] == baseline.id
+    assert data(surface.plainweave_baseline_get(baseline.id))["id"] == baseline.id
+    assert data(surface.plainweave_baseline_diff(baseline.id))["summary"]["unchanged"] == 1
+    assert data(surface.plainweave_verification_status_get(requirement_id))["status"] == "satisfied"
+    assert data(surface.plainweave_verification_status_list(status_filter="unverified"))["items"] == []
 
     assert db_snapshot(service.db_path) == before
 
@@ -152,11 +152,11 @@ def test_mcp_list_tools_are_paginated_and_filterable(tmp_path: Path) -> None:
         evidence_ref="pytest:tests/test_auth.py",
         actor="agent:codex",
     )
-    surface = CharterMcpSurface(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
 
-    first_page = data(surface.charter_requirement_search(status_filter="approved", limit=1, offset=0))
-    second_page = data(surface.charter_requirement_search(status_filter="approved", limit=1, offset=1))
-    unverified = data(surface.charter_verification_status_list(status_filter="unverified", limit=10, offset=0))
+    first_page = data(surface.plainweave_requirement_search(status_filter="approved", limit=1, offset=0))
+    second_page = data(surface.plainweave_requirement_search(status_filter="approved", limit=1, offset=1))
+    unverified = data(surface.plainweave_verification_status_list(status_filter="unverified", limit=10, offset=0))
 
     assert first_page["has_more"] is True
     assert first_page["next_offset"] == 1
@@ -166,25 +166,25 @@ def test_mcp_list_tools_are_paginated_and_filterable(tmp_path: Path) -> None:
     assert [item["id"] for item in unverified["items"]] == [second]
 
 
-def test_mcp_errors_use_charter_error_envelope(tmp_path: Path) -> None:
+def test_mcp_errors_use_plainweave_error_envelope(tmp_path: Path) -> None:
     service_for(tmp_path)
 
-    surface = CharterMcpSurface(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
 
-    assert_error(surface.charter_requirement_get("REQ-AUTH-4040"), "NOT_FOUND")
-    assert_error(surface.charter_requirement_search(status_filter="done"), "VALIDATION")
-    assert_error(surface.charter_trace_link_list(state_filter="missing"), "VALIDATION")
-    assert_error(surface.charter_verification_status_list(status_filter="satisfied"), "VALIDATION")
+    assert_error(surface.plainweave_requirement_get("REQ-AUTH-4040"), "NOT_FOUND")
+    assert_error(surface.plainweave_requirement_search(status_filter="done"), "VALIDATION")
+    assert_error(surface.plainweave_trace_link_list(state_filter="missing"), "VALIDATION")
+    assert_error(surface.plainweave_verification_status_list(status_filter="satisfied"), "VALIDATION")
 
 
 def test_mcp_contract_resources_are_readable(tmp_path: Path) -> None:
     service_for(tmp_path)
 
-    surface = CharterMcpSurface(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
 
-    assert "charter://project/context" in MCP_RESOURCE_URIS
+    assert "plainweave://project/context" in MCP_RESOURCE_URIS
     for uri in MCP_RESOURCE_URIS:
         resource = surface.read_resource(uri)
         assert resource["ok"] is True
         assert isinstance(resource["schema"], str)
-        assert resource["schema"].startswith("weft.charter.")
+        assert resource["schema"].startswith("weft.plainweave.")

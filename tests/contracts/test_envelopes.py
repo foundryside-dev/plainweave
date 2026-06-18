@@ -4,27 +4,27 @@ from typing import Any, cast
 
 import pytest
 
-from charter.envelopes import batch_envelope, error_envelope, list_envelope, success_envelope
-from charter.errors import ErrorCode
+from plainweave.envelopes import batch_envelope, error_envelope, list_envelope, success_envelope
+from plainweave.errors import ErrorCode
 
 GENERATED_AT = "2026-06-04T10:00:00+10:00"
 
 
 def test_success_envelope_has_standard_shape() -> None:
     envelope = success_envelope(
-        "weft.charter.requirement_version.v1",
+        "weft.plainweave.requirement_version.v1",
         {"id": "REQ-AUTH-001"},
         project="AUTH",
         generated_at=GENERATED_AT,
     )
 
     assert envelope == {
-        "schema": "weft.charter.requirement_version.v1",
+        "schema": "weft.plainweave.requirement_version.v1",
         "ok": True,
         "data": {"id": "REQ-AUTH-001"},
         "warnings": [],
         "meta": {
-            "producer": {"tool": "charter", "version": "0.1.0"},
+            "producer": {"tool": "plainweave", "version": "0.0.1"},
             "generated_at": GENERATED_AT,
             "project": "AUTH",
         },
@@ -43,7 +43,7 @@ def test_error_envelope_has_recovery_fields_and_closed_code() -> None:
     )
 
     assert envelope == {
-        "schema": "weft.charter.error.v1",
+        "schema": "weft.plainweave.error.v1",
         "ok": False,
         "error": {
             "code": "VALIDATION",
@@ -54,7 +54,7 @@ def test_error_envelope_has_recovery_fields_and_closed_code() -> None:
         },
         "warnings": [],
         "meta": {
-            "producer": {"tool": "charter", "version": "0.1.0"},
+            "producer": {"tool": "plainweave", "version": "0.0.1"},
             "generated_at": GENERATED_AT,
             "project": "AUTH",
         },
@@ -62,7 +62,7 @@ def test_error_envelope_has_recovery_fields_and_closed_code() -> None:
 
 
 def test_error_envelope_rejects_unknown_error_codes() -> None:
-    with pytest.raises(ValueError, match="unknown Charter error code"):
+    with pytest.raises(ValueError, match="unknown Plainweave error code"):
         error_envelope(
             "NOT_A_CODE",
             "bad",
@@ -74,7 +74,7 @@ def test_error_envelope_rejects_unknown_error_codes() -> None:
 
 def test_list_envelope_wraps_items_and_pagination() -> None:
     envelope = list_envelope(
-        "weft.charter.requirement_list.v1",
+        "weft.plainweave.requirement_list.v1",
         [{"id": "REQ-AUTH-001"}],
         has_more=True,
         next_offset=25,
@@ -95,7 +95,7 @@ def test_list_envelope_wraps_items_and_pagination() -> None:
 
 def test_batch_envelope_wraps_succeeded_and_failed_items() -> None:
     envelope = batch_envelope(
-        "weft.charter.batch.v1",
+        "weft.plainweave.batch.v1",
         succeeded=[{"id": "REQ-AUTH-001"}],
         failed=[{"id": "REQ-AUTH-002", "error": {"code": "CONFLICT"}}],
         generated_at=GENERATED_AT,

@@ -4,24 +4,24 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.service import CharterService
-from charter.store import connect, migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
-def approve_requirement(service: CharterService, title: str = "Reject expired bearer tokens") -> str:
+def approve_requirement(service: PlainweaveService, title: str = "Reject expired bearer tokens") -> str:
     draft = service.create_requirement(title, "The API shall reject expired bearer tokens.", "human:john")
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key=f"approve-{draft.id}")
     return draft.id
 
 
-def manual_method(service: CharterService, requirement_id: str) -> str:
+def manual_method(service: PlainweaveService, requirement_id: str) -> str:
     method = service.add_verification_method(
         requirement_id,
         method="manual",
@@ -31,7 +31,7 @@ def manual_method(service: CharterService, requirement_id: str) -> str:
     return method.id
 
 
-def analysis_method(service: CharterService, requirement_id: str) -> str:
+def analysis_method(service: PlainweaveService, requirement_id: str) -> str:
     method = service.add_verification_method(
         requirement_id,
         method="analysis",
@@ -41,7 +41,7 @@ def analysis_method(service: CharterService, requirement_id: str) -> str:
     return method.id
 
 
-def event_types(service: CharterService) -> list[str]:
+def event_types(service: PlainweaveService) -> list[str]:
     with connect(service.db_path) as connection:
         rows = connection.execute("select event_type from events order by created_at, event_id").fetchall()
     return [str(row["event_type"]) for row in rows]
@@ -55,7 +55,7 @@ def test_unregistered_human_prefix_cannot_record_waiver(tmp_path: Path) -> None:
     requirement_id = approve_requirement(service)
     method_id = manual_method(service, requirement_id)
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.record_verification_evidence(
             method_id,
             status="waived",
@@ -84,7 +84,7 @@ def test_unregistered_human_prefix_cannot_manual_attest(tmp_path: Path) -> None:
     requirement_id = approve_requirement(service)
     method_id = manual_method(service, requirement_id)
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.record_verification_evidence(
             method_id,
             status="passing",
@@ -99,7 +99,7 @@ def test_bare_actor_cannot_record_waiver(tmp_path: Path) -> None:
     requirement_id = approve_requirement(service)
     method_id = manual_method(service, requirement_id)
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.record_verification_evidence(
             method_id,
             status="waived",
@@ -114,7 +114,7 @@ def test_bare_actor_cannot_manual_attest(tmp_path: Path) -> None:
     requirement_id = approve_requirement(service)
     method_id = manual_method(service, requirement_id)
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.record_verification_evidence(
             method_id,
             status="passing",
@@ -179,7 +179,7 @@ def test_registered_agent_cannot_attest(tmp_path: Path) -> None:
     method_id = manual_method(service, requirement_id)
     service.register_actor("agent:codex", kind="agent", actor="human:john")
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.record_verification_evidence(
             method_id,
             status="waived",
@@ -200,9 +200,7 @@ def test_register_actor_persists_and_logs_event(tmp_path: Path) -> None:
     assert actor.kind == "human"
     assert actor.display_name == "John"
     with connect(service.db_path) as connection:
-        row = connection.execute(
-            "select kind, display_name from actors where actor_id = ?", ("human:john",)
-        ).fetchone()
+        row = connection.execute("select kind, display_name from actors where actor_id = ?", ("human:john",)).fetchone()
     assert row is not None
     assert str(row["kind"]) == "human"
     assert "actor_registered" in event_types(service)
@@ -210,14 +208,14 @@ def test_register_actor_persists_and_logs_event(tmp_path: Path) -> None:
 
 def test_register_actor_rejects_unknown_kind(tmp_path: Path) -> None:
     service = service_for(tmp_path)
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.register_actor("human:john", kind="robot", actor="human:john")
     assert exc.value.code == ErrorCode.VALIDATION
 
 
 def test_register_actor_requires_actor_id(tmp_path: Path) -> None:
     service = service_for(tmp_path)
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.register_actor("", kind="human", actor="human:john")
     assert exc.value.code == ErrorCode.VALIDATION
 
@@ -236,7 +234,7 @@ def test_agent_cannot_register_attester_after_genesis(tmp_path: Path) -> None:
     service = service_for(tmp_path)
     service.register_actor("human:john", kind="human", actor="human:john")  # genesis attester exists
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.register_actor("human:fake", kind="human", actor="agent:codex")
     assert exc.value.code == ErrorCode.POLICY_REQUIRED
 
@@ -263,7 +261,7 @@ def test_agent_cannot_self_upgrade_to_attester(tmp_path: Path) -> None:
     service.register_actor("human:john", kind="human", actor="human:john")  # genesis
     service.register_actor("agent:codex", kind="agent", actor="human:john")
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.register_actor("agent:codex", kind="human", actor="agent:codex")
     assert exc.value.code == ErrorCode.POLICY_REQUIRED
 
@@ -274,7 +272,7 @@ def test_agent_cannot_downgrade_existing_attester(tmp_path: Path) -> None:
     service = service_for(tmp_path)
     service.register_actor("human:john", kind="human", actor="human:john")  # genesis
 
-    with pytest.raises(CharterError) as exc:
+    with pytest.raises(PlainweaveError) as exc:
         service.register_actor("human:john", kind="agent", actor="agent:codex")
     assert exc.value.code == ErrorCode.POLICY_REQUIRED
 
@@ -283,9 +281,7 @@ def test_attester_may_re_register_an_existing_attester(tmp_path: Path) -> None:
     service = service_for(tmp_path)
     service.register_actor("human:john", kind="human", actor="human:john")  # genesis
 
-    updated = service.register_actor(
-        "human:john", kind="human", display_name="John Q.", actor="human:john"
-    )
+    updated = service.register_actor("human:john", kind="human", display_name="John Q.", actor="human:john")
     assert updated.display_name == "John Q."
 
 
@@ -298,11 +294,11 @@ def test_agent_cannot_fabricate_waiver_via_registration(tmp_path: Path) -> None:
     method_id = manual_method(service, requirement_id)
     service.register_actor("human:john", kind="human", actor="human:john")  # genesis attester
 
-    with pytest.raises(CharterError) as register_exc:
+    with pytest.raises(PlainweaveError) as register_exc:
         service.register_actor("human:fake", kind="human", actor="agent:codex")
     assert register_exc.value.code == ErrorCode.POLICY_REQUIRED
 
-    with pytest.raises(CharterError) as waive_exc:
+    with pytest.raises(PlainweaveError) as waive_exc:
         service.record_verification_evidence(
             method_id,
             status="waived",

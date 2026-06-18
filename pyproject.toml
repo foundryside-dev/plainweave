@@ -3,14 +3,14 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "charter"
-description = "Local-first requirements and verification authority for Loom"
+name = "plainweave"
+description = "Code-up requirements traceability and intent corpus for the Weft federation — the permission-for-code-to-exist member."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 dynamic = ["version"]
 authors = [{ name = "John Morrissey" }]
-keywords = ["requirements", "verification", "traceability", "mcp", "agent", "loom"]
+keywords = ["requirements", "verification", "traceability", "intent", "mcp", "agent", "weft"]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Environment :: Console",
@@ -35,19 +35,19 @@ dev = [
 ]
 
 [project.scripts]
-charter = "charter.cli:main"
-charter-mcp = "charter.mcp_server:main"
+plainweave = "plainweave.cli:main"
+plainweave-mcp = "plainweave.mcp_server:main"
 
 [project.urls]
-Homepage = "https://github.com/foundryside-dev/charter"
-Repository = "https://github.com/foundryside-dev/charter"
-Issues = "https://github.com/foundryside-dev/charter/issues"
+Homepage = "https://github.com/foundryside-dev/plainweave"
+Repository = "https://github.com/foundryside-dev/plainweave"
+Issues = "https://github.com/foundryside-dev/plainweave/issues"
 
 [tool.hatch.version]
-path = "src/charter/_version.py"
+path = "src/plainweave/_version.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/charter"]
+packages = ["src/plainweave"]
 
 [tool.ruff]
 line-length = 120
@@ -60,7 +60,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src/charter", "tests"]
+files = ["src/plainweave", "tests"]
 mypy_path = ["src", "."]
 explicit_package_bases = true
 
@@ -69,7 +69,7 @@ testpaths = ["tests"]
 addopts = "-ra -q"
 
 [tool.coverage.run]
-source = ["charter"]
+source = ["plainweave"]
 branch = true
 
 [tool.coverage.report]

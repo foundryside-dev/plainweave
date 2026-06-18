@@ -16,7 +16,7 @@ class ErrorCode(StrEnum):
     INTERNAL = "INTERNAL"
 
 
-class CharterError(Exception):
+class PlainweaveError(Exception):
     def __init__(
         self,
         code: ErrorCode,

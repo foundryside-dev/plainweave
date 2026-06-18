@@ -1,9 +1,9 @@
 {
-  "schema": "weft.charter.requirement_dossier.v1",
+  "schema": "weft.plainweave.requirement_dossier.v1",
   "identity": {
     "requirement_id": "req-1",
     "id": "REQ-AUTH-0001",
-    "stable_id": "charter:req:AUTH:0001",
+    "stable_id": "plainweave:req:AUTH:0001",
     "current_version": 1
   },
   "authority_summary": {
@@ -19,14 +19,14 @@
     "record": {
       "requirement_id": "req-1",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "current_version": 1,
       "active_draft_id": null,
       "status": "approved",
       "current_version_record": {
         "requirement_id": "req-1",
         "id": "REQ-AUTH-0001",
-        "stable_id": "charter:req:AUTH:0001",
+        "stable_id": "plainweave:req:AUTH:0001",
         "version": 1,
         "title": "Reject expired bearer tokens",
         "statement": "The API shall reject expired bearer tokens.",
@@ -39,7 +39,7 @@
     "current_version": {
       "requirement_id": "req-1",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "version": 1,
       "title": "Reject expired bearer tokens",
       "statement": "The API shall reject expired bearer tokens.",
@@ -165,7 +165,7 @@
     "live_peer_calls": false,
     "sources": [],
     "notes": [
-      "Dossier is computed from the local Charter store only."
+      "Dossier is computed from the local Plainweave store only."
     ]
   },
   "next_actions": [
@@ -173,7 +173,7 @@
       "action": "record_current_evidence",
       "priority": 2,
       "reason": "Keep verification evidence fresh before release.",
-      "command": "charter verify evidence record VERM-0001 --status passing --evidence-ref pytest:tests/test_auth.py::test_expired --actor agent:codex --json",
+      "command": "plainweave verify evidence record VERM-0001 --status passing --evidence-ref pytest:tests/test_auth.py::test_expired --actor agent:codex --json",
       "blocked_by": []
     }
   ]

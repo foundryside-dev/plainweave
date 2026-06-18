@@ -4,24 +4,24 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.service import CharterService
-from charter.store import connect, migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
-def approve_requirement(service: CharterService, title: str = "Reject expired bearer tokens") -> str:
+def approve_requirement(service: PlainweaveService, title: str = "Reject expired bearer tokens") -> str:
     draft = service.create_requirement(title, "The API shall reject expired bearer tokens.", "human:john")
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key=f"approve-{draft.id}")
     return draft.id
 
 
-def event_types(service: CharterService) -> list[str]:
+def event_types(service: PlainweaveService) -> list[str]:
     with connect(service.db_path) as connection:
         rows = connection.execute("select event_type from events order by created_at, event_id").fetchall()
     return [str(row["event_type"]) for row in rows]
@@ -49,7 +49,7 @@ def test_add_method_requires_approved_requirement(tmp_path: Path) -> None:
     service = service_for(tmp_path)
     draft = service.create_requirement("Draft only", "This requirement is not approved.", "human:john")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.add_verification_method(
             draft.id,
             method="test",
@@ -186,14 +186,14 @@ def test_agent_cannot_record_manual_or_waiver_attestation(tmp_path: Path) -> Non
         actor="human:john",
     )
 
-    with pytest.raises(CharterError) as manual_exc:
+    with pytest.raises(PlainweaveError) as manual_exc:
         service.record_verification_evidence(
             manual.id,
             status="passing",
             evidence_ref="manual:agent-claim",
             actor="agent:codex",
         )
-    with pytest.raises(CharterError) as waiver_exc:
+    with pytest.raises(PlainweaveError) as waiver_exc:
         service.record_verification_evidence(
             test_method.id,
             status="waived",

@@ -8,7 +8,7 @@ from typing import Any, cast
 
 import pytest
 
-from charter.cli import main
+from plainweave.cli import main
 
 
 def read_json_output(output: str) -> dict[str, Any]:
@@ -27,10 +27,10 @@ def test_init_json_creates_project_store(
 
     assert main(["init", "--project-key", "AUTH", "--json"]) == 0
 
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     assert db_path.is_file()
     envelope = read_json_output(capsys.readouterr().out)
-    assert envelope["schema"] == "weft.charter.init.v1"
+    assert envelope["schema"] == "weft.plainweave.init.v1"
     assert envelope["ok"] is True
     assert envelope["data"] == {
         "created": True,
@@ -53,4 +53,4 @@ def test_init_json_is_idempotent(
     envelope = read_json_output(capsys.readouterr().out)
     data = cast(dict[str, Any], envelope["data"])
     assert data["created"] is False
-    assert schema_meta(tmp_path / ".charter" / "charter.db") == {"project_key": "AUTH", "schema_version": "1"}
+    assert schema_meta(tmp_path / ".plainweave" / "plainweave.db") == {"project_key": "AUTH", "schema_version": "1"}

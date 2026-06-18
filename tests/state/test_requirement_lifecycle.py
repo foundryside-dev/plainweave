@@ -4,18 +4,18 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.service import CharterService
-from charter.store import connect, migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
-def event_count(service: CharterService) -> int:
+def event_count(service: PlainweaveService) -> int:
     with connect(service.db_path) as connection:
         return int(connection.execute("select count(*) from events").fetchone()[0])
 
@@ -30,7 +30,7 @@ def test_create_requirement_creates_mutable_draft_and_event(tmp_path: Path) -> N
     )
 
     assert draft.id == "REQ-AUTH-0001"
-    assert draft.stable_id == "charter:req:AUTH:0001"
+    assert draft.stable_id == "plainweave:req:AUTH:0001"
     assert draft.draft_id == "DRAFT-0001"
     assert draft.status == "draft"
     assert draft.draft_revision == 1
@@ -86,7 +86,7 @@ def test_approval_same_idempotency_key_with_different_expected_version_conflicts
     )
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.approve_requirement(draft.id, actor="human:john", expected_version=1, idempotency_key="approve-1")
 
     assert exc_info.value.code == ErrorCode.CONFLICT
@@ -99,7 +99,7 @@ def test_same_idempotency_key_cannot_replay_across_operations(tmp_path: Path) ->
     )
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="same")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.supersede_requirement(
             draft.id,
             title="Reject invalid bearer tokens",
@@ -122,7 +122,7 @@ def test_same_idempotency_key_cannot_replay_across_requirements(tmp_path: Path) 
     )
     service.approve_requirement(first.id, actor="human:john", expected_version=0, idempotency_key="same")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.approve_requirement(second.id, actor="human:john", expected_version=0, idempotency_key="same")
 
     assert exc_info.value.code == ErrorCode.CONFLICT
@@ -143,7 +143,7 @@ def test_same_idempotency_key_with_different_supersede_payload_conflicts(tmp_pat
         idempotency_key="same",
     )
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.supersede_requirement(
             draft.id,
             title="Reject malformed bearer tokens",
@@ -175,7 +175,7 @@ def test_legacy_idempotency_row_without_request_hash_fails_closed(tmp_path: Path
         connection.execute("update idempotency_keys set request_hash = null where key = ?", ("same",))
         connection.commit()
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.supersede_requirement(
             draft.id,
             title="Reject invalid bearer tokens",
@@ -195,7 +195,7 @@ def test_stale_expected_version_returns_conflict(tmp_path: Path) -> None:
     )
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.deprecate_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="deprecate-1")
 
     assert exc_info.value.code == ErrorCode.CONFLICT
@@ -274,7 +274,7 @@ def test_update_draft_stale_revision_returns_conflict(tmp_path: Path) -> None:
         "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
     )
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.update_draft(draft.id, statement="Changed.", actor="human:john", expected_draft_revision=99)
 
     assert exc_info.value.code == ErrorCode.CONFLICT
@@ -302,7 +302,7 @@ def test_reject_draft_requires_active_draft(tmp_path: Path) -> None:
     )
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.reject_requirement(draft.id, actor="human:john", expected_version=1, reason="too late")
 
     assert exc_info.value.code == ErrorCode.POLICY_REQUIRED
@@ -316,7 +316,7 @@ def test_search_and_missing_requirement_errors(tmp_path: Path) -> None:
     assert [record.id for record in service.search_requirements("Log")] == ["REQ-AUTH-0002"]
     assert [record.id for record in service.search_requirements()] == ["REQ-AUTH-0001", "REQ-AUTH-0002"]
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.get_requirement("REQ-AUTH-9999")
 
     assert exc_info.value.code == ErrorCode.NOT_FOUND
@@ -325,7 +325,7 @@ def test_search_and_missing_requirement_errors(tmp_path: Path) -> None:
 def test_actor_is_required_for_mutations(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.create_requirement("Reject expired bearer tokens", "The API shall reject expired tokens.", "")
 
     assert exc_info.value.code == ErrorCode.VALIDATION

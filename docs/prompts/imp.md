@@ -1,11 +1,12 @@
-You are working in /home/john/charter on Charter, the fifth Loom federation tool.
+<!-- PRECURSOR DOC: written for the Charter precursor; predates the Plainweave reframe. Kept for provenance. Current canon: ../design/. -->
+You are working in /home/john/plainweave on Plainweave, a Weft federation member (gap-named; reframed and renamed from the Charter precursor — not part of the launch cutover).
 
 Goal:
-Implement the approved Charter v0.1 local-core plan end to end, using repeated implement/review/verify cycles until the plan is fully delivered, you stop making meaningful progress, or you require operator intervention.
+Implement the approved Plainweave v0.1 local-core plan end to end, using repeated implement/review/verify cycles until the plan is fully delivered, you stop making meaningful progress, or you require operator intervention.
 
 Source baseline:
 - Latest initiation milestone commit/tag should be present:
-  - commit: abfb79e docs: establish Charter initiation milestone
+  - commit: abfb79e docs: establish Plainweave initiation milestone
   - tag: initiation-milestone
 - Treat current worktree and Filigree state as authoritative; inspect before acting.
 
@@ -23,23 +24,23 @@ Required skills/plugins before work:
 - filigree-workflow for tracker coordination
 
 Primary plans:
-- docs/superpowers/plans/2026-06-04-charter-v0.1-local-core.md
-- docs/superpowers/plans/2026-06-04-charter-v0.1-work-package-execution-guide.md
-- docs/superpowers/specs/2026-06-04-charter-contract-fixture-plan.md
-- docs/superpowers/specs/2026-06-04-charter-v0.1-quality-gates.md
-- docs/superpowers/specs/2026-06-04-charter-v0.1-traceability-matrix.md
-- docs/architecture/decisions/ADR-001-charter-authority-boundary.md through ADR-006-legis-preflight-fact-envelope.md
+- docs/superpowers/plans/2026-06-04-plainweave-v0.1-local-core.md
+- docs/superpowers/plans/2026-06-04-plainweave-v0.1-work-package-execution-guide.md
+- docs/superpowers/specs/2026-06-04-plainweave-contract-fixture-plan.md
+- docs/superpowers/specs/2026-06-04-plainweave-v0.1-quality-gates.md
+- docs/superpowers/specs/2026-06-04-plainweave-v0.1-traceability-matrix.md
+- docs/architecture/decisions/ADR-001-plainweave-authority-boundary.md through ADR-006-legis-preflight-fact-envelope.md
 
 Before product code:
 1. Run `git status --short --branch`, `git log --oneline --decorate -5`, and `filigree session-context`.
-2. Verify whether ADR-001 through ADR-004 and Filigree issue `charter-76a416ec15` are approved/accepted.
+2. Verify whether ADR-001 through ADR-004 and Filigree issue `plainweave-76a416ec15` are approved/accepted.
 3. If approval is not explicit in current state, stop and ask the operator whether this prompt constitutes approval to begin v0.1 product implementation. Do not write product code until that is clear.
 
 Implementation scope:
 Implement only v0.1 local core:
-- `charter init`
-- `charter doctor`
-- local `.charter/charter.db`
+- `plainweave init`
+- `plainweave doctor`
+- local `.plainweave/plainweave.db`
 - requirements, drafts, immutable versions
 - acceptance criteria
 - manual/proposed trace links
@@ -53,7 +54,7 @@ Do not implement:
 - baselines
 - impact engine
 - MCP server or MCP mutation tools
-- live Clarion, Filigree, Wardline, or Legis integrations
+- live Loomweave, Filigree, Wardline, or Legis integrations
 - import/export
 - context.md generation
 - LLM assistance
@@ -84,7 +85,7 @@ Required final gates:
 - `uv run pytest tests/state -q`
 - `make ci`
 - scope audit:
-  `rg -n "verification|baseline|impact|clarion|filigree|wardline|legis|mcp" src tests`
+  `rg -n "verification|baseline|impact|loomweave|filigree|wardline|legis|mcp" src tests`
   Results must be only inert contracts, help/deferred markers, or explicitly approved references.
 
 Completion response:

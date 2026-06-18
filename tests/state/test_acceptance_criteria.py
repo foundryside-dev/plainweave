@@ -4,15 +4,15 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.service import CharterService
-from charter.store import migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.service import PlainweaveService
+from plainweave.store import migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
 def test_add_acceptance_criterion_to_active_draft(tmp_path: Path) -> None:
@@ -55,7 +55,7 @@ def test_adding_criterion_to_approved_requirement_without_draft_requires_policy(
     )
     service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="approve-1")
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.add_acceptance_criterion(draft.id, "Expired tokens return 401.", actor="human:john")
 
     assert exc_info.value.code == ErrorCode.POLICY_REQUIRED

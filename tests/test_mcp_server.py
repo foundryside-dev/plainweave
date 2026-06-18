@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from charter.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA
+from plainweave.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA
 
 
 @pytest.mark.anyio
 async def test_fastmcp_server_registers_agentic_read_surface() -> None:
-    from charter.mcp_server import create_mcp_server
+    from plainweave.mcp_server import create_mcp_server
 
     server = create_mcp_server()
 

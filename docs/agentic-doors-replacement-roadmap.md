@@ -1,11 +1,11 @@
-# Charter Agentic DOORS Replacement Roadmap
+# Plainweave Agentic DOORS Replacement Roadmap
 
 ## Purpose
 
-This document captures what is still missing for Charter to become a
+This document captures what is still missing for Plainweave to become a
 first-class agentic replacement for DOORS-style requirements management.
 
-Current state: Charter local core is installed on `main`. It can store
+Current state: Plainweave local core is installed on `main`. It can store
 repo-local requirements, drafts, immutable approved versions, acceptance
 criteria, local trace links, append-only events, named locked baselines,
 verification methods, evidence records, computed verification status, computed
@@ -20,15 +20,15 @@ The replacement bar is not "copy DOORS." The bar is:
 - agents can safely read, draft, propose, and report without fabricating
   accepted truth;
 - baselines, verification status, and impact are first-class;
-- integrations compose with Loom peers without taking over their authority;
+- integrations compose with Weft peers without taking over their authority;
 - humans can review, approve, export, and audit the resulting state.
 
 ## Installed On Main
 
 Installed capabilities are available in the integrated `main` branch:
 
-- **v0.1 local core**: `charter init`, `charter doctor`, local
-  `.charter/charter.db`, requirement drafts, immutable approved versions,
+- **v0.1 local core**: `plainweave init`, `plainweave doctor`, local
+  `.plainweave/plainweave.db`, requirement drafts, immutable approved versions,
   acceptance criteria, proposed/accepted/rejected/stale/orphaned trace links,
   append-only events, JSON envelopes, CLI contract fixtures, and state tests.
 - **Baseline core**: locked named baselines of current approved/deprecated
@@ -40,31 +40,31 @@ Installed capabilities are available in the integrated `main` branch:
   reason codes, `verify` CLI commands, `status` CLI commands, and verification
   contract fixtures.
 - **Requirement dossiers**: computed local read models with no new storage,
-  `charter dossier REQ_ID --json`, compact human dossier output,
-  `weft.charter.requirement_dossier.v1`, and CLI contract fixture parity.
+  `plainweave dossier REQ_ID --json`, compact human dossier output,
+  `weft.plainweave.requirement_dossier.v1`, and CLI contract fixture parity.
   Dossiers preserve approved/draft separation, criteria separation, trace
   authority/freshness, verification status, baseline exposure, ephemeral
   computed gaps, local-only peer facts, and machine-readable next actions.
-- **MCP read surface**: `charter-mcp` exposes read-only local tools/resources
+- **MCP read surface**: `plainweave-mcp` exposes read-only local tools/resources
   for project context, requirement search/show, dossiers, trace listing,
   baseline list/show/diff, and verification status. The P0 surface is
-  local-only, mutation-free, and uses Charter JSON envelopes.
+  local-only, mutation-free, and uses Plainweave JSON envelopes.
 
 Installed command groups:
 
 ```text
-charter init
-charter doctor
-charter req add|edit|show|search|approve|supersede|deprecate|reject
-charter criterion add|list
-charter trace propose|accept|reject|list
-charter baseline create|show|list|diff
-charter verify method add
-charter verify evidence record
-charter verify status
-charter status requirement|unverified|stale
-charter dossier REQ_ID
-charter-mcp
+plainweave init
+plainweave doctor
+plainweave req add|edit|show|search|approve|supersede|deprecate|reject
+plainweave criterion add|list
+plainweave trace propose|accept|reject|list
+plainweave baseline create|show|list|diff
+plainweave verify method add
+plainweave verify evidence record
+plainweave verify status
+plainweave status requirement|unverified|stale
+plainweave dossier REQ_ID
+plainweave-mcp
 ```
 
 ## Progress Checkpoint
@@ -78,9 +78,9 @@ Completed on `main`:
 - Package C, local Requirement Dossiers: one-call local dossier read model and
   CLI contract.
 - Package C, MCP Read Surface: read-only local MCP tools/resources over the
-  installed Charter contracts.
-- Loom federation pointer docs: Charter now points federation roster, Axiom, and
-  SEI material at Loom as the hub rather than duplicating peer authority.
+  installed Plainweave contracts.
+- Weft federation pointer docs: Plainweave now points federation roster, Axiom, and
+  SEI material at Weft as the hub rather than duplicating peer authority.
 
 Still open:
 
@@ -101,7 +101,7 @@ Highest-priority remaining work is now P1 operational depth:
 
 P2/P3 adoption work still deferred:
 
-- Clarion, Filigree, Wardline, and Legis federation integrations;
+- Loomweave, Filigree, Wardline, and Legis federation integrations;
 - human review UI/TUI;
 - collaboration and governance hardening;
 - scale/performance validation;
@@ -112,16 +112,16 @@ P2/P3 adoption work still deferred:
 | Gap | Why it matters | Current state | Priority |
 |---|---|---|---|
 | Baselines and release snapshots | Auditors and release decisions need a frozen set of approved requirement versions. | Installed on `main`. | P0 |
-| Verification methods and evidence records | A requirement store is not enough; Charter must answer how satisfaction is known. | Installed on `main`. | P0 |
+| Verification methods and evidence records | A requirement store is not enough; Plainweave must answer how satisfaction is known. | Installed on `main`. | P0 |
 | Requirement satisfaction and freshness | Agents need current, stale, missing, and unknown status without scraping prose. | Installed on `main`. | P0 |
 | Requirement dossiers | Agents need one dense object per requirement: text, criteria, traces, evidence, gaps, and next actions. | Installed on `main`; computed local read model, no new storage. | P0 |
-| MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Installed on `main`; read-only local tools/resources via `charter-mcp`. | P0 |
+| MCP read/query surface | Agentic use should not require shelling out to CLI for every read. | Installed on `main`; read-only local tools/resources via `plainweave-mcp`. | P0 |
 | Impact analysis | The main product value is "what obligations does this change touch?" | Deferred. | P1 |
 | Gap tracking | Missing or stale evidence must become durable work candidates. | Deferred. | P1 |
 | MCP mutation surface | Agents should propose requirements, links, evidence, and gaps with actor attribution and idempotency. | Deferred. | P1 |
 | Human review queues and approval policy | Proposed facts must not silently become accepted truth. | Minimal local approval only. | P1 |
 | Import/export and migration | A replacement must ingest and emit requirements data in usable formats. | Deferred. | P1 |
-| Federation integrations | Clarion, Filigree, Wardline, and Legis make Charter agentically useful across code, work, trust, and governance. | Deferred except local opaque trace kinds. | P2 |
+| Federation integrations | Loomweave, Filigree, Wardline, and Legis make Plainweave agentically useful across code, work, trust, and governance. | Deferred except local opaque trace kinds. | P2 |
 | Reporting and UI/TUI | Humans need browse, diff, review, and audit views beyond raw JSON. | Deferred. | P2 |
 | Collaboration and governance hardening | Multi-user workflows need stronger roles, signatures, conflict handling, and audit controls. | Local filesystem boundary only. | P2 |
 | Scale and performance validation | Large projects need confidence with thousands of requirements and links. | Deferred. | P3 |
@@ -129,9 +129,9 @@ P2/P3 adoption work still deferred:
 
 ## Prioritized Roadmap
 
-### P0: Make Charter Trustworthy For Agentic Requirements Use
+### P0: Make Plainweave Trustworthy For Agentic Requirements Use
 
-P0 work turns Charter from a local requirement store into a requirements
+P0 work turns Plainweave from a local requirement store into a requirements
 authority that agents can query safely.
 
 #### 1. Baseline Core
@@ -147,10 +147,10 @@ Deliver:
 Minimum commands:
 
 ```text
-charter baseline create --name NAME --actor ACTOR --json
-charter baseline show BASELINE_ID --json
-charter baseline diff BASELINE_ID --json
-charter baseline list --json
+plainweave baseline create --name NAME --actor ACTOR --json
+plainweave baseline show BASELINE_ID --json
+plainweave baseline diff BASELINE_ID --json
+plainweave baseline list --json
 ```
 
 Definition of done:
@@ -174,9 +174,9 @@ Deliver:
 Minimum commands:
 
 ```text
-charter verify method add REQ_ID --method test --target TARGET --actor ACTOR --json
-charter verify evidence record METHOD_ID --status passing --evidence-ref REF --actor ACTOR --json
-charter verify status REQ_ID --json
+plainweave verify method add REQ_ID --method test --target TARGET --actor ACTOR --json
+plainweave verify evidence record METHOD_ID --status passing --evidence-ref REF --actor ACTOR --json
+plainweave verify status REQ_ID --json
 ```
 
 Definition of done:
@@ -201,9 +201,9 @@ Deliver:
 Minimum commands:
 
 ```text
-charter status requirement REQ_ID --json
-charter status unverified --json
-charter status stale --json
+plainweave status requirement REQ_ID --json
+plainweave status unverified --json
+plainweave status stale --json
 ```
 
 Definition of done:
@@ -228,8 +228,8 @@ Deliver:
 Minimum commands:
 
 ```text
-charter dossier REQ_ID --json
-charter dossier REQ_ID
+plainweave dossier REQ_ID --json
+plainweave dossier REQ_ID
 ```
 
 Definition of done:
@@ -247,7 +247,7 @@ Status: installed on `main`.
 
 Deliver:
 
-- MCP server exposing read-only local Charter facts;
+- MCP server exposing read-only local Plainweave facts;
 - tools for requirement search, show, dossier, baseline show/diff, verification
   status, and trace listing;
 - stable JSON schemas shared with CLI envelopes;
@@ -255,16 +255,16 @@ Deliver:
 
 Definition of done:
 
-- Complete: agents can use Charter without shelling out to CLI for read
+- Complete: agents can use Plainweave without shelling out to CLI for read
   workflows;
 - Complete: read tools never mutate state;
 - Complete: tool descriptions state authority boundaries and freshness
   semantics;
 - Complete: MCP tests validate schemas and error envelopes.
 
-### P1: Make Charter Operationally Useful During Development
+### P1: Make Plainweave Operationally Useful During Development
 
-P1 work makes Charter useful while code changes are being planned and executed.
+P1 work makes Plainweave useful while code changes are being planned and executed.
 
 #### 6. Impact Analysis
 
@@ -278,9 +278,9 @@ Deliver:
 Minimum commands:
 
 ```text
-charter impact requirement REQ_ID --json
-charter impact path PATH --json
-charter impact diff BASE..HEAD --json
+plainweave impact requirement REQ_ID --json
+plainweave impact path PATH --json
+plainweave impact diff BASE..HEAD --json
 ```
 
 Definition of done:
@@ -288,7 +288,7 @@ Definition of done:
 - report separates direct, transitive, and inferred impacts;
 - report identifies evidence that will become stale;
 - report can run with no peers using local trace links;
-- report can later enrich from Clarion without changing the base schema.
+- report can later enrich from Loomweave without changing the base schema.
 
 #### 7. Gap Tracking
 
@@ -302,9 +302,9 @@ Deliver:
 Minimum commands:
 
 ```text
-charter gap list --json
-charter gap create --requirement REQ_ID --kind missing_verification --actor ACTOR --json
-charter gap resolve GAP_ID --actor ACTOR --evidence-ref REF --json
+plainweave gap list --json
+plainweave gap create --requirement REQ_ID --kind missing_verification --actor ACTOR --json
+plainweave gap resolve GAP_ID --actor ACTOR --evidence-ref REF --json
 ```
 
 Definition of done:
@@ -360,37 +360,37 @@ Definition of done:
 - import produces explicit draft/proposed facts unless trusted mode is selected;
 - export is deterministic enough for review diffs.
 
-### P2: Make Charter Federated And Human-Comfortable
+### P2: Make Plainweave Federated And Human-Comfortable
 
-P2 work turns Charter into a strong member of the Loom federation and improves
+P2 work turns Plainweave into a strong member of the Weft federation and improves
 human review ergonomics.
 
-#### 11. Clarion Integration
+#### 11. Loomweave Integration
 
 Deliver:
 
 - SEI-backed trace targets;
 - code entity freshness checks;
 - rename/move resilient impact enrichment;
-- degraded behavior when Clarion is absent or stale.
+- degraded behavior when Loomweave is absent or stale.
 
 Definition of done:
 
-- Charter consumes Clarion identity; it does not derive code identity;
-- stale or missing Clarion facts are explicit;
-- local manual links still work without Clarion.
+- Plainweave consumes Loomweave identity; it does not derive code identity;
+- stale or missing Loomweave facts are explicit;
+- local manual links still work without Loomweave.
 
 #### 12. Filigree Integration
 
 Deliver:
 
-- create work from Charter gaps;
+- create work from Plainweave gaps;
 - link gaps and requirements to Filigree issues;
 - show issue status in dossiers without owning issue lifecycle.
 
 Definition of done:
 
-- Charter can create candidate work but does not claim, transition, or close
+- Plainweave can create candidate work but does not claim, transition, or close
   Filigree issues except through explicit user/tool action;
 - issue closure is never treated as requirement satisfaction by itself.
 
@@ -404,7 +404,7 @@ Deliver:
 
 Definition of done:
 
-- Charter does not own trust-boundary analysis;
+- Plainweave does not own trust-boundary analysis;
 - waived findings remain visible;
 - dossiers explain how findings affect satisfaction.
 
@@ -413,14 +413,14 @@ Definition of done:
 Deliver:
 
 - preflight fact envelope for requirement, verification, gap, and impact state;
-- no direct commit blocking inside Charter;
+- no direct commit blocking inside Plainweave;
 - support for Chill-mode advisory reports and stricter policy modes in Legis.
 
 Definition of done:
 
-- Charter provides facts, not governance decisions;
+- Plainweave provides facts, not governance decisions;
 - Legis can consume one structured envelope for commit/release checks;
-- absence/staleness of Charter data is explicit.
+- absence/staleness of Plainweave data is explicit.
 
 #### 15. Human Review UI/TUI
 
@@ -438,7 +438,7 @@ Definition of done:
 - output remains compact and engineering-focused;
 - UI never hides authority/freshness state.
 
-### P3: Make Charter Enterprise-Migration Ready
+### P3: Make Plainweave Enterprise-Migration Ready
 
 P3 work is important for larger adoption but should not block the first
 agentic product loop.
@@ -457,7 +457,7 @@ Definition of done:
 
 - every accepted fact has attributable authority;
 - conflicting edits are explicit and recoverable;
-- audit artifacts can be reviewed outside Charter.
+- audit artifacts can be reviewed outside Plainweave.
 
 #### 17. Scale And Performance Validation
 
@@ -503,14 +503,14 @@ The highest-leverage order is:
 8. MCP mutation surface.
 9. Review queues and approval policy.
 10. Import/export.
-11. Clarion, Filigree, Wardline, and Legis federation in that order.
+11. Loomweave, Filigree, Wardline, and Legis federation in that order.
 12. Human review UI/TUI.
 13. Collaboration hardening.
 14. Scale validation.
 15. ReqIF and enterprise ALM adapters.
 
-This order keeps Charter useful at every step. It avoids building federation
-or UI features before Charter can answer the core questions:
+This order keeps Plainweave useful at every step. It avoids building federation
+or UI features before Plainweave can answer the core questions:
 
 - What requirements are approved?
 - Which baseline do they belong to?
@@ -525,7 +525,7 @@ or UI features before Charter can answer the core questions:
 Goal: make approved requirement sets auditable.
 
 Status: installed on `main`. Evidence includes immutable baseline storage,
-`charter baseline create/show/list/diff`, baseline JSON fixtures, state tests,
+`plainweave baseline create/show/list/diff`, baseline JSON fixtures, state tests,
 CLI tests, and final local gates.
 
 Suggested Filigree breakdown:
@@ -545,13 +545,13 @@ Exit criteria:
 
 ### Package B: Verification And Satisfaction
 
-Goal: make Charter answer whether requirements are satisfied.
+Goal: make Plainweave answer whether requirements are satisfied.
 
 Status: installed on `main`. Evidence includes verification method/evidence
-storage, append-only evidence records, `charter verify method add`,
-`charter verify evidence record`, `charter verify status`,
-`charter status requirement`, `charter status unverified`,
-`charter status stale`, verification JSON fixtures, state tests, CLI tests, and
+storage, append-only evidence records, `plainweave verify method add`,
+`plainweave verify evidence record`, `plainweave verify status`,
+`plainweave status requirement`, `plainweave status unverified`,
+`plainweave status stale`, verification JSON fixtures, state tests, CLI tests, and
 local gates.
 
 Delivered Filigree breakdown:
@@ -573,7 +573,7 @@ Exit criteria:
 
 ### Package C: Dossiers And MCP Read Tools
 
-Goal: make Charter useful as an agent-facing requirements authority.
+Goal: make Plainweave useful as an agent-facing requirements authority.
 
 Status: installed on `main`.
 
@@ -602,6 +602,6 @@ Exit criteria:
 - Never treat issue closure as requirement satisfaction.
 - Never mutate approved requirement text or locked baselines.
 - Never let an agent mark its own guess as accepted truth without policy.
-- Never make Charter depend on peer tools for local requirements use.
+- Never make Plainweave depend on peer tools for local requirements use.
 - Never hide stale, waived, or orphaned facts; label them and explain the
   consequence.

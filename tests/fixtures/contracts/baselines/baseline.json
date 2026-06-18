@@ -1,5 +1,5 @@
 {
-  "schema": "weft.charter.baseline.v1",
+  "schema": "weft.plainweave.baseline.v1",
   "id": "BASELINE-0001",
   "name": "Release 1.0 requirements",
   "description": "Approved requirements for release 1.0.",
@@ -10,7 +10,7 @@
     {
       "requirement_id": "req-1",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "version": 1,
       "statement_hash": "sha256:569f1e9c2ef2d3aa4dc808f09e3ac207fe2a7d5d1c74fd4b2fe9b49fa74b4d8b",
       "status_at_baseline": "approved"

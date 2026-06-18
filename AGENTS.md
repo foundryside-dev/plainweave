@@ -1,4 +1,5 @@
-<!-- filigree:instructions:v2.3.0:b661cb3d -->
+<!-- filigree:instructions:v3.0.1:65e6fb25 -->
+<!-- filigree:last-writer:filigree install -->
 ## Filigree Issue Tracker
 
 `filigree` tracks tasks for this project. Data lives in `.filigree/`. Prefer
@@ -76,9 +77,9 @@ either catalogue. The verbs you will reach for most:
 - **Cross-product entity bindings (ADR-029):** `entity_association_add`,
   `entity_association_remove`, `entity_association_list`,
   `entity_association_list_by_entity`. Used when a sibling tool (e.g.
-  Clarion) needs to bind a Filigree issue to a function, class, or
+  Loomweave) needs to bind a Filigree issue to a function, class, or
   module identifier it owns. The `entity_id` is an opaque external string
-  from Filigree's perspective and may be a `clarion:eid:...` SEI or a legacy
+  from Filigree's perspective and may be a `loomweave:eid:...` SEI or a legacy
   locator; callers may also supply `entity_kind` explicitly. The consumer (the sibling tool's read
   path) does drift detection against the stored
   `content_hash_at_attach`. `entity_association_list_by_entity` is the
@@ -101,7 +102,7 @@ Errors return `{error: str, code: ErrorCode, details?: dict}`. Switch on
 `code`, not on message text. Codes: `VALIDATION`, `NOT_FOUND`, `CONFLICT`,
 `INVALID_TRANSITION`, `PERMISSION`, `NOT_INITIALIZED`, `IO`,
 `INVALID_API_URL`, `FILE_REGISTRY_DISPLACED`, `REGISTRY_UNAVAILABLE`,
-`CLARION_REGISTRY_VERSION_MISMATCH`, `CLARION_OUT_OF_SYNC`,
+`LOOMWEAVE_REGISTRY_VERSION_MISMATCH`, `LOOMWEAVE_OUT_OF_SYNC`,
 `BRIEFING_BLOCKED`, `STOP_FAILED`, `SCHEMA_MISMATCH`, `INTERNAL`.
 
 On `INVALID_TRANSITION`, call `workflow_transition_list` (MCP) or

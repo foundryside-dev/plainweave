@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import pytest
 
-from charter.cli import main
+from plainweave.cli import main
 
 FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "contracts"
 

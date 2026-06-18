@@ -1,9 +1,9 @@
 {
-  "schema": "weft.charter.trace_link.v1",
+  "schema": "weft.plainweave.trace_link.v1",
   "id": "LINK-0001",
   "state": "stale",
   "from": {
-    "kind": "clarion_entity",
+    "kind": "loomweave_entity",
     "id": "sei:abc123"
   },
   "relation": "satisfies",

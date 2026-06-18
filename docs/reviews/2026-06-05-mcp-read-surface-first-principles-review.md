@@ -4,7 +4,7 @@
 
 Review the implemented P0 Package C MCP read surface against:
 
-- `docs/superpowers/specs/2026-06-05-charter-agentic-mcp-interface-design.md`;
+- `docs/superpowers/specs/2026-06-05-plainweave-agentic-mcp-interface-design.md`;
 - `docs/agentic-doors-replacement-roadmap.md`;
 - the user requirement to implement the plan and understand what is delivered.
 
@@ -18,13 +18,13 @@ Delivered.
 
 Evidence:
 
-- `src/charter/mcp_surface.py` defines the required ten P0 read tools:
-  `charter_project_context_get`, `charter_requirement_search`,
-  `charter_requirement_get`, `charter_requirement_dossier_get`,
-  `charter_trace_link_list`, `charter_baseline_list`, `charter_baseline_get`,
-  `charter_baseline_diff`, `charter_verification_status_get`, and
-  `charter_verification_status_list`.
-- `src/charter/mcp_server.py` registers those tools with FastMCP.
+- `src/plainweave/mcp_surface.py` defines the required ten P0 read tools:
+  `plainweave_project_context_get`, `plainweave_requirement_search`,
+  `plainweave_requirement_get`, `plainweave_requirement_dossier_get`,
+  `plainweave_trace_link_list`, `plainweave_baseline_list`, `plainweave_baseline_get`,
+  `plainweave_baseline_diff`, `plainweave_verification_status_get`, and
+  `plainweave_verification_status_list`.
+- `src/plainweave/mcp_server.py` registers those tools with FastMCP.
 - `tests/test_mcp_read_surface.py` verifies the tool inventory.
 - `tests/test_mcp_server.py` verifies FastMCP catalog registration.
 
@@ -34,28 +34,28 @@ Delivered.
 
 Evidence:
 
-- `src/charter/mcp_surface.py` defines `MCP_RESOURCE_URIS` for project context
+- `src/plainweave/mcp_surface.py` defines `MCP_RESOURCE_URIS` for project context
   and the P0 contract resources.
-- `src/charter/mcp_server.py` registers those URIs as FastMCP resources.
+- `src/plainweave/mcp_server.py` registers those URIs as FastMCP resources.
 - `tests/test_mcp_read_surface.py` verifies internal resource reads.
 - `tests/test_mcp_server.py` verifies server resource registration.
 
-### Existing Charter Envelope Discipline
+### Existing Plainweave Envelope Discipline
 
 Delivered.
 
 Evidence:
 
-- `src/charter/mcp_surface.py` uses `success_envelope` and `error_envelope`
-  from `src/charter/envelopes.py`.
+- `src/plainweave/mcp_surface.py` uses `success_envelope` and `error_envelope`
+  from `src/plainweave/envelopes.py`.
 - Tool methods return existing schema names such as
-  `weft.charter.requirement_dossier.v1`,
-  `weft.charter.baseline.v1`,
-  `weft.charter.baseline_diff.v1`, and
-  `weft.charter.requirement_verification_status.v1`.
+  `weft.plainweave.requirement_dossier.v1`,
+  `weft.plainweave.baseline.v1`,
+  `weft.plainweave.baseline_diff.v1`, and
+  `weft.plainweave.requirement_verification_status.v1`.
 - `tests/test_mcp_read_surface.py` asserts schema, `ok`, warnings, producer,
   and project metadata on successful envelopes.
-- Error tests assert `weft.charter.error.v1`, closed error code, recoverability,
+- Error tests assert `weft.plainweave.error.v1`, closed error code, recoverability,
   and recovery hint.
 
 ### Read-Only And Local-Only Behavior
@@ -68,11 +68,11 @@ Evidence:
   `local_only: true`, and `peer_side_effects: []`.
 - `tests/test_mcp_read_surface.py` snapshots all SQLite tables before and after
   representative MCP reads and asserts state equality.
-- Scope audit found no calls from `src/charter/mcp_surface.py` or
-  `src/charter/mcp_server.py` to Charter mutation service methods such as
+- Scope audit found no calls from `src/plainweave/mcp_surface.py` or
+  `src/plainweave/mcp_server.py` to Plainweave mutation service methods such as
   requirement create/edit/approve, trace mutation, baseline creation, or
   evidence recording.
-- Scope audit found no live Clarion, Filigree, Wardline, or Legis calls in the
+- Scope audit found no live Loomweave, Filigree, Wardline, or Legis calls in the
   MCP implementation.
 
 ### Agent-Safe Discovery And Pagination
@@ -81,10 +81,10 @@ Delivered.
 
 Evidence:
 
-- `charter_project_context_get` returns initialized state, schema/database
+- `plainweave_project_context_get` returns initialized state, schema/database
   context, capability metadata, and authority boundary summary.
-- `charter_requirement_search`, `charter_trace_link_list`,
-  `charter_baseline_list`, and `charter_verification_status_list` return
+- `plainweave_requirement_search`, `plainweave_trace_link_list`,
+  `plainweave_baseline_list`, and `plainweave_verification_status_list` return
   `items`, `has_more`, and `next_offset`.
 - `tests/test_mcp_read_surface.py` verifies pagination and filter behavior.
 - Invalid enum-like filters return validation error envelopes instead of silent
@@ -96,12 +96,12 @@ Delivered.
 
 Evidence:
 
-- `charter_requirement_dossier_get` returns the installed local dossier contract
+- `plainweave_requirement_dossier_get` returns the installed local dossier contract
   and keeps `peer_facts.live_peer_calls` false.
 - Dossier output continues to preserve approved/current sections, active drafts,
   trace states, verification status, stale evidence, baseline exposure, computed
   gaps, and next actions.
-- `charter_verification_status_get` and `charter_verification_status_list` expose
+- `plainweave_verification_status_get` and `plainweave_verification_status_list` expose
   reason-coded status rather than prose verdicts.
 
 ### Runnable MCP Server
@@ -110,10 +110,10 @@ Delivered.
 
 Evidence:
 
-- `pyproject.toml` adds the `charter-mcp` script.
+- `pyproject.toml` adds the `plainweave-mcp` script.
 - `pyproject.toml` and `uv.lock` add the official Python MCP SDK dependency.
-- `.mcp.json` registers a local `charter` stdio server using `uv run
-  charter-mcp`.
+- `.mcp.json` registers a local `plainweave` stdio server using `uv run
+  plainweave-mcp`.
 - A direct FastMCP catalog check verifies registered tools/resources.
 
 ### Roadmap And Package C Status
@@ -127,7 +127,7 @@ Evidence:
 - Package C status now says installed on `main`.
 - Remaining work begins at P1 operational depth: impact analysis, durable gaps,
   MCP mutation, review queues, and import/export.
-- Filigree issue `charter-ca64aed01f` is closed as `delivered` with final gate
+- Filigree issue `plainweave-ca64aed01f` is closed as `delivered` with final gate
   evidence.
 
 ## Not Delivered
@@ -135,7 +135,7 @@ Evidence:
 These exclusions match the P0 design:
 
 - MCP mutation tools.
-- Live Clarion, Filigree, Wardline, or Legis federation calls.
+- Live Loomweave, Filigree, Wardline, or Legis federation calls.
 - Impact analysis.
 - Durable gap lifecycle.
 - Review queues and approval policy.
@@ -167,7 +167,7 @@ Commands run:
 - `uv run pytest tests/contracts -q`
 - `uv run pytest tests/state -q`
 - `make ci`
-- scope audit over `src/charter/mcp_surface.py` and `src/charter/mcp_server.py`
+- scope audit over `src/plainweave/mcp_surface.py` and `src/plainweave/mcp_server.py`
   for subprocess, mutation-service calls, peer tool names, impact/gap/release
   verdict leakage, and live peer behavior.
 
@@ -181,6 +181,6 @@ Result:
 ## Review Verdict
 
 The implementation satisfies the P0 Package C read-only MCP requirements. It
-delivers a first-class local agent read surface over Charter's installed
+delivers a first-class local agent read surface over Plainweave's installed
 requirements, dossier, trace, baseline, and verification facts while preserving
 authority boundaries and leaving P1/P2 work explicitly deferred.

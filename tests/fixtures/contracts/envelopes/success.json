@@ -1,12 +1,12 @@
 {
-  "schema": "weft.charter.requirement_version.v1",
+  "schema": "weft.plainweave.requirement_version.v1",
   "ok": true,
   "data": {},
   "warnings": [],
   "meta": {
     "producer": {
-      "tool": "charter",
-      "version": "0.1.0"
+      "tool": "plainweave",
+      "version": "0.0.1"
     },
     "generated_at": "2026-06-04T10:00:00+10:00",
     "project": "AUTH"

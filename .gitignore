@@ -1,2 +1,22 @@
-# Filigree issue tracker
+# Filigree issue tracker (local state; store lives under .weft/ since filigree 3.0)
+.weft/
 .filigree/
+.filigree.conf.imported
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.json
+
+# Wardline scan output
+findings.jsonl

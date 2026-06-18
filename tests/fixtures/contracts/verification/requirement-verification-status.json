@@ -1,8 +1,8 @@
 {
-  "schema": "weft.charter.requirement_verification_status.v1",
+  "schema": "weft.plainweave.requirement_verification_status.v1",
   "requirement_id": "req-1",
   "id": "REQ-AUTH-0001",
-  "stable_id": "charter:req:AUTH:0001",
+  "stable_id": "plainweave:req:AUTH:0001",
   "current_version": 1,
   "status": "satisfied",
   "reasons": [

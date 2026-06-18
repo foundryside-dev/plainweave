@@ -110,8 +110,8 @@ def test_required_fixture_plan_files_exist() -> None:
 
 def assert_meta(envelope: dict[str, Any]) -> None:
     assert envelope["warnings"] == []
-    assert envelope["meta"]["producer"]["tool"] == "charter"
-    assert envelope["meta"]["producer"]["version"] == "0.1.0"
+    assert envelope["meta"]["producer"]["tool"] == "plainweave"
+    assert envelope["meta"]["producer"]["version"] == "0.0.1"
     assert envelope["meta"]["project"] == "AUTH"
     assert isinstance(envelope["meta"]["generated_at"], str)
 
@@ -120,7 +120,7 @@ def test_success_envelope_fixture_contract() -> None:
     fixture = load_fixture("envelopes/success.json")
 
     assert set(fixture) == {"schema", "ok", "data", "warnings", "meta"}
-    assert fixture["schema"].startswith("weft.charter.")
+    assert fixture["schema"].startswith("weft.plainweave.")
     assert fixture["schema"].endswith(".v1")
     assert fixture["ok"] is True
     assert isinstance(fixture["data"], dict)
@@ -131,7 +131,7 @@ def test_validation_error_envelope_fixture_contract() -> None:
     fixture = load_fixture("envelopes/error-validation.json")
 
     assert set(fixture) == {"schema", "ok", "error", "warnings", "meta"}
-    assert fixture["schema"] == "weft.charter.error.v1"
+    assert fixture["schema"] == "weft.plainweave.error.v1"
     assert fixture["ok"] is False
     assert fixture["error"]["code"] in ERROR_CODES
     assert fixture["error"]["code"] == "VALIDATION"
@@ -144,7 +144,7 @@ def test_validation_error_envelope_fixture_contract() -> None:
 def test_conflict_error_envelope_fixture_contract() -> None:
     fixture = load_fixture("envelopes/error-conflict.json")
 
-    assert fixture["schema"] == "weft.charter.error.v1"
+    assert fixture["schema"] == "weft.plainweave.error.v1"
     assert fixture["ok"] is False
     assert fixture["error"]["code"] == "CONFLICT"
     assert fixture["error"]["code"] in ERROR_CODES
@@ -192,9 +192,9 @@ def test_requirement_draft_fixture_contract() -> None:
         "created_by",
         "created_at",
     }
-    assert fixture["schema"] == "weft.charter.requirement_draft.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_draft.v1"
     assert fixture["id"].startswith("REQ-AUTH-")
-    assert fixture["stable_id"].startswith("charter:req:AUTH:")
+    assert fixture["stable_id"].startswith("plainweave:req:AUTH:")
     assert fixture["draft_id"].startswith("DRAFT-")
     assert fixture["base_version"] is None
     assert fixture["draft_revision"] == 1
@@ -216,9 +216,9 @@ def test_requirement_version_approved_fixture_contract() -> None:
         "approved_by",
         "approved_at",
     }
-    assert fixture["schema"] == "weft.charter.requirement_version.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_version.v1"
     assert fixture["id"].startswith("REQ-AUTH-")
-    assert fixture["stable_id"].startswith("charter:req:AUTH:")
+    assert fixture["stable_id"].startswith("plainweave:req:AUTH:")
     assert fixture["version"] == 1
     assert fixture["statement_hash"].startswith("sha256:")
     assert fixture["status"] == "approved"
@@ -240,7 +240,7 @@ def assert_trace_link_fixture(fixture: dict[str, Any], *, expected_state: str) -
         "accepted_by",
         "target_snapshot",
     }
-    assert fixture["schema"] == "weft.charter.trace_link.v1"
+    assert fixture["schema"] == "weft.plainweave.trace_link.v1"
     assert fixture["id"].startswith("LINK-")
     assert fixture["state"] in TRACE_STATES
     assert fixture["state"] == expected_state
@@ -258,7 +258,7 @@ def assert_trace_link_fixture(fixture: dict[str, Any], *, expected_state: str) -
 def test_requirement_version_superseded_fixture_contract() -> None:
     fixture = load_fixture("requirements/requirement-version-superseded.json")
 
-    assert fixture["schema"] == "weft.charter.requirement_version.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_version.v1"
     assert fixture["version"] == 1
     assert fixture["status"] == "superseded"
     assert fixture["superseded_by_version"] == 2
@@ -321,19 +321,19 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
     fixture = load_fixture("mcp/tool-inventory.json")
 
     expected_tools = {
-        "charter_project_context_get",
-        "charter_requirement_search",
-        "charter_requirement_get",
-        "charter_requirement_dossier_get",
-        "charter_trace_link_list",
-        "charter_baseline_list",
-        "charter_baseline_get",
-        "charter_baseline_diff",
-        "charter_verification_status_get",
-        "charter_verification_status_list",
+        "plainweave_project_context_get",
+        "plainweave_requirement_search",
+        "plainweave_requirement_get",
+        "plainweave_requirement_dossier_get",
+        "plainweave_trace_link_list",
+        "plainweave_baseline_list",
+        "plainweave_baseline_get",
+        "plainweave_baseline_diff",
+        "plainweave_verification_status_get",
+        "plainweave_verification_status_list",
     }
 
-    assert fixture["schema"] == "weft.charter.mcp_tool_inventory.v1"
+    assert fixture["schema"] == "weft.plainweave.mcp_tool_inventory.v1"
     assert [tool["name"] for tool in fixture["tools"]] == sorted(expected_tools)
     for tool in fixture["tools"]:
         assert set(tool) == {"name", "mutates", "local_only", "peer_side_effects", "authority_boundary"}
@@ -346,14 +346,14 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
 def test_mcp_resource_inventory_fixture_contract() -> None:
     fixture = load_fixture("mcp/resource-inventory.json")
 
-    assert fixture["schema"] == "weft.charter.mcp_resource_inventory.v1"
+    assert fixture["schema"] == "weft.plainweave.mcp_resource_inventory.v1"
     assert fixture["resources"] == [
-        "charter://project/context",
-        "charter://contracts/weft.charter.error.v1",
-        "charter://contracts/weft.charter.requirement_dossier.v1",
-        "charter://contracts/weft.charter.baseline.v1",
-        "charter://contracts/weft.charter.baseline_diff.v1",
-        "charter://contracts/weft.charter.requirement_verification_status.v1",
+        "plainweave://project/context",
+        "plainweave://contracts/weft.plainweave.error.v1",
+        "plainweave://contracts/weft.plainweave.requirement_dossier.v1",
+        "plainweave://contracts/weft.plainweave.baseline.v1",
+        "plainweave://contracts/weft.plainweave.baseline_diff.v1",
+        "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
     ]
 
 
@@ -370,7 +370,7 @@ def test_baseline_fixture_contract() -> None:
         "created_at",
         "members",
     }
-    assert fixture["schema"] == "weft.charter.baseline.v1"
+    assert fixture["schema"] == "weft.plainweave.baseline.v1"
     assert fixture["id"].startswith("BASELINE-")
     assert fixture["name"]
     assert isinstance(fixture["description"], str)
@@ -388,7 +388,7 @@ def test_baseline_fixture_contract() -> None:
             "status_at_baseline",
         }
         assert member["id"].startswith("REQ-AUTH-")
-        assert member["stable_id"].startswith("charter:req:AUTH:")
+        assert member["stable_id"].startswith("plainweave:req:AUTH:")
         assert isinstance(member["version"], int)
         assert member["statement_hash"].startswith("sha256:")
         assert member["status_at_baseline"] in {"approved", "deprecated"}
@@ -398,7 +398,7 @@ def test_baseline_diff_fixture_contract() -> None:
     fixture = load_fixture("baselines/baseline-diff.json")
 
     assert set(fixture) == {"schema", "baseline_id", "summary", "items"}
-    assert fixture["schema"] == "weft.charter.baseline_diff.v1"
+    assert fixture["schema"] == "weft.plainweave.baseline_diff.v1"
     assert fixture["baseline_id"].startswith("BASELINE-")
     assert set(fixture["summary"]) == {
         "unchanged",
@@ -436,7 +436,7 @@ def test_actor_register_fixture_contract() -> None:
     fixture = load_fixture("cli/actor-register-json.json")
 
     assert set(fixture) == {"schema", "ok", "data", "warnings", "meta"}
-    assert fixture["schema"] == "weft.charter.actor.v1"
+    assert fixture["schema"] == "weft.plainweave.actor.v1"
     assert fixture["ok"] is True
     assert set(fixture["data"]) == {"actor_id", "kind", "display_name"}
     assert fixture["data"]["actor_id"]
@@ -458,7 +458,7 @@ def test_verification_method_fixture_contract() -> None:
         "created_by",
         "created_at",
     }
-    assert fixture["schema"] == "weft.charter.verification_method.v1"
+    assert fixture["schema"] == "weft.plainweave.verification_method.v1"
     assert fixture["id"].startswith("VERM-")
     assert fixture["requirement_id"].startswith("REQ-AUTH-")
     assert isinstance(fixture["requirement_version"], int)
@@ -486,7 +486,7 @@ def test_verification_evidence_fixture_contract() -> None:
         "recorded_at",
         "payload",
     }
-    assert fixture["schema"] == "weft.charter.verification_evidence.v1"
+    assert fixture["schema"] == "weft.plainweave.verification_evidence.v1"
     assert fixture["id"].startswith("EVID-")
     assert fixture["method_id"].startswith("VERM-")
     assert fixture["requirement_id"].startswith("REQ-AUTH-")
@@ -514,10 +514,10 @@ def test_requirement_verification_status_fixture_contract() -> None:
         "current_evidence",
         "stale_evidence",
     }
-    assert fixture["schema"] == "weft.charter.requirement_verification_status.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_verification_status.v1"
     assert fixture["requirement_id"].startswith("req-")
     assert fixture["id"].startswith("REQ-AUTH-")
-    assert fixture["stable_id"].startswith("charter:req:AUTH:")
+    assert fixture["stable_id"].startswith("plainweave:req:AUTH:")
     assert isinstance(fixture["current_version"], int)
     assert fixture["status"] in REQUIREMENT_VERIFICATION_STATUSES
     assert isinstance(fixture["reasons"], list)
@@ -546,7 +546,7 @@ def test_requirement_dossier_fixture_contract() -> None:
         "peer_facts",
         "next_actions",
     }
-    assert fixture["schema"] == "weft.charter.requirement_dossier.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_dossier.v1"
     assert set(fixture["identity"]) == {"requirement_id", "id", "stable_id", "current_version"}
     assert set(fixture["authority_summary"]) == {
         "status",

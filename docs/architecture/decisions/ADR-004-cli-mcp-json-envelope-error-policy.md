@@ -2,16 +2,16 @@
 
 **Status**: Accepted
 **Date**: 2026-06-04
-**Deciders**: Charter maintainers
+**Deciders**: Plainweave maintainers
 **Context**: Agent-facing CLI and MCP surfaces must be structured, retry-safe, and recoverable.
 
 ## Summary
 
-Charter will use versioned JSON envelopes for CLI `--json`, MCP responses, and contract fixtures. Mutating tools will declare side-effect metadata and support actor attribution, idempotency, and dry-run behavior where useful.
+Plainweave will use versioned JSON envelopes for CLI `--json`, MCP responses, and contract fixtures. Mutating tools will declare side-effect metadata and support actor attribution, idempotency, and dry-run behavior where useful.
 
 ## Context
 
-Agents should not scrape human prose or infer recovery behavior from stack traces. Charter also needs consistent contract tests before product code expands.
+Agents should not scrape human prose or infer recovery behavior from stack traces. Plainweave also needs consistent contract tests before product code expands.
 
 ## Decision
 
@@ -36,7 +36,7 @@ We will standardize:
 - Contract tests fragment.
 - Errors drift across interfaces.
 
-**Why rejected**: Charter's machine interfaces are first-class products.
+**Why rejected**: Plainweave's machine interfaces are first-class products.
 
 ### Alternative 2: Human text as primary interface
 

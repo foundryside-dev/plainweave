@@ -1,24 +1,24 @@
-# Charter Requirement Dossiers Implementation Plan
+# Plainweave Requirement Dossiers Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Add a local, agent-first requirement dossier command and JSON contract that summarizes one requirement's authority, criteria, traces, verification, baseline exposure, computed gaps, peer-call status, and next actions.
 
-**Architecture:** Implement dossiers as read-only computed service objects over existing Charter SQLite state. The service returns immutable dataclasses, the CLI serializes them with existing envelope helpers, and contract tests pin the agent-facing JSON shape.
+**Architecture:** Implement dossiers as read-only computed service objects over existing Plainweave SQLite state. The service returns immutable dataclasses, the CLI serializes them with existing envelope helpers, and contract tests pin the agent-facing JSON shape.
 
-**Tech Stack:** Python 3.12, SQLite, argparse, dataclasses, pytest, uv, existing Charter CLI/envelope/store/service patterns.
+**Tech Stack:** Python 3.12, SQLite, argparse, dataclasses, pytest, uv, existing Plainweave CLI/envelope/store/service patterns.
 
 ---
 
 ## File Structure
 
-- Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`: canonical data fixture for `weft.charter.requirement_dossier.v1`.
-- Create `tests/fixtures/contracts/cli/dossier-json.json`: canonical CLI envelope fixture for `charter dossier REQ-AUTH-0001 --json`.
+- Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`: canonical data fixture for `weft.plainweave.requirement_dossier.v1`.
+- Create `tests/fixtures/contracts/cli/dossier-json.json`: canonical CLI envelope fixture for `plainweave dossier REQ-AUTH-0001 --json`.
 - Modify `tests/contracts/test_contract_fixtures.py`: register dossier fixtures and validate dossier section shapes.
 - Modify `tests/contracts/test_cli_contract_outputs.py`: add parsed-shape CLI parity test for dossier JSON output.
-- Modify `src/charter/models.py`: add frozen dataclasses for `RequirementDossier`, `DossierAuthoritySummary`, `DossierRequirementSection`, `DossierAcceptanceCriteriaSection`, `DossierTraceSection`, `DossierBaselineExposure`, `DossierBaselineExposureItem`, `DossierComputedGap`, `DossierPeerFacts`, and `DossierNextAction`.
-- Modify `src/charter/service.py`: add `CharterService.requirement_dossier(requirement_id)` and private helpers for draft lookup, criteria split, trace grouping, baseline exposure, computed gaps, and next actions.
-- Modify `src/charter/cli_commands.py`: register `charter dossier REQ_ID`, add handler and serializers, reuse `success_envelope`.
+- Modify `src/plainweave/models.py`: add frozen dataclasses for `RequirementDossier`, `DossierAuthoritySummary`, `DossierRequirementSection`, `DossierAcceptanceCriteriaSection`, `DossierTraceSection`, `DossierBaselineExposure`, `DossierBaselineExposureItem`, `DossierComputedGap`, `DossierPeerFacts`, and `DossierNextAction`.
+- Modify `src/plainweave/service.py`: add `PlainweaveService.requirement_dossier(requirement_id)` and private helpers for draft lookup, criteria split, trace grouping, baseline exposure, computed gaps, and next actions.
+- Modify `src/plainweave/cli_commands.py`: register `plainweave dossier REQ_ID`, add handler and serializers, reuse `success_envelope`.
 - Create `tests/state/test_requirement_dossiers.py`: service behavior tests for approved, draft, trace, verification, baseline, and gap scenarios.
 - Create `tests/test_cli_dossier.py`: CLI behavior tests for JSON, human output, and not-found errors.
 - Modify `docs/agentic-doors-replacement-roadmap.md`: after implementation and gates, mark local requirement dossiers as installed and keep MCP read as the next sequencing item.
@@ -46,7 +46,7 @@ The CLI envelope uses:
 
 ```json
 {
-  "schema": "weft.charter.requirement_dossier.v1",
+  "schema": "weft.plainweave.requirement_dossier.v1",
   "ok": true,
   "data": {
     "identity": {},
@@ -100,7 +100,7 @@ def test_requirement_dossier_fixture_contract() -> None:
         "peer_facts",
         "next_actions",
     }
-    assert fixture["schema"] == "weft.charter.requirement_dossier.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_dossier.v1"
     assert set(fixture["identity"]) == {"requirement_id", "id", "stable_id", "current_version"}
     assert set(fixture["authority_summary"]) == {
         "status",
@@ -142,11 +142,11 @@ Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`:
 
 ```json
 {
-  "schema": "weft.charter.requirement_dossier.v1",
+  "schema": "weft.plainweave.requirement_dossier.v1",
   "identity": {
     "requirement_id": "req_auth_0001",
     "id": "REQ-AUTH-0001",
-    "stable_id": "charter:req:AUTH:0001",
+    "stable_id": "plainweave:req:AUTH:0001",
     "current_version": 1
   },
   "authority_summary": {
@@ -162,14 +162,14 @@ Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`:
     "record": {
       "requirement_id": "req_auth_0001",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "current_version": 1,
       "active_draft_id": null,
       "status": "approved",
       "current_version_record": {
         "requirement_id": "req_auth_0001",
         "id": "REQ-AUTH-0001",
-        "stable_id": "charter:req:AUTH:0001",
+        "stable_id": "plainweave:req:AUTH:0001",
         "version": 1,
         "title": "Reject expired bearer tokens",
         "statement": "The API shall reject expired bearer tokens.",
@@ -182,7 +182,7 @@ Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`:
     "current_version": {
       "requirement_id": "req_auth_0001",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "version": 1,
       "title": "Reject expired bearer tokens",
       "statement": "The API shall reject expired bearer tokens.",
@@ -287,14 +287,14 @@ Create `tests/fixtures/contracts/dossiers/requirement-dossier.json`:
   "peer_facts": {
     "live_peer_calls": false,
     "sources": [],
-    "notes": ["Dossier is computed from the local Charter store only."]
+    "notes": ["Dossier is computed from the local Plainweave store only."]
   },
   "next_actions": [
     {
       "action": "record_current_evidence",
       "priority": 2,
       "reason": "Keep verification evidence fresh before release.",
-      "command": "charter verify evidence record VERM-0001 --status passing --evidence-ref pytest:tests/test_auth.py::test_expired --actor agent:codex --json",
+      "command": "plainweave verify evidence record VERM-0001 --status passing --evidence-ref pytest:tests/test_auth.py::test_expired --actor agent:codex --json",
       "blocked_by": []
     }
   ]
@@ -323,8 +323,8 @@ git commit -m "test: add requirement dossier contract fixture"
 ### Task 2: Add Service Models and Dossier Computation
 
 **Files:**
-- Modify: `src/charter/models.py`
-- Modify: `src/charter/service.py`
+- Modify: `src/plainweave/models.py`
+- Modify: `src/plainweave/service.py`
 - Create: `tests/state/test_requirement_dossiers.py`
 
 - [ ] **Step 1: Write failing service tests**
@@ -338,18 +338,18 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.service import CharterService
-from charter.store import migrate
+from plainweave.errors import PlainweaveError, ErrorCode
+from plainweave.service import PlainweaveService
+from plainweave.store import migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
-def approve_requirement(service: CharterService) -> str:
+def approve_requirement(service: PlainweaveService) -> str:
     draft = service.create_requirement(
         "Reject expired bearer tokens",
         "The API shall reject expired bearer tokens.",
@@ -514,7 +514,7 @@ def test_dossier_computes_verification_and_criteria_gaps(tmp_path: Path) -> None
 def test_dossier_missing_requirement_raises_not_found(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.requirement_dossier("REQ-AUTH-9999")
 
     assert exc_info.value.code == ErrorCode.NOT_FOUND
@@ -528,11 +528,11 @@ Run:
 uv run pytest tests/state/test_requirement_dossiers.py -q
 ```
 
-Expected: FAIL with `AttributeError: 'CharterService' object has no attribute 'requirement_dossier'`.
+Expected: FAIL with `AttributeError: 'PlainweaveService' object has no attribute 'requirement_dossier'`.
 
 - [ ] **Step 3: Add dossier dataclasses**
 
-Append these dataclasses to `src/charter/models.py` after `RequirementVerificationStatus`:
+Append these dataclasses to `src/plainweave/models.py` after `RequirementVerificationStatus`:
 
 ```python
 @dataclass(frozen=True)
@@ -628,7 +628,7 @@ class RequirementDossier:
 
 - [ ] **Step 4: Import the new models in service**
 
-Add these names to the `from charter.models import (` block in `src/charter/service.py`:
+Add these names to the `from plainweave.models import (` block in `src/plainweave/service.py`:
 
 ```python
     DossierAcceptanceCriteriaSection,
@@ -648,7 +648,7 @@ If `RequirementDraft` is already imported, keep one import entry only.
 
 - [ ] **Step 5: Add service helper methods**
 
-Add these private helpers in `src/charter/service.py` near the other requirement read helpers:
+Add these private helpers in `src/plainweave/service.py` near the other requirement read helpers:
 
 ```python
     def _active_draft_for_requirement(
@@ -730,7 +730,7 @@ Add these private helpers in `src/charter/service.py` near the other requirement
 
 - [ ] **Step 6: Add baseline exposure helper**
 
-Add this helper in `src/charter/service.py`:
+Add this helper in `src/plainweave/service.py`:
 
 ```python
     def _baseline_exposure_for_dossier(
@@ -803,7 +803,7 @@ Add this helper in `src/charter/service.py`:
 
 - [ ] **Step 7: Add computed gap and action helpers**
 
-Add these helpers in `src/charter/service.py`:
+Add these helpers in `src/plainweave/service.py`:
 
 ```python
     def _computed_gaps_for_dossier(
@@ -880,7 +880,7 @@ Add these helpers in `src/charter/service.py`:
                     "approve_or_reject_draft",
                     1,
                     "Active draft must be reviewed before agents treat it as approved.",
-                    f"charter req approve {record.id} --actor human:reviewer --expected-version {record.current_version} --json",
+                    f"plainweave req approve {record.id} --actor human:reviewer --expected-version {record.current_version} --json",
                 )
             )
         if "no_acceptance_criteria" in gap_codes:
@@ -889,7 +889,7 @@ Add these helpers in `src/charter/service.py`:
                     "add_acceptance_criteria",
                     1,
                     "Current approved version has no acceptance criteria.",
-                    f"charter criterion add {record.id} --text \"Expected observable behavior.\" --actor human:reviewer --json",
+                    f"plainweave criterion add {record.id} --text \"Expected observable behavior.\" --actor human:reviewer --json",
                 )
             )
         if "no_verification_method" in gap_codes:
@@ -898,7 +898,7 @@ Add these helpers in `src/charter/service.py`:
                     "add_verification_method",
                     1,
                     "Requirement cannot be satisfied without a verification method.",
-                    f"charter verify method add {record.id} --method test --target tests/path.py::test_behavior --actor human:reviewer --json",
+                    f"plainweave verify method add {record.id} --method test --target tests/path.py::test_behavior --actor human:reviewer --json",
                 )
             )
         if "failing_evidence" in gap_codes:
@@ -952,7 +952,7 @@ Add these helpers in `src/charter/service.py`:
 
 - [ ] **Step 8: Add the public service method**
 
-Add this method near `verification_status` and read-only service methods in `src/charter/service.py`:
+Add this method near `verification_status` and read-only service methods in `src/plainweave/service.py`:
 
 ```python
     def requirement_dossier(self, requirement_id: str) -> RequirementDossier:
@@ -998,7 +998,7 @@ Add this method near `verification_status` and read-only service methods in `src
                 peer_facts=DossierPeerFacts(
                     live_peer_calls=False,
                     sources=[],
-                    notes=["Dossier is computed from the local Charter store only."],
+                    notes=["Dossier is computed from the local Plainweave store only."],
                 ),
                 next_actions=self._next_actions_for_dossier(record, gaps, traces, verification),
             )
@@ -1029,14 +1029,14 @@ Expected: PASS.
 Run:
 
 ```bash
-git add src/charter/models.py src/charter/service.py tests/state/test_requirement_dossiers.py
+git add src/plainweave/models.py src/plainweave/service.py tests/state/test_requirement_dossiers.py
 git commit -m "feat: add requirement dossier service"
 ```
 
 ### Task 3: Add Dossier CLI
 
 **Files:**
-- Modify: `src/charter/cli_commands.py`
+- Modify: `src/plainweave/cli_commands.py`
 - Create: `tests/test_cli_dossier.py`
 
 - [ ] **Step 1: Write failing CLI tests**
@@ -1052,7 +1052,7 @@ from typing import Any, cast
 
 import pytest
 
-from charter.cli import main
+from plainweave.cli import main
 
 
 def json_output(output: str) -> dict[str, Any]:
@@ -1122,7 +1122,7 @@ def test_dossier_cli_json_output(
 
     output = run_json(["dossier", "REQ-AUTH-0001"], capsys)
 
-    assert output["schema"] == "weft.charter.requirement_dossier.v1"
+    assert output["schema"] == "weft.plainweave.requirement_dossier.v1"
     assert output["ok"] is True
     assert output["data"]["identity"]["id"] == "REQ-AUTH-0001"
     assert output["data"]["authority_summary"]["status"] == "approved"
@@ -1156,7 +1156,7 @@ def test_dossier_cli_missing_requirement_error(
 
     error = run_json(["dossier", "REQ-AUTH-9999"], capsys, expected_status=2)
 
-    assert error["schema"] == "weft.charter.error.v1"
+    assert error["schema"] == "weft.plainweave.error.v1"
     assert error["error"]["code"] == "NOT_FOUND"
 ```
 
@@ -1172,7 +1172,7 @@ Expected: FAIL because the `dossier` command is not registered.
 
 - [ ] **Step 3: Import dossier model names in CLI**
 
-Add these names to the `from charter.models import (` block in `src/charter/cli_commands.py`:
+Add these names to the `from plainweave.models import (` block in `src/plainweave/cli_commands.py`:
 
 ```python
     DossierAcceptanceCriteriaSection,
@@ -1200,14 +1200,14 @@ In `register_commands`, after the `status` parser block, add:
 
 - [ ] **Step 5: Add the CLI handler**
 
-Add this handler near other `handle_*` functions in `src/charter/cli_commands.py`:
+Add this handler near other `handle_*` functions in `src/plainweave/cli_commands.py`:
 
 ```python
 def handle_dossier(args: argparse.Namespace) -> int:
     service = _service()
     dossier = service.requirement_dossier(str(args.requirement_id))
     if bool(args.json):
-        print(json.dumps(success_envelope("weft.charter.requirement_dossier.v1", _dossier_dict(dossier))))
+        print(json.dumps(success_envelope("weft.plainweave.requirement_dossier.v1", _dossier_dict(dossier))))
         return 0
     print(_dossier_human(dossier))
     return 0
@@ -1371,7 +1371,7 @@ Expected: PASS.
 Run:
 
 ```bash
-git add src/charter/cli_commands.py tests/test_cli_dossier.py
+git add src/plainweave/cli_commands.py tests/test_cli_dossier.py
 git commit -m "feat: add requirement dossier CLI"
 ```
 
@@ -1460,14 +1460,14 @@ Run:
 ```bash
 tmpdir="$(mktemp -d)"
 cd "$tmpdir"
-python -m charter.cli init --project-key AUTH --json >/dev/null
-python -m charter.cli req add --title "Reject expired bearer tokens" --statement "The API shall reject expired bearer tokens." --actor human:john --json >/dev/null
-python -m charter.cli criterion add REQ-AUTH-0001 --text "Expired tokens return 401." --actor human:john --json >/dev/null
-python -m charter.cli req approve REQ-AUTH-0001 --actor human:john --expected-version 0 --idempotency-key approve-dossier-contract --json >/dev/null
-python -m charter.cli dossier REQ-AUTH-0001 --json
+python -m plainweave.cli init --project-key AUTH --json >/dev/null
+python -m plainweave.cli req add --title "Reject expired bearer tokens" --statement "The API shall reject expired bearer tokens." --actor human:john --json >/dev/null
+python -m plainweave.cli criterion add REQ-AUTH-0001 --text "Expired tokens return 401." --actor human:john --json >/dev/null
+python -m plainweave.cli req approve REQ-AUTH-0001 --actor human:john --expected-version 0 --idempotency-key approve-dossier-contract --json >/dev/null
+python -m plainweave.cli dossier REQ-AUTH-0001 --json
 ```
 
-Expected: a JSON envelope whose top-level `schema` is `weft.charter.requirement_dossier.v1`.
+Expected: a JSON envelope whose top-level `schema` is `weft.plainweave.requirement_dossier.v1`.
 
 - [ ] **Step 4: Save and normalize the fixture**
 
@@ -1477,19 +1477,19 @@ The fixture must include:
 
 ```json
 {
-  "schema": "weft.charter.requirement_dossier.v1",
+  "schema": "weft.plainweave.requirement_dossier.v1",
   "ok": true,
   "data": {
     "identity": {
       "requirement_id": "req_auth_0001",
       "id": "REQ-AUTH-0001",
-      "stable_id": "charter:req:AUTH:0001",
+      "stable_id": "plainweave:req:AUTH:0001",
       "current_version": 1
     }
   },
   "warnings": [],
   "meta": {
-    "producer": {"tool": "charter", "version": "0.1.0"},
+    "producer": {"tool": "plainweave", "version": "0.1.0"},
     "project": "AUTH",
     "generated_at": "2026-06-05T00:00:00Z"
   }
@@ -1555,7 +1555,7 @@ Expected: all commands PASS.
 Run:
 
 ```bash
-rg -n "impact|clarion|filigree|wardline|legis|mcp" src tests
+rg -n "impact|loomweave|filigree|wardline|legis|mcp" src tests
 ```
 
 Expected: no new live peer integrations, no MCP server code, and only allowed hits in inert contract text, fixtures, tests, help text, or explicit deferred markers.
@@ -1583,7 +1583,7 @@ If any item fails, fix the code and rerun the focused tests plus the relevant fu
 Edit `docs/agentic-doors-replacement-roadmap.md`:
 
 - Move "Requirement dossiers" from remaining work to installed local capability.
-- Mark the installed command as `charter dossier REQ_ID --json`.
+- Mark the installed command as `plainweave dossier REQ_ID --json`.
 - State that dossiers are computed local read models with no new storage.
 - Keep "read-only MCP wrapper for dossiers" as the next sequencing item before P1 durable gaps and impact analysis.
 - Keep "MCP mutation" deferred until after P1 review policy and gap lifecycle work.

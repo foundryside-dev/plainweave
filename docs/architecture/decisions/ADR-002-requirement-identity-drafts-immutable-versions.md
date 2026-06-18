@@ -2,16 +2,16 @@
 
 **Status**: Accepted
 **Date**: 2026-06-04
-**Deciders**: Charter maintainers
-**Context**: Charter must prevent accidental mutation of approved requirement text while keeping draft editing lightweight.
+**Deciders**: Plainweave maintainers
+**Context**: Plainweave must prevent accidental mutation of approved requirement text while keeping draft editing lightweight.
 
 ## Summary
 
-Charter will separate requirement identity, mutable drafts, and immutable approved versions into distinct model concepts and storage tables.
+Plainweave will separate requirement identity, mutable drafts, and immutable approved versions into distinct model concepts and storage tables.
 
 ## Context
 
-The first planning pack placed fields such as `statement` near the requirement identity row and in version rows. That risks ambiguity: an implementation could mutate approved text by updating the identity row. Charter needs a hard boundary between identity and content.
+The first planning pack placed fields such as `statement` near the requirement identity row and in version rows. That risks ambiguity: an implementation could mutate approved text by updating the identity row. Plainweave needs a hard boundary between identity and content.
 
 ## Decision
 
@@ -36,7 +36,7 @@ Approved versions are never updated. Revisions create new drafts and, after appr
 - Harder to prove version immutability.
 - Weak audit posture.
 
-**Why rejected**: It violates Charter's core obligation/version authority.
+**Why rejected**: It violates Plainweave's core obligation/version authority.
 
 ### Alternative 2: Event sourcing only
 
@@ -86,6 +86,6 @@ Every approving mutation requires `actor`, `idempotency_key`, and `expected_vers
 
 ## Related Decisions
 
-- ADR-001: Charter authority boundary.
+- ADR-001: Plainweave authority boundary.
 - ADR-003: Trace-link ontology and authority states.
 - ADR-004: CLI/MCP JSON envelope and error policy.

@@ -1,8 +1,8 @@
-# Charter Verification And Status Implementation Plan
+# Plainweave Verification And Status Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build Charter P0 verification methods, evidence records, and computed requirement satisfaction/freshness status.
+**Goal:** Build Plainweave P0 verification methods, evidence records, and computed requirement satisfaction/freshness status.
 
 **Architecture:** Extend the local SQLite schema with method and evidence tables, then expose focused dataclasses and service methods. The CLI remains a thin envelope layer over service behavior, and tests pin both state semantics and JSON contracts.
 
@@ -12,10 +12,10 @@
 
 ## File Structure
 
-- Modify `src/charter/store.py`: add verification tables, append-only evidence triggers, and idempotent migration behavior.
-- Modify `src/charter/models.py`: add verification method, evidence, reason, and status dataclasses.
-- Modify `src/charter/service.py`: add method/evidence creation, authority validation, status computation, and list helpers.
-- Modify `src/charter/cli_commands.py`: register `verify` and `status` command trees and serializers.
+- Modify `src/plainweave/store.py`: add verification tables, append-only evidence triggers, and idempotent migration behavior.
+- Modify `src/plainweave/models.py`: add verification method, evidence, reason, and status dataclasses.
+- Modify `src/plainweave/service.py`: add method/evidence creation, authority validation, status computation, and list helpers.
+- Modify `src/plainweave/cli_commands.py`: register `verify` and `status` command trees and serializers.
 - Modify `tests/test_store_migrations.py`: verify schema, idempotency, and evidence append-only behavior.
 - Create `tests/state/test_verification_status.py`: service-level lifecycle and status tests.
 - Create `tests/test_cli_verification.py`: CLI behavior and error tests.
@@ -51,7 +51,7 @@ def test_verification_method_fixture_contract() -> None:
         "schema", "id", "requirement_id", "requirement_version",
         "method", "target", "status", "created_by", "created_at",
     }
-    assert fixture["schema"] == "weft.charter.verification_method.v1"
+    assert fixture["schema"] == "weft.plainweave.verification_method.v1"
     assert fixture["id"].startswith("VERM-")
     assert fixture["method"] in {"test", "analysis", "inspection", "manual"}
     assert fixture["status"] == "active"
@@ -64,7 +64,7 @@ def test_verification_evidence_fixture_contract() -> None:
         "requirement_version", "status", "evidence_ref", "authority",
         "freshness", "recorded_by", "recorded_at", "payload",
     }
-    assert fixture["schema"] == "weft.charter.verification_evidence.v1"
+    assert fixture["schema"] == "weft.plainweave.verification_evidence.v1"
     assert fixture["id"].startswith("EVID-")
     assert fixture["status"] in {"passing", "failing", "inconclusive", "waived"}
     assert fixture["authority"] in {"test_derived", "human_attested", "agent_reported", "waiver"}
@@ -77,7 +77,7 @@ def test_requirement_verification_status_fixture_contract() -> None:
         "schema", "requirement_id", "id", "stable_id", "current_version",
         "status", "reasons", "current_evidence", "stale_evidence",
     }
-    assert fixture["schema"] == "weft.charter.requirement_verification_status.v1"
+    assert fixture["schema"] == "weft.plainweave.requirement_verification_status.v1"
     assert fixture["status"] in {"satisfied", "unsatisfied", "unverified", "stale", "unknown", "waived"}
     assert isinstance(fixture["reasons"], list)
 ```
@@ -117,8 +117,8 @@ git commit -m "test: add verification contract fixtures"
 ### Task 2: SQLite Schema And Models
 
 **Files:**
-- Modify: `src/charter/store.py`
-- Modify: `src/charter/models.py`
+- Modify: `src/plainweave/store.py`
+- Modify: `src/plainweave/models.py`
 - Modify: `tests/test_store_migrations.py`
 
 - [ ] **Step 1: Write failing migration tests**
@@ -127,7 +127,7 @@ Add tests for table existence, idempotent migration, and evidence append-only:
 
 ```python
 def test_verification_tables_are_created(tmp_path: Path) -> None:
-    db_path = tmp_path / ".charter" / "charter.db"
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
     migrate(db_path, project_key="AUTH")
     with connect(db_path) as connection:
@@ -171,14 +171,14 @@ Expected: passes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/charter/store.py src/charter/models.py tests/test_store_migrations.py
+git add src/plainweave/store.py src/plainweave/models.py tests/test_store_migrations.py
 git commit -m "feat: add verification storage"
 ```
 
 ### Task 3: Service Behavior
 
 **Files:**
-- Modify: `src/charter/service.py`
+- Modify: `src/plainweave/service.py`
 - Add: `tests/state/test_verification_status.py`
 
 - [ ] **Step 1: Write failing service tests**
@@ -248,14 +248,14 @@ Expected: passes.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/charter/service.py tests/state/test_verification_status.py
+git add src/plainweave/service.py tests/state/test_verification_status.py
 git commit -m "feat: add verification service"
 ```
 
 ### Task 4: CLI And Contract Parity
 
 **Files:**
-- Modify: `src/charter/cli_commands.py`
+- Modify: `src/plainweave/cli_commands.py`
 - Add: `tests/test_cli_verification.py`
 - Modify: `tests/contracts/test_cli_contract_outputs.py`
 - Add: `tests/fixtures/contracts/cli/verify-method-add-json.json`
@@ -283,9 +283,9 @@ Expected: fails because `verify` and `status` commands are not registered.
 
 Register `verify method add`, `verify evidence record`, `verify status`,
 `status requirement`, `status unverified`, and `status stale`. Return schemas
-`weft.charter.verification_method.v1`,
-`weft.charter.verification_evidence.v1`, and
-`weft.charter.requirement_verification_status.v1`.
+`weft.plainweave.verification_method.v1`,
+`weft.plainweave.verification_evidence.v1`, and
+`weft.plainweave.requirement_verification_status.v1`.
 
 - [ ] **Step 4: Add CLI fixtures and parity assertions**
 
@@ -305,7 +305,7 @@ Expected: passes.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/charter/cli_commands.py tests/test_cli_verification.py tests/contracts/test_cli_contract_outputs.py tests/contracts/test_contract_fixtures.py tests/fixtures/contracts/cli
+git add src/plainweave/cli_commands.py tests/test_cli_verification.py tests/contracts/test_cli_contract_outputs.py tests/contracts/test_contract_fixtures.py tests/fixtures/contracts/cli
 git commit -m "feat: add verification CLI contracts"
 ```
 
@@ -342,7 +342,7 @@ make test
 uv run pytest tests/contracts -q
 uv run pytest tests/state -q
 make ci
-rg -n "impact|clarion|filigree|wardline|legis|mcp" src tests
+rg -n "impact|loomweave|filigree|wardline|legis|mcp" src tests
 ```
 
 Expected: all commands pass; scope audit shows only existing inert/deferred

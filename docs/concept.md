@@ -1,36 +1,48 @@
-# Charter: Local-first requirements and verification authority for Loom
+# Plainweave: Local-first requirements and verification authority for Weft
+
+> **PRECURSOR CONCEPT (2026-06-04, renamed from Charter).** This document is the
+> *requirements-down* product concept of the Charter precursor — "what must be
+> true, how do we know." It is **superseded** by the Plainweave reframe, which
+> inverts the member to *code-up* ("permission for code to exist"; every code
+> entity must trace to a requirement) and repositions it around the accreted,
+> code-grounded **intent corpus**. Read the current canon first:
+> [`design/2026-06-18-plainweave-permission-to-exist.md`](design/2026-06-18-plainweave-permission-to-exist.md)
+> and [`MODULE-MAP.md`](MODULE-MAP.md). Much of the model below (requirements,
+> trace links, verification, baselines, the SQLite store, the MCP surface)
+> carries forward as the foundation; its *framing* and *center of gravity* do
+> not. Plainweave is **gap-named and not in the launch cutover** — see the design.
 
 ## 1. Product intent
 
-Charter is a local-first, agent-native requirements and verification authority for the Loom federation.
+Plainweave is a local-first, agent-native requirements and verification authority for the Weft federation.
 
-Charter answers:
+Plainweave answers:
 
 > What must be true, how do we know it is true, what code or work claims to satisfy it, and what requirements are impacted by this change?
 
-Charter is not an enterprise ALM clone. It is a lightweight, repo-local requirements system intended for developers and coding agents who need more structure than tasks and epics, but less ceremony than DOORS, Polarion, Jama, or Codebeamer.
+Plainweave is not an enterprise ALM clone. It is a lightweight, repo-local requirements system intended for developers and coding agents who need more structure than tasks and epics, but less ceremony than DOORS, Polarion, Jama, or Codebeamer.
 
-Charter fits between product truth, code identity, work state, and governance:
+Plainweave fits between product truth, code identity, work state, and governance:
 
 ```text
-Charter owns obligations.
-Clarion owns code identity and structure.
+Plainweave owns obligations.
+Loomweave owns code identity and structure.
 Filigree owns work state and issue lifecycle.
 Wardline owns trust-boundary analysis.
 Legis owns git/CI governance and attestations.
 ```
 
 > The authoritative federation roster and per-member authority split are owned
-> by the Loom hub at `~/loom/doctrine.md`. The split above mirrors it; if they
+> by the Weft hub at `~/weft/doctrine.md`. The split above mirrors it; if they
 > ever disagree, the hub wins.
 
 The primary design goal is to make requirements traceability cheap enough that agents can maintain it during ordinary development.
 
 ## 2. Authority boundary
 
-### 2.1 Charter owns
+### 2.1 Plainweave owns
 
-Charter is authoritative for:
+Plainweave is authoritative for:
 
 * requirements;
 * requirement versions;
@@ -48,22 +60,22 @@ Charter is authoritative for:
 * stale trace detection;
 * local requirements dossiers exposed over MCP.
 
-### 2.2 Charter does not own
+### 2.2 Plainweave does not own
 
-Charter does not own:
+Plainweave does not own:
 
 * source-code identity, call graphs, or structural code relationships;
 * task assignment, claims, issue state, or sprint planning;
 * static security or trust-boundary analysis;
 * commit refusal, CI policy enforcement, or human sign-off;
-* external ALM authority when Charter is operating as an adapter.
+* external ALM authority when Plainweave is operating as an adapter.
 
-Those remain owned by Clarion, Filigree, Wardline, Legis, or an external ALM system.
+Those remain owned by Loomweave, Filigree, Wardline, Legis, or an external ALM system.
 
 ## 3. Operating model
 
-Charter follows the Loom federation model (the federation axiom and composition
-law are authoritative in `~/loom/doctrine.md`; what follows is Charter's
+Plainweave follows the Weft federation model (the federation axiom and composition
+law are authoritative in `~/weft/doctrine.md`; what follows is Plainweave's
 restatement of it):
 
 ```text
@@ -74,11 +86,11 @@ No tool silently assumes another tool's authority.
 Missing peers degrade honestly.
 ```
 
-Charter can be installed by itself, but its highest value appears when paired with Clarion and Legis.
+Plainweave can be installed by itself, but its highest value appears when paired with Loomweave and Legis.
 
 ### 3.1 Standalone mode
 
-Charter can operate without other Loom tools.
+Plainweave can operate without other Weft tools.
 
 In standalone mode it provides:
 
@@ -92,11 +104,11 @@ In standalone mode it provides:
 
 ### 3.2 Federated mode
 
-When peers are installed, Charter gains richer capabilities:
+When peers are installed, Plainweave gains richer capabilities:
 
 | Peer     | Combination capability                                                                                                                                                                        |
 | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Clarion  | Requirement links can bind to Stable Entity Identity rather than fragile file paths. Impact analysis can include touched entities, callers, callees, subsystems, and rename-resilient traces. |
+| Loomweave  | Requirement links can bind to Stable Entity Identity rather than fragile file paths. Impact analysis can include touched entities, callers, callees, subsystems, and rename-resilient traces. |
 | Filigree | Requirements can be connected to work items, defects, implementation tasks, review tasks, and verification tasks.                                                                             |
 | Wardline | Trust findings can be mapped to security or safety requirements. Requirement satisfaction can depend on absence, presence, or disposition of specific Wardline findings.                      |
 | Legis    | Requirement and verification state can participate in commit preflight, policy decisions, override trails, sign-offs, and CI gates.                                                           |
@@ -242,23 +254,23 @@ A requirement dossier includes:
 
 ### 5.1 System components
 
-Charter consists of five main components:
+Plainweave consists of five main components:
 
 ```text
-charter-cli
+plainweave-cli
   Human and script interface.
 
-charter-store
+plainweave-store
   Local SQLite storage, migrations, baseline snapshots, event log.
 
-charter-core
+plainweave-core
   Requirement model, trace model, verification model, impact engine.
 
-charter-mcp
+plainweave-mcp
   Agent-facing MCP server exposing structured tools.
 
-charter-federation
-  Optional adapters for Clarion, Filigree, Wardline, Legis, and external ALM.
+plainweave-federation
+  Optional adapters for Loomweave, Filigree, Wardline, Legis, and external ALM.
 ```
 
 ### 5.2 Local storage
@@ -266,9 +278,9 @@ charter-federation
 Each project gets a repo-local directory:
 
 ```text
-.charter/
-  charter.db
-  charter.yaml
+.plainweave/
+  plainweave.db
+  plainweave.yaml
   baselines/
   exports/
   context.md
@@ -370,10 +382,10 @@ events
 
 ### 5.4 Identity model
 
-Charter has two levels of identity:
+Plainweave has two levels of identity:
 
-1. Charter-native requirement identity.
-2. Federated code identity supplied by Clarion.
+1. Plainweave-native requirement identity.
+2. Federated code identity supplied by Loomweave.
 
 Requirement IDs are human-readable and durable:
 
@@ -385,15 +397,15 @@ REQ-API-012
 
 Requirement versions are immutable once approved.
 
-Code-entity links should prefer Clarion SEI when available:
+Code-entity links should prefer Loomweave SEI when available:
 
 ```yaml
-to_kind: clarion_entity
+to_kind: loomweave_entity
 to_id: sei:01HX...
 relation: satisfies
 ```
 
-When Clarion is unavailable, Charter may link to files, symbols, or line ranges, but these links must be marked as fragile.
+When Loomweave is unavailable, Plainweave may link to files, symbols, or line ranges, but these links must be marked as fragile.
 
 ### 5.5 Event model
 
@@ -428,7 +440,7 @@ Events enable:
 
 ### 6.1 Requirements authoring
 
-Charter must support creating, editing, approving, superseding, and deprecating requirements.
+Plainweave must support creating, editing, approving, superseding, and deprecating requirements.
 
 Required features:
 
@@ -447,23 +459,23 @@ Required features:
 CLI examples:
 
 ```bash
-charter add "Reject expired bearer tokens" --type security --criticality high
-charter approve REQ-AUTH-017
-charter supersede REQ-AUTH-017 --statement-file req.md
-charter show REQ-AUTH-017
-charter history REQ-AUTH-017
+plainweave add "Reject expired bearer tokens" --type security --criticality high
+plainweave approve REQ-AUTH-017
+plainweave supersede REQ-AUTH-017 --statement-file req.md
+plainweave show REQ-AUTH-017
+plainweave history REQ-AUTH-017
 ```
 
 ### 6.2 Traceability
 
-Charter must support explicit trace links between requirements, code, tests, issues, evidence, and external references.
+Plainweave must support explicit trace links between requirements, code, tests, issues, evidence, and external references.
 
 Required features:
 
 * link requirement to requirement;
 * link requirement to acceptance criterion;
 * link requirement to test;
-* link requirement to Clarion entity;
+* link requirement to Loomweave entity;
 * link requirement to Filigree issue;
 * link requirement to Wardline finding;
 * link requirement to external URL or imported ALM object;
@@ -475,15 +487,15 @@ Required features:
 CLI examples:
 
 ```bash
-charter link REQ-AUTH-017 --test tests/test_auth.py::test_expired_token_rejected
-charter link REQ-AUTH-017 --entity auth.validate_token
-charter trace REQ-AUTH-017
-charter accept-link LINK-42
+plainweave link REQ-AUTH-017 --test tests/test_auth.py::test_expired_token_rejected
+plainweave link REQ-AUTH-017 --entity auth.validate_token
+plainweave trace REQ-AUTH-017
+plainweave accept-link LINK-42
 ```
 
 ### 6.3 Verification
 
-Charter must distinguish requirement existence from requirement satisfaction.
+Plainweave must distinguish requirement existence from requirement satisfaction.
 
 Required features:
 
@@ -499,15 +511,15 @@ Required features:
 CLI examples:
 
 ```bash
-charter verify REQ-AUTH-017 --method test --evidence tests/test_auth.py::test_expired_token_rejected
-charter verification stale
-charter verification missing
-charter verify-run --from-junit test-results.xml
+plainweave verify REQ-AUTH-017 --method test --evidence tests/test_auth.py::test_expired_token_rejected
+plainweave verification stale
+plainweave verification missing
+plainweave verify-run --from-junit test-results.xml
 ```
 
 ### 6.4 Baselines
 
-Charter must support requirement baselines.
+Plainweave must support requirement baselines.
 
 Required features:
 
@@ -522,21 +534,21 @@ Required features:
 CLI examples:
 
 ```bash
-charter baseline create release-1.0
-charter baseline diff release-1.0
-charter baseline verify release-1.0
+plainweave baseline create release-1.0
+plainweave baseline diff release-1.0
+plainweave baseline verify release-1.0
 ```
 
 ### 6.5 Impact analysis
 
-Charter must provide impact analysis for requirements and diffs.
+Plainweave must provide impact analysis for requirements and diffs.
 
 Required features:
 
 * identify requirements touched by pending git diff;
 * identify requirements touched by commit range;
 * identify requirements linked to changed entities;
-* identify requirements near changed entities through Clarion neighbourhoods;
+* identify requirements near changed entities through Loomweave neighbourhoods;
 * identify stale verification caused by code changes;
 * identify requirements changed without linked work;
 * identify code touched without requirements when policy expects traceability;
@@ -545,9 +557,9 @@ Required features:
 CLI examples:
 
 ```bash
-charter impact
-charter impact --since main
-charter impact --requirement REQ-AUTH-017
+plainweave impact
+plainweave impact --since main
+plainweave impact --requirement REQ-AUTH-017
 ```
 
 Example output:
@@ -572,7 +584,7 @@ Gaps:
 
 ### 6.6 Agent context
 
-Charter must generate compact context for agents.
+Plainweave must generate compact context for agents.
 
 Required features:
 
@@ -587,14 +599,14 @@ Required features:
 Generated file:
 
 ```text
-.charter/context.md
+.plainweave/context.md
 ```
 
 This file is regenerated after mutations and may be injected into agent sessions by install hooks.
 
 ### 6.7 MCP tools
 
-Charter must expose MCP tools for consult-mode and action-mode agents.
+Plainweave must expose MCP tools for consult-mode and action-mode agents.
 
 Initial MCP tool set:
 
@@ -634,7 +646,7 @@ Action tools that mutate state must accept an actor parameter or infer actor fro
 
 ### 6.8 Imports and exports
 
-Charter must not trap users.
+Plainweave must not trap users.
 
 Required import formats:
 
@@ -663,37 +675,37 @@ Required export formats:
 
 ### 6.9 External ALM adapter mode
 
-Charter may operate in adapter mode where an external system remains the requirements authority.
+Plainweave may operate in adapter mode where an external system remains the requirements authority.
 
 In adapter mode:
 
 * external requirement IDs remain canonical;
-* Charter caches requirement metadata;
-* Charter stores local trace links and verification facts unless the external system supports writing them;
-* Charter marks imported facts with source and freshness;
-* Charter never pretends imported stale data is current;
-* Charter can produce local impact reports over imported requirements.
+* Plainweave caches requirement metadata;
+* Plainweave stores local trace links and verification facts unless the external system supports writing them;
+* Plainweave marks imported facts with source and freshness;
+* Plainweave never pretends imported stale data is current;
+* Plainweave can produce local impact reports over imported requirements.
 
 Supported external systems are post-v1.0 scope.
 
 ## 7. Federation requirements
 
-### 7.1 Clarion integration
+### 7.1 Loomweave integration
 
-When Clarion is present, Charter must:
+When Loomweave is present, Plainweave must:
 
 * resolve entity names to SEI;
 * link requirements to SEI;
 * request affected entities for pending diff;
 * request neighbourhoods around touched entities;
-* survive rename and move events through Clarion identity;
+* survive rename and move events through Loomweave identity;
 * degrade honestly if SEI capability is absent.
 
-Charter must not mint or reinterpret SEI.
+Plainweave must not mint or reinterpret SEI.
 
 ### 7.2 Filigree integration
 
-When Filigree is present, Charter must:
+When Filigree is present, Plainweave must:
 
 * link requirements to issues;
 * show open work for a requirement;
@@ -705,12 +717,12 @@ When Filigree is present, Charter must:
 Example:
 
 ```bash
-charter gap create-work REQ-AUTH-017 --type verification
+plainweave gap create-work REQ-AUTH-017 --type verification
 ```
 
 ### 7.3 Wardline integration
 
-When Wardline is present, Charter must:
+When Wardline is present, Plainweave must:
 
 * link Wardline findings to security or trust requirements;
 * show Wardline findings in requirement dossiers;
@@ -727,13 +739,13 @@ Wardline finding PY-WL-101 violates REQ-SEC-004.
 
 ### 7.4 Legis integration
 
-When Legis is present, Charter must:
+When Legis is present, Plainweave must:
 
 * contribute requirement impact to commit preflight;
 * provide verification freshness facts;
 * provide baseline conformance facts;
 * provide traceability gaps;
-* allow Legis to enforce policies using Charter facts;
+* allow Legis to enforce policies using Plainweave facts;
 * receive governance attestations or sign-off references from Legis;
 * avoid deciding whether a commit may proceed.
 
@@ -753,9 +765,9 @@ BLOCK  Safety-critical requirement REQ-SAFE-003 touched without fresh verificati
 
 ## 8. Policy model
 
-Charter itself should not be a general policy engine. It should expose facts that Legis can govern.
+Plainweave itself should not be a general policy engine. It should expose facts that Legis can govern.
 
-However, Charter should support local advisory rules:
+However, Plainweave should support local advisory rules:
 
 ```yaml
 rules:
@@ -766,7 +778,7 @@ rules:
   require_human_acceptance_for_agent_links: true
 ```
 
-Rules produce Charter findings, not commit decisions.
+Rules produce Plainweave findings, not commit decisions.
 
 Commit decisions belong to Legis.
 
@@ -775,30 +787,30 @@ Commit decisions belong to Legis.
 ### 9.1 Lightweight solo workflow
 
 ```bash
-charter init
-charter add "Users can reset their password" --type functional
-charter approve REQ-USER-001
-charter link REQ-USER-001 --entity users.reset_password
-charter verify REQ-USER-001 --method test --evidence tests/test_password_reset.py
-charter impact
+plainweave init
+plainweave add "Users can reset their password" --type functional
+plainweave approve REQ-USER-001
+plainweave link REQ-USER-001 --entity users.reset_password
+plainweave verify REQ-USER-001 --method test --evidence tests/test_password_reset.py
+plainweave impact
 ```
 
 ### 9.2 Agent-driven implementation workflow
 
 1. Agent starts session.
 2. Filigree provides active issue context.
-3. Charter provides linked requirements.
-4. Clarion identifies affected entities.
+3. Plainweave provides linked requirements.
+4. Loomweave identifies affected entities.
 5. Agent modifies code.
 6. Wardline scans trust boundaries.
-7. Charter marks verification stale or records new evidence.
+7. Plainweave marks verification stale or records new evidence.
 8. Legis preflight reports commit-boundary obligations.
 
 ### 9.3 Requirement change workflow
 
 1. Requirement is updated in draft.
 2. Agent requests impact analysis.
-3. Charter lists affected child requirements, entities, tests, issues, and verification records.
+3. Plainweave lists affected child requirements, entities, tests, issues, and verification records.
 4. Filigree tasks are created for required updates.
 5. Baseline diff shows what changed.
 6. Legis may require sign-off if protected requirements are affected.
@@ -806,10 +818,10 @@ charter impact
 ### 9.4 DOORS-lite import workflow
 
 1. User imports CSV or exported requirements.
-2. Charter creates imported requirements.
-3. Agent proposes links to Clarion entities and tests.
+2. Plainweave creates imported requirements.
+3. Agent proposes links to Loomweave entities and tests.
 4. Human accepts high-confidence links.
-5. Charter creates baseline.
+5. Plainweave creates baseline.
 6. Future diffs can report requirement impact.
 
 ## 10. CLI surface
@@ -817,47 +829,47 @@ charter impact
 Minimum CLI:
 
 ```text
-charter init
-charter install
-charter doctor
+plainweave init
+plainweave install
+plainweave doctor
 
-charter add
-charter edit
-charter approve
-charter supersede
-charter deprecate
-charter show
-charter search
-charter history
+plainweave add
+plainweave edit
+plainweave approve
+plainweave supersede
+plainweave deprecate
+plainweave show
+plainweave search
+plainweave history
 
-charter criterion add
-charter criterion list
+plainweave criterion add
+plainweave criterion list
 
-charter link
-charter unlink
-charter trace
-charter gaps
-charter accept-link
-charter reject-link
+plainweave link
+plainweave unlink
+plainweave trace
+plainweave gaps
+plainweave accept-link
+plainweave reject-link
 
-charter verify
-charter verification status
-charter verification missing
-charter verification stale
-charter verify-run
+plainweave verify
+plainweave verification status
+plainweave verification missing
+plainweave verification stale
+plainweave verify-run
 
-charter baseline create
-charter baseline list
-charter baseline diff
-charter baseline verify
-charter baseline export
+plainweave baseline create
+plainweave baseline list
+plainweave baseline diff
+plainweave baseline verify
+plainweave baseline export
 
-charter impact
-charter dossier
-charter context
-charter export
-charter import
-charter mcp
+plainweave impact
+plainweave dossier
+plainweave context
+plainweave export
+plainweave import
+plainweave mcp
 ```
 
 ## 11. Configuration
@@ -865,7 +877,7 @@ charter mcp
 Project config lives at:
 
 ```text
-charter.yaml
+plainweave.yaml
 ```
 
 Example:
@@ -876,10 +888,10 @@ project:
   requirement_prefix: REQ
 
 storage:
-  path: .charter/charter.db
+  path: .plainweave/plainweave.db
 
 federation:
-  clarion: auto
+  loomweave: auto
   filigree: auto
   wardline: auto
   legis: auto
@@ -909,97 +921,97 @@ baselines:
 
 #### FR-1: Requirement management
 
-Charter shall allow users and agents to create, update, approve, supersede, deprecate, search, and view requirements.
+Plainweave shall allow users and agents to create, update, approve, supersede, deprecate, search, and view requirements.
 
 #### FR-2: Requirement versioning
 
-Charter shall preserve immutable approved requirement versions.
+Plainweave shall preserve immutable approved requirement versions.
 
 #### FR-3: Acceptance criteria
 
-Charter shall support one or more acceptance criteria per requirement.
+Plainweave shall support one or more acceptance criteria per requirement.
 
 #### FR-4: Verification records
 
-Charter shall support verification records linked to requirements and requirement versions.
+Plainweave shall support verification records linked to requirements and requirement versions.
 
 #### FR-5: Verification freshness
 
-Charter shall mark verification records stale when linked requirements or linked implementation entities change.
+Plainweave shall mark verification records stale when linked requirements or linked implementation entities change.
 
 #### FR-6: Trace links
 
-Charter shall support typed trace links between requirements, acceptance criteria, verification records, tests, code entities, issues, findings, external references, and baselines.
+Plainweave shall support typed trace links between requirements, acceptance criteria, verification records, tests, code entities, issues, findings, external references, and baselines.
 
 #### FR-7: Agent-proposed trace links
 
-Charter shall allow agents to propose trace links without treating them as accepted truth.
+Plainweave shall allow agents to propose trace links without treating them as accepted truth.
 
 #### FR-8: Trace acceptance
 
-Charter shall allow proposed trace links to be accepted or rejected.
+Plainweave shall allow proposed trace links to be accepted or rejected.
 
 #### FR-9: Baselines
 
-Charter shall support named baselines of approved requirement versions.
+Plainweave shall support named baselines of approved requirement versions.
 
 #### FR-10: Baseline comparison
 
-Charter shall compare the current requirement set to a baseline.
+Plainweave shall compare the current requirement set to a baseline.
 
 #### FR-11: Impact analysis
 
-Charter shall report requirements affected by a pending diff or commit range.
+Plainweave shall report requirements affected by a pending diff or commit range.
 
 #### FR-12: Requirement dossier
 
-Charter shall provide a single structured dossier for a requirement.
+Plainweave shall provide a single structured dossier for a requirement.
 
 #### FR-13: Session context
 
-Charter shall generate an agent-readable project context summary.
+Plainweave shall generate an agent-readable project context summary.
 
 #### FR-14: CLI
 
-Charter shall provide a CLI for all core operations.
+Plainweave shall provide a CLI for all core operations.
 
 #### FR-15: MCP server
 
-Charter shall expose core operations through an MCP-over-stdio server.
+Plainweave shall expose core operations through an MCP-over-stdio server.
 
 #### FR-16: Import
 
-Charter shall import requirements from at least Markdown, CSV, YAML, and JSON.
+Plainweave shall import requirements from at least Markdown, CSV, YAML, and JSON.
 
 #### FR-17: Export
 
-Charter shall export requirements, traces, baselines, and verification records to Markdown, CSV, JSONL, and static report formats.
+Plainweave shall export requirements, traces, baselines, and verification records to Markdown, CSV, JSONL, and static report formats.
 
-#### FR-18: Clarion federation
+#### FR-18: Loomweave federation
 
-When Clarion is present, Charter shall link requirements to Clarion SEI rather than only files or line ranges.
+When Loomweave is present, Plainweave shall link requirements to Loomweave SEI rather than only files or line ranges.
 
 #### FR-19: Filigree federation
 
-When Filigree is present, Charter shall link requirements to issues and create work items from gaps.
+When Filigree is present, Plainweave shall link requirements to issues and create work items from gaps.
 
 #### FR-20: Wardline federation
 
-When Wardline is present, Charter shall link trust findings to requirements and expose those findings in requirement dossiers.
+When Wardline is present, Plainweave shall link trust findings to requirements and expose those findings in requirement dossiers.
 
 #### FR-21: Legis federation
 
-When Legis is present, Charter shall provide requirement impact, verification freshness, baseline status, and traceability gap facts to Legis preflight and enforcement surfaces.
+When Legis is present, Plainweave shall provide requirement impact, verification freshness, baseline status, and traceability gap facts to Legis preflight and enforcement surfaces.
 
 ### Non-functional requirements
 
 #### NFR-1: Local-first
 
-Charter shall operate without a cloud service or account.
+Plainweave shall operate without a cloud service or account.
 
 #### NFR-2: Deterministic core
 
-Charter’s core model and impact calculations shall be deterministic.
+Plainweave’s core model and impact calculations shall be deterministic.
 
 #### NFR-3: Agent-safe output
 
@@ -1007,7 +1019,7 @@ All CLI commands used by agents shall support structured JSON output.
 
 #### NFR-4: Human-readable output
 
-Charter shall also provide concise human-readable CLI output.
+Plainweave shall also provide concise human-readable CLI output.
 
 #### NFR-5: Low dependency weight
 
@@ -1015,7 +1027,7 @@ The base install shall have minimal dependencies.
 
 #### NFR-6: No hidden authority
 
-Charter shall not silently make governance decisions, infer code identity, or mutate peer-owned state without explicit integration contracts.
+Plainweave shall not silently make governance decisions, infer code identity, or mutate peer-owned state without explicit integration contracts.
 
 #### NFR-7: Freshness honesty
 
@@ -1027,26 +1039,26 @@ All mutations shall produce event records.
 
 #### NFR-9: Graceful degradation
 
-Charter shall remain useful when Clarion, Filigree, Wardline, or Legis are absent.
+Plainweave shall remain useful when Loomweave, Filigree, Wardline, or Legis are absent.
 
 #### NFR-10: Repository portability
 
-A project’s Charter state shall live in a repo-local `.charter/` directory.
+A project’s Plainweave state shall live in a repo-local `.plainweave/` directory.
 
 #### NFR-11: Performance
 
-Charter shall support thousands of requirements and trace links on ordinary developer hardware.
+Plainweave shall support thousands of requirements and trace links on ordinary developer hardware.
 
 #### NFR-12: Safety against false certainty
 
-Charter shall distinguish accepted traceability from proposed or inferred traceability.
+Plainweave shall distinguish accepted traceability from proposed or inferred traceability.
 
 ## 13. MVP scope
 
 ### MVP must include
 
 * local SQLite store;
-* `charter init`;
+* `plainweave init`;
 * create/edit/approve/deprecate requirements;
 * requirement versions;
 * acceptance criteria;
@@ -1054,15 +1066,15 @@ Charter shall distinguish accepted traceability from proposed or inferred tracea
 * verification records;
 * stale verification detection for requirement changes;
 * baselines;
-* `charter impact` over manually linked files/tests;
+* `plainweave impact` over manually linked files/tests;
 * JSON output for agent use;
 * MCP server with read/query/dossier tools;
 * import/export to Markdown and JSON;
-* generated `.charter/context.md`.
+* generated `.plainweave/context.md`.
 
 ### MVP should include
 
-* Clarion entity links if Clarion is installed;
+* Loomweave entity links if Loomweave is installed;
 * Filigree issue links if Filigree is installed;
 * agent-proposed trace links;
 * baseline diff;
@@ -1086,7 +1098,7 @@ v1.0 should include:
 * robust requirement lifecycle;
 * accepted/proposed/rejected trace links;
 * requirement dossiers over MCP;
-* Clarion federation using SEI;
+* Loomweave federation using SEI;
 * Filigree federation for requirement-linked work;
 * Legis preflight contribution;
 * Wardline finding links;
@@ -1117,9 +1129,9 @@ Post-v1.0 candidates:
 
 ## 16. Product positioning
 
-Charter is for users who have outgrown tasks and epics, but do not want enterprise ALM ceremony.
+Plainweave is for users who have outgrown tasks and epics, but do not want enterprise ALM ceremony.
 
-Use Charter when:
+Use Plainweave when:
 
 * requirements need to be explicit;
 * verification matters;
@@ -1128,7 +1140,7 @@ Use Charter when:
 * traceability should survive refactors;
 * a lightweight local-first workflow is enough.
 
-Do not use Charter when:
+Do not use Plainweave when:
 
 * the organisation requires a certified enterprise ALM system;
 * requirements must be centrally managed across many teams;
@@ -1138,4 +1150,4 @@ Do not use Charter when:
 
 ## 17. One-sentence description
 
-Charter is a local-first requirements and verification authority for agentic development: it records what must be true, links it to code and work, tracks how it is verified, and tells agents what obligations a change touches.
+Plainweave is a local-first requirements and verification authority for agentic development: it records what must be true, links it to code and work, tracks how it is verified, and tells agents what obligations a change touches.

@@ -1,10 +1,10 @@
-# Charter Verification And Status Design
+# Plainweave Verification And Status Design
 
 ## Purpose
 
-This spec defines the next P0 Charter slice after baseline core: local
+This spec defines the next P0 Plainweave slice after baseline core: local
 verification methods, evidence records, and computed requirement satisfaction
-status. The slice makes Charter answer how an approved requirement is known to
+status. The slice makes Plainweave answer how an approved requirement is known to
 be satisfied without implementing dossiers, MCP tools, impact analysis, gaps,
 or federation integrations.
 
@@ -26,7 +26,7 @@ versions:
 This slice does not implement requirement dossiers, MCP read tools, gap
 records, impact analysis, peer-tool calls, UI/TUI, import/export, or automatic
 test execution. Evidence references are local strings such as test selectors,
-artifact paths, URLs, or manual attestation identifiers; Charter stores them
+artifact paths, URLs, or manual attestation identifiers; Plainweave stores them
 as facts but does not dereference them.
 
 ## Storage
@@ -118,12 +118,12 @@ Reason codes are stable strings such as `no_verification_method`,
 Add:
 
 ```text
-charter verify method add REQ_ID --method test --target TARGET --actor ACTOR --json
-charter verify evidence record METHOD_ID --status passing --evidence-ref REF --actor ACTOR --json
-charter verify status REQ_ID --json
-charter status requirement REQ_ID --json
-charter status unverified --json
-charter status stale --json
+plainweave verify method add REQ_ID --method test --target TARGET --actor ACTOR --json
+plainweave verify evidence record METHOD_ID --status passing --evidence-ref REF --actor ACTOR --json
+plainweave verify status REQ_ID --json
+plainweave status requirement REQ_ID --json
+plainweave status unverified --json
+plainweave status stale --json
 ```
 
 The `verify status` and `status requirement` commands return the same schema.

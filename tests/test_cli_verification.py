@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import pytest
 
-from charter.cli import main
+from plainweave.cli import main
 
 
 def json_output(output: str) -> dict[str, Any]:
@@ -77,7 +77,7 @@ def test_verify_cli_method_evidence_and_status(
         ],
         capsys,
     )
-    assert method["schema"] == "weft.charter.verification_method.v1"
+    assert method["schema"] == "weft.plainweave.verification_method.v1"
     assert method["data"]["id"] == "VERM-0001"
     assert method["data"]["method"] == "test"
 
@@ -96,12 +96,12 @@ def test_verify_cli_method_evidence_and_status(
         ],
         capsys,
     )
-    assert evidence["schema"] == "weft.charter.verification_evidence.v1"
+    assert evidence["schema"] == "weft.plainweave.verification_evidence.v1"
     assert evidence["data"]["id"] == "EVID-0001"
     assert evidence["data"]["authority"] == "test_derived"
 
     status = run_json(["verify", "status", "REQ-AUTH-0001"], capsys)
-    assert status["schema"] == "weft.charter.requirement_verification_status.v1"
+    assert status["schema"] == "weft.plainweave.requirement_verification_status.v1"
     assert status["data"]["status"] == "satisfied"
     assert [item["id"] for item in status["data"]["current_evidence"]] == ["EVID-0001"]
 
@@ -277,7 +277,7 @@ def test_cli_actor_register_enables_waiver(
         ],
         capsys,
     )
-    assert registered["schema"] == "weft.charter.actor.v1"
+    assert registered["schema"] == "weft.plainweave.actor.v1"
     assert registered["data"]["kind"] == "human"
 
     evidence = run_json(

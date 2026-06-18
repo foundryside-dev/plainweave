@@ -4,19 +4,19 @@ from pathlib import Path
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.models import TraceRef
-from charter.service import CharterService
-from charter.store import migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.models import TraceRef
+from plainweave.service import PlainweaveService
+from plainweave.store import migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
-def approved_requirement_ref(service: CharterService) -> str:
+def approved_requirement_ref(service: PlainweaveService) -> str:
     draft = service.create_requirement(
         "Reject expired bearer tokens", "The API shall reject expired tokens.", "human:john"
     )
@@ -80,7 +80,7 @@ def test_stale_and_orphaned_states_remain_distinct(tmp_path: Path) -> None:
         authority="accepted",
     )
     orphaned = service.create_trace_link(
-        TraceRef("clarion_entity", "sei:abc123"),
+        TraceRef("loomweave_entity", "sei:abc123"),
         "satisfies",
         TraceRef("requirement_version", requirement_version_ref),
         actor="human:john",
@@ -99,11 +99,11 @@ def test_stale_and_orphaned_states_remain_distinct(tmp_path: Path) -> None:
 def test_inverted_canonical_relation_returns_validation(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.propose_trace_link(
             TraceRef("requirement_version", "REQ-AUTH-0001@1"),
             "satisfies",
-            TraceRef("clarion_entity", "sei:abc123"),
+            TraceRef("loomweave_entity", "sei:abc123"),
             actor="agent:codex",
         )
 
@@ -114,7 +114,7 @@ def test_high_risk_code_links_remain_proposed_until_accepted(tmp_path: Path) -> 
     service = service_for(tmp_path)
 
     link = service.propose_trace_link(
-        TraceRef("clarion_entity", "sei:security-sensitive"),
+        TraceRef("loomweave_entity", "sei:security-sensitive"),
         "satisfies",
         TraceRef("requirement_version", "REQ-AUTH-0001@1"),
         actor="agent:codex",
@@ -134,7 +134,7 @@ def test_accepting_local_requirement_version_trace_requires_existing_version(tmp
         actor="agent:codex",
     )
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.accept_trace_link(link.id, actor="human:john")
 
     assert exc_info.value.code == ErrorCode.NOT_FOUND

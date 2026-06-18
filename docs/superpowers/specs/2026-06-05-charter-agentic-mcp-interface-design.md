@@ -1,11 +1,11 @@
-# Charter Agentic MCP Interface Design
+# Plainweave Agentic MCP Interface Design
 
 ## Purpose
 
-Design the P0 read-only MCP surface for Charter as an agent-first interface over
+Design the P0 read-only MCP surface for Plainweave as an agent-first interface over
 installed local requirements facts. The goal is not to mirror the CLI one command
 at a time. The goal is to give agents the facts they need before editing,
-reviewing, or preparing release evidence, while preserving Charter's authority
+reviewing, or preparing release evidence, while preserving Plainweave's authority
 boundaries.
 
 This design closes the brainstorming phase for the remaining Package C work. It
@@ -23,8 +23,8 @@ Installed on `main`:
   list/show/diff, and baseline fixtures.
 - Verification and status core for methods, evidence, derived status,
   unverified/stale reporting, and verification fixtures.
-- Local requirement dossiers with `charter dossier REQ_ID --json`,
-  `weft.charter.requirement_dossier.v1`, compact human output, and CLI contract
+- Local requirement dossiers with `plainweave dossier REQ_ID --json`,
+  `weft.plainweave.requirement_dossier.v1`, compact human output, and CLI contract
   parity.
 
 Remaining P0 work:
@@ -67,7 +67,7 @@ This is an agent task surface, not a CRUD mirror.
 
 ## P0 Tool Inventory
 
-### `charter_project_context_get`
+### `plainweave_project_context_get`
 
 Parameters:
 
@@ -78,7 +78,7 @@ Parameters:
 ```
 
 Returns local project and capability context. It maps to the useful parts of
-`charter doctor --json` plus MCP capability metadata.
+`plainweave doctor --json` plus MCP capability metadata.
 
 Required facts:
 
@@ -97,7 +97,7 @@ Every P0 capability entry must declare:
 - `peer_side_effects: []`;
 - `authority_boundary`.
 
-### `charter_requirement_search`
+### `plainweave_requirement_search`
 
 Parameters:
 
@@ -120,7 +120,7 @@ Required behavior:
 - never imply an unpaginated result is exhaustive when more rows exist;
 - keep approved/draft/rejected/deprecated status visible.
 
-### `charter_requirement_get`
+### `plainweave_requirement_get`
 
 Parameters:
 
@@ -143,7 +143,7 @@ Required facts:
 - statement hash;
 - approval metadata when present.
 
-### `charter_requirement_dossier_get`
+### `plainweave_requirement_dossier_get`
 
 Parameters:
 
@@ -153,7 +153,7 @@ Parameters:
 }
 ```
 
-Returns `weft.charter.requirement_dossier.v1`. This is the preferred one-call
+Returns `weft.plainweave.requirement_dossier.v1`. This is the preferred one-call
 context object before an agent edits, reviews, or plans around a requirement.
 
 Required sections:
@@ -176,7 +176,7 @@ Authority requirements:
 - stale verification remains visible but is not current satisfaction;
 - `peer_facts.live_peer_calls` must be false in P0.
 
-### `charter_trace_link_list`
+### `plainweave_trace_link_list`
 
 Parameters:
 
@@ -202,7 +202,7 @@ Required facts:
 - creator/acceptor metadata when available;
 - target snapshot when available.
 
-### `charter_baseline_list`
+### `plainweave_baseline_list`
 
 Parameters:
 
@@ -222,7 +222,7 @@ Required facts:
 - locked state;
 - creator and creation time.
 
-### `charter_baseline_get`
+### `plainweave_baseline_get`
 
 Parameters:
 
@@ -232,7 +232,7 @@ Parameters:
 }
 ```
 
-Returns `weft.charter.baseline.v1`.
+Returns `weft.plainweave.baseline.v1`.
 
 Required facts:
 
@@ -244,7 +244,7 @@ Required facts:
 - statement hashes captured at baseline time;
 - status at baseline.
 
-### `charter_baseline_diff`
+### `plainweave_baseline_diff`
 
 Parameters:
 
@@ -254,7 +254,7 @@ Parameters:
 }
 ```
 
-Returns `weft.charter.baseline_diff.v1`.
+Returns `weft.plainweave.baseline_diff.v1`.
 
 Required statuses:
 
@@ -266,7 +266,7 @@ Required statuses:
 
 This is release-risk input, not a release decision.
 
-### `charter_verification_status_get`
+### `plainweave_verification_status_get`
 
 Parameters:
 
@@ -276,7 +276,7 @@ Parameters:
 }
 ```
 
-Returns `weft.charter.requirement_verification_status.v1`.
+Returns `weft.plainweave.requirement_verification_status.v1`.
 
 Required facts:
 
@@ -287,7 +287,7 @@ Required facts:
 - requirement version;
 - evidence references and authority/freshness where available.
 
-### `charter_verification_status_list`
+### `plainweave_verification_status_list`
 
 Parameters:
 
@@ -309,29 +309,29 @@ CLI behavior. It must preserve the list envelope shape.
 
 ## P0 Resource Inventory
 
-### `charter://project/context`
+### `plainweave://project/context`
 
 Stable project context and authority summary. This may duplicate
-`charter_project_context_get` for hosts that prefer attaching project context as
+`plainweave_project_context_get` for hosts that prefer attaching project context as
 a resource.
 
-### `charter://contracts/weft.charter.error.v1`
+### `plainweave://contracts/weft.plainweave.error.v1`
 
 Error envelope contract and recovery expectations.
 
-### `charter://contracts/weft.charter.requirement_dossier.v1`
+### `plainweave://contracts/weft.plainweave.requirement_dossier.v1`
 
 Requirement dossier contract.
 
-### `charter://contracts/weft.charter.baseline.v1`
+### `plainweave://contracts/weft.plainweave.baseline.v1`
 
 Baseline contract.
 
-### `charter://contracts/weft.charter.baseline_diff.v1`
+### `plainweave://contracts/weft.plainweave.baseline_diff.v1`
 
 Baseline diff contract.
 
-### `charter://contracts/weft.charter.requirement_verification_status.v1`
+### `plainweave://contracts/weft.plainweave.requirement_verification_status.v1`
 
 Verification status contract.
 
@@ -340,17 +340,17 @@ facts that belong behind tools.
 
 ## Output Contract
 
-Every successful tool returns the existing Charter envelope:
+Every successful tool returns the existing Plainweave envelope:
 
 ```json
 {
-  "schema": "weft.charter.<contract>.v1",
+  "schema": "weft.plainweave.<contract>.v1",
   "ok": true,
   "data": {},
   "warnings": [],
   "meta": {
     "producer": {
-      "tool": "charter",
+      "tool": "plainweave",
       "version": "..."
     },
     "generated_at": "...",
@@ -374,11 +374,11 @@ creating a parallel MCP-only truth shape.
 
 ## Error Contract
 
-Errors return `weft.charter.error.v1`:
+Errors return `weft.plainweave.error.v1`:
 
 ```json
 {
-  "schema": "weft.charter.error.v1",
+  "schema": "weft.plainweave.error.v1",
   "ok": false,
   "error": {
     "code": "NOT_FOUND",
@@ -390,7 +390,7 @@ Errors return `weft.charter.error.v1`:
   "warnings": [],
   "meta": {
     "producer": {
-      "tool": "charter",
+      "tool": "plainweave",
       "version": "..."
     },
     "generated_at": "...",
@@ -406,11 +406,11 @@ parsing message text.
 
 ### Pre-Edit Workflow
 
-1. `charter_project_context_get`
-2. `charter_requirement_search`
-3. `charter_requirement_dossier_get`
-4. Optional `charter_trace_link_list`
-5. Optional `charter_verification_status_get`
+1. `plainweave_project_context_get`
+2. `plainweave_requirement_search`
+3. `plainweave_requirement_dossier_get`
+4. Optional `plainweave_trace_link_list`
+5. Optional `plainweave_verification_status_get`
 
 The agent gets accepted requirement text, active draft separation, acceptance
 criteria, trace authority/freshness, verification status, stale evidence,
@@ -418,22 +418,22 @@ baseline exposure, computed local gaps, and next actions before editing code.
 
 ### Review Workflow
 
-1. `charter_project_context_get`
-2. `charter_requirement_search`
-3. `charter_requirement_dossier_get`
-4. `charter_verification_status_list`
-5. Optional `charter_trace_link_list`
+1. `plainweave_project_context_get`
+2. `plainweave_requirement_search`
+3. `plainweave_requirement_dossier_get`
+4. `plainweave_verification_status_list`
+5. Optional `plainweave_trace_link_list`
 
 The reviewer checks blockers without treating proposed links, active drafts, or
 stale evidence as accepted truth.
 
 ### Release/Baseline Workflow
 
-1. `charter_project_context_get`
-2. `charter_baseline_list`
-3. `charter_baseline_diff`
-4. `charter_verification_status_list` with `unverified`
-5. `charter_verification_status_list` with `stale`
+1. `plainweave_project_context_get`
+2. `plainweave_baseline_list`
+3. `plainweave_baseline_diff`
+4. `plainweave_verification_status_list` with `unverified`
+5. `plainweave_verification_status_list` with `stale`
 
 The agent reports facts, not verdicts. There is no P0 `release_ready` tool.
 
@@ -451,7 +451,7 @@ P0 excludes:
 - review queues and approval policy;
 - impact analysis;
 - import/export;
-- live Clarion, Filigree, Wardline, or Legis calls;
+- live Loomweave, Filigree, Wardline, or Legis calls;
 - release-readiness verdicts;
 - Git, CI, shell, or test execution;
 - any tool that treats issue closure as requirement satisfaction;
@@ -461,7 +461,7 @@ P0 excludes:
 
 Implementation should preserve the current architecture:
 
-- add a small MCP module that calls `CharterService` directly;
+- add a small MCP module that calls `PlainweaveService` directly;
 - reuse existing CLI serializers and envelope helpers;
 - keep tool handlers thin;
 - validate parameters at the MCP boundary;
@@ -472,7 +472,7 @@ Implementation should preserve the current architecture:
 
 The MCP dependency and transport choice are deferred to implementation planning.
 The decision should prefer the smallest maintained Python MCP server dependency
-that fits the Loom ecosystem.
+that fits the Weft ecosystem.
 
 ## Test Strategy
 
@@ -483,11 +483,11 @@ Required tests:
 - MCP tool output contract fixtures aligned with CLI fixture shapes;
 - tool inventory metadata test for `mutates: false`, `local_only: true`, and
   `peer_side_effects: []`;
-- no-mutation test showing every P0 MCP tool leaves Charter state unchanged;
+- no-mutation test showing every P0 MCP tool leaves Plainweave state unchanged;
 - validation and not-found error-envelope tests;
 - pagination shape tests for every list/search tool;
 - dossier parity test against the CLI dossier contract shape;
-- scope audit proving no live peer calls, no subprocess shelling to `charter`,
+- scope audit proving no live peer calls, no subprocess shelling to `plainweave`,
   and no mutation handlers.
 
 Final gates should include the existing project gates plus the new MCP contract
@@ -499,7 +499,7 @@ Package C closes when all of these are true on `main`:
 
 - local requirement dossiers remain installed and tested;
 - read-only MCP tools and resources from this design are implemented;
-- MCP outputs preserve the installed Charter envelope and contract shapes;
+- MCP outputs preserve the installed Plainweave envelope and contract shapes;
 - all P0 tools declare and satisfy read-only/local-only behavior;
 - no live peer calls or mutations exist in the P0 MCP surface;
 - MCP contract, error, pagination, no-mutation, and dossier parity tests pass;

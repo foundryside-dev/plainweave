@@ -6,7 +6,7 @@ from typing import Any, cast
 
 import pytest
 
-from charter.cli import main
+from plainweave.cli import main
 
 
 def json_output(output: str) -> dict[str, Any]:
@@ -76,7 +76,7 @@ def test_dossier_cli_json_includes_sections_and_peer_facts(
 
     dossier = run_json(["dossier", "REQ-AUTH-0001"], capsys)
 
-    assert dossier["schema"] == "weft.charter.requirement_dossier.v1"
+    assert dossier["schema"] == "weft.plainweave.requirement_dossier.v1"
     assert dossier["ok"] is True
     data = dossier["data"]
     assert set(data) == {
@@ -128,5 +128,5 @@ def test_dossier_cli_missing_requirement_json_error(
 
     error = run_json(["dossier", "REQ-AUTH-9999"], capsys, expected_status=2)
 
-    assert error["schema"] == "weft.charter.error.v1"
+    assert error["schema"] == "weft.plainweave.error.v1"
     assert error["error"]["code"] == "NOT_FOUND"

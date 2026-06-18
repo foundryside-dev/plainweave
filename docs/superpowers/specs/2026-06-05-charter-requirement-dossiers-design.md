@@ -1,14 +1,14 @@
-# Charter Requirement Dossiers Design
+# Plainweave Requirement Dossiers Design
 
 ## Decision
 
-Build local, agent-first requirement dossiers before adding the read-only MCP surface. The dossier is a computed view over existing Charter state, exposed by a CLI command and JSON contract:
+Build local, agent-first requirement dossiers before adding the read-only MCP surface. The dossier is a computed view over existing Plainweave state, exposed by a CLI command and JSON contract:
 
 ```bash
-charter dossier REQ-AUTH-0001 --json
+plainweave dossier REQ-AUTH-0001 --json
 ```
 
-The JSON schema is `weft.charter.requirement_dossier.v1`.
+The JSON schema is `weft.plainweave.requirement_dossier.v1`.
 
 ## Product Intent
 
@@ -28,11 +28,11 @@ This should make common agent workflows cheaper and safer:
 
 Included:
 
-- `CharterService.requirement_dossier(requirement_id)`;
+- `PlainweaveService.requirement_dossier(requirement_id)`;
 - immutable dataclasses for dossier sections;
-- `charter dossier REQ_ID --json`;
-- compact human output for `charter dossier REQ_ID`;
-- contract fixture for `weft.charter.requirement_dossier.v1`;
+- `plainweave dossier REQ_ID --json`;
+- compact human output for `plainweave dossier REQ_ID`;
+- contract fixture for `weft.plainweave.requirement_dossier.v1`;
 - CLI contract fixture for dossier JSON output;
 - state and CLI tests;
 - roadmap update after implementation.
@@ -40,7 +40,7 @@ Included:
 Excluded:
 
 - no new SQLite tables;
-- no live Clarion, Filigree, Wardline, Legis, or MCP peer calls;
+- no live Loomweave, Filigree, Wardline, Legis, or MCP peer calls;
 - no durable gap records;
 - no MCP server implementation;
 - no impact-analysis engine;
@@ -51,7 +51,7 @@ Excluded:
 
 Top-level dossier keys:
 
-- `schema`: `weft.charter.requirement_dossier.v1`
+- `schema`: `weft.plainweave.requirement_dossier.v1`
 - `identity`
 - `authority_summary`
 - `requirement`
@@ -180,7 +180,7 @@ Explicit local-only marker:
 {
   "live_peer_calls": false,
   "sources": [],
-  "notes": ["Dossier is computed from the local Charter store only."]
+  "notes": ["Dossier is computed from the local Plainweave store only."]
 }
 ```
 
@@ -210,11 +210,11 @@ Each action has:
 - `command`
 - `blocked_by`
 
-Commands are suggestions for existing Charter CLI surfaces. If an action requires a future feature, the command is `null` and the reason names the missing feature.
+Commands are suggestions for existing Plainweave CLI surfaces. If an action requires a future feature, the command is `null` and the reason names the missing feature.
 
 ## Sequencing
 
-Implement dossiers first. Then add a read-only MCP wrapper that returns this exact contract. After the MCP read surface exists, sequence the remaining P1 work, especially durable gap policy and impact analysis. MCP mutation should wait until Charter has stronger review policy and gap lifecycle behavior.
+Implement dossiers first. Then add a read-only MCP wrapper that returns this exact contract. After the MCP read surface exists, sequence the remaining P1 work, especially durable gap policy and impact analysis. MCP mutation should wait until Plainweave has stronger review policy and gap lifecycle behavior.
 
 ## Review Checklist
 

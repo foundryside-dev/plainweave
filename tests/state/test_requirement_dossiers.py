@@ -6,20 +6,20 @@ from typing import Protocol
 
 import pytest
 
-from charter.errors import CharterError, ErrorCode
-from charter.models import DossierNextAction, TraceRef
-from charter.service import CharterService
-from charter.store import connect, migrate
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.models import DossierNextAction, TraceRef
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate
 
 
-def service_for(tmp_path: Path) -> CharterService:
-    db_path = tmp_path / ".charter" / "charter.db"
+def service_for(tmp_path: Path) -> PlainweaveService:
+    db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
 def approve_requirement(
-    service: CharterService,
+    service: PlainweaveService,
     *,
     title: str = "Reject expired bearer tokens",
     statement: str = "The API shall reject expired bearer tokens.",
@@ -33,7 +33,7 @@ def approve_requirement(
     return draft.id
 
 
-def open_draft(service: CharterService, requirement_id: str) -> str:
+def open_draft(service: PlainweaveService, requirement_id: str) -> str:
     with connect(service.db_path) as connection:
         requirement = connection.execute(
             "select requirement_id, current_version from requirements where display_id = ?",
@@ -112,7 +112,7 @@ def test_approved_requirement_dossier_includes_identity_authority_current_sectio
     assert dossier.identity == {
         "requirement_id": "req-1",
         "id": requirement_id,
-        "stable_id": "charter:req:AUTH:0001",
+        "stable_id": "plainweave:req:AUTH:0001",
         "current_version": 1,
     }
     assert dossier.authority_summary.status == "approved"
@@ -134,7 +134,7 @@ def test_approved_requirement_dossier_includes_identity_authority_current_sectio
     assert [item.id for item in dossier.verification.current_evidence] == [evidence.id]
     assert dossier.peer_facts.live_peer_calls is False
     assert dossier.peer_facts.sources == []
-    assert dossier.peer_facts.notes == ["Dossier is computed from the local Charter store only."]
+    assert dossier.peer_facts.notes == ["Dossier is computed from the local Plainweave store only."]
 
 
 def test_active_draft_and_draft_criteria_remain_separate_from_approved_current_sections(
@@ -163,7 +163,7 @@ def test_active_draft_and_draft_criteria_remain_separate_from_approved_current_s
     assert "approve_or_reject_draft" in actions(dossier.next_actions)
     assert (
         action_by(dossier.next_actions, "approve_or_reject_draft").command
-        == f"charter req approve {requirement_id} --actor human:reviewer --expected-version 1 --json"
+        == f"plainweave req approve {requirement_id} --actor human:reviewer --expected-version 1 --json"
     )
 
 
@@ -180,7 +180,7 @@ def test_traces_are_grouped_by_direction_state_and_relation_while_preserving_sta
         authority="accepted",
     )
     proposed = service.propose_trace_link(
-        TraceRef("clarion_entity", "sei:token-validator"),
+        TraceRef("loomweave_entity", "sei:token-validator"),
         "satisfies",
         TraceRef("requirement_version", f"{requirement_id}@1"),
         actor="agent:codex",
@@ -320,7 +320,7 @@ def test_gaps_and_next_actions_include_missing_criteria_method_and_do_not_treat_
     assert action_by(dossier.next_actions, "add_acceptance_criteria").command is None
     assert (
         action_by(dossier.next_actions, "add_verification_method").command
-        == f"charter verify method add {requirement_id} --method test --target tests/path.py::test_behavior "
+        == f"plainweave verify method add {requirement_id} --method test --target tests/path.py::test_behavior "
         "--actor human:reviewer --json"
     )
     assert dossier.next_actions[-1].command is None
@@ -361,7 +361,7 @@ def test_draft_only_requirement_dossier_reports_no_approved_version_without_peer
     assert actions(dossier.next_actions) == ["approve_or_reject_draft"]
     assert (
         action_by(dossier.next_actions, "approve_or_reject_draft").command
-        == f"charter req approve {draft.id} --actor human:reviewer --expected-version 0 --json"
+        == f"plainweave req approve {draft.id} --actor human:reviewer --expected-version 0 --json"
     )
 
 
@@ -448,7 +448,7 @@ def test_current_waiver_evidence_emits_review_waiver_action(tmp_path: Path) -> N
 def test_missing_requirement_raises_not_found(tmp_path: Path) -> None:
     service = service_for(tmp_path)
 
-    with pytest.raises(CharterError) as exc_info:
+    with pytest.raises(PlainweaveError) as exc_info:
         service.requirement_dossier("REQ-AUTH-9999")
 
     assert exc_info.value.code == ErrorCode.NOT_FOUND

@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
-from charter import __version__
-from charter.errors import ErrorCode
+from plainweave import __version__
+from plainweave.errors import ErrorCode
 
 JsonObject = dict[str, object]
 
@@ -15,7 +15,7 @@ def _generated_at(value: str | None) -> str:
 
 def _meta(*, project: str | None = None, generated_at: str | None = None) -> JsonObject:
     return {
-        "producer": {"tool": "charter", "version": __version__},
+        "producer": {"tool": "plainweave", "version": __version__},
         "generated_at": _generated_at(generated_at),
         "project": project,
     }
@@ -31,7 +31,7 @@ def _error_code(code: ErrorCode | str) -> ErrorCode:
     try:
         return ErrorCode(code)
     except ValueError:
-        raise ValueError(f"unknown Charter error code: {code}") from None
+        raise ValueError(f"unknown Plainweave error code: {code}") from None
 
 
 def success_envelope(
@@ -64,7 +64,7 @@ def error_envelope(
 ) -> JsonObject:
     error_code = _error_code(code)
     return {
-        "schema": "weft.charter.error.v1",
+        "schema": "weft.plainweave.error.v1",
         "ok": False,
         "error": {
             "code": error_code.value,

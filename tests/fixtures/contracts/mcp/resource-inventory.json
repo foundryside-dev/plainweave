@@ -1,11 +1,11 @@
 {
-  "schema": "weft.charter.mcp_resource_inventory.v1",
+  "schema": "weft.plainweave.mcp_resource_inventory.v1",
   "resources": [
-    "charter://project/context",
-    "charter://contracts/weft.charter.error.v1",
-    "charter://contracts/weft.charter.requirement_dossier.v1",
-    "charter://contracts/weft.charter.baseline.v1",
-    "charter://contracts/weft.charter.baseline_diff.v1",
-    "charter://contracts/weft.charter.requirement_verification_status.v1"
+    "plainweave://project/context",
+    "plainweave://contracts/weft.plainweave.error.v1",
+    "plainweave://contracts/weft.plainweave.requirement_dossier.v1",
+    "plainweave://contracts/weft.plainweave.baseline.v1",
+    "plainweave://contracts/weft.plainweave.baseline_diff.v1",
+    "plainweave://contracts/weft.plainweave.requirement_verification_status.v1"
   ]
 }

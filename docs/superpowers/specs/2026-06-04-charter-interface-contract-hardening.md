@@ -1,10 +1,10 @@
-# Charter Interface Contract Hardening
+# Plainweave Interface Contract Hardening
 
 ## 1. Purpose
 
-This document hardens the Charter planning pack into implementation-grade
-interfaces. It narrows scope to the contracts that prevent Charter from stealing
-peer authority, fabricating traceability, or coupling the Loom federation through
+This document hardens the Plainweave planning pack into implementation-grade
+interfaces. It narrows scope to the contracts that prevent Plainweave from stealing
+peer authority, fabricating traceability, or coupling the Weft federation through
 implicit assumptions.
 
 Scope is limited to:
@@ -14,13 +14,13 @@ Scope is limited to:
 3. MCP tool schemas with side-effect metadata;
 4. CLI JSON envelopes;
 5. federation capability negotiation;
-6. Clarion SEI link contract;
+6. Loomweave SEI link contract;
 7. Filigree gap-to-work contract;
 8. Wardline finding-to-requirement contract;
 9. Legis preflight fact envelope;
 10. v0.1 through v1.0 implementation slices.
 
-Future scoped-change execution tools, including Shuttle if it later enters Loom,
+Future scoped-change execution tools, including Shuttle if it later enters Weft,
 are out of scope here.
 
 ## 2. Adversarial Senior User Follow-Up
@@ -30,12 +30,12 @@ the failure modes.
 
 | Question | Senior User Answer | Design Consequence |
 |---|---|---|
-| What would make you uninstall Charter after a week? | "If every commit produces a wall of obvious requirements noise, or if I spend more time accepting links than coding." | Impact output must rank direct accepted links above inferred/nearby links. Neighborhood expansion is opt-in. Link review queues must batch. |
-| Where would Charter slow agents down? | "If agents must ask before proposing every link, or if mutations are not clearly retry-safe." | Agents may propose freely. MCP tools expose side-effect metadata, idempotency keys, and dry-run where useful. |
+| What would make you uninstall Plainweave after a week? | "If every commit produces a wall of obvious requirements noise, or if I spend more time accepting links than coding." | Impact output must rank direct accepted links above inferred/nearby links. Neighborhood expansion is opt-in. Link review queues must batch. |
+| Where would Plainweave slow agents down? | "If agents must ask before proposing every link, or if mutations are not clearly retry-safe." | Agents may propose freely. MCP tools expose side-effect metadata, idempotency keys, and dry-run where useful. |
 | Which links would you refuse to maintain manually? | "Low-risk test-to-requirement links once the test naming is clear. I will manually review security/safety code links and finding violation links." | Policy defaults allow proposed or auto-accepted low-criticality test links; high/security/safety entity and finding links remain proposed until accepted. |
-| When should Charter shut up? | "When a changed file has no accepted or nearby requirement links and the project policy does not require traceability there. Don't invent urgency." | Impact reports separate `untraced_change` info from verification/finding facts. Advisory noise is capped and grouped. |
+| When should Plainweave shut up? | "When a changed file has no accepted or nearby requirement links and the project policy does not require traceability there. Don't invent urgency." | Impact reports separate `untraced_change` info from verification/finding facts. Advisory noise is capped and grouped. |
 | What Chill reports become unbearable on every commit? | "Huge baseline diffs, all proposed links, and stale findings from old scans." | Legis preflight facts include only scoped impact, current accepted/proposed counts, and freshness warnings. Full baseline and proposal lists stay behind drill-down tools. |
-| What makes Charter too weak? | "If issue closure marks requirements satisfied, if waived findings vanish, or if SEI orphaning is buried." | Satisfaction is evidence-derived. Waived findings remain visible. SEI orphaning creates explicit stale/orphaned links and gaps. |
+| What makes Plainweave too weak? | "If issue closure marks requirements satisfied, if waived findings vanish, or if SEI orphaning is buried." | Satisfaction is evidence-derived. Waived findings remain visible. SEI orphaning creates explicit stale/orphaned links and gaps. |
 
 ## 3. Cross-Cutting Contract Rules
 
@@ -46,12 +46,12 @@ the protocol itself requires a different wrapper:
 
 ```json
 {
-  "schema": "weft.charter.<object>.v1",
+  "schema": "weft.plainweave.<object>.v1",
   "ok": true,
   "data": {},
   "warnings": [],
   "meta": {
-    "producer": {"tool": "charter", "version": "0.1.0"},
+    "producer": {"tool": "plainweave", "version": "0.1.0"},
     "generated_at": "2026-06-04T10:00:00+10:00",
     "project": "AUTH"
   }
@@ -62,7 +62,7 @@ the protocol itself requires a different wrapper:
 
 ```json
 {
-  "schema": "weft.charter.error.v1",
+  "schema": "weft.plainweave.error.v1",
   "ok": false,
   "error": {
     "code": "VALIDATION",
@@ -73,7 +73,7 @@ the protocol itself requires a different wrapper:
   },
   "warnings": [],
   "meta": {
-    "producer": {"tool": "charter", "version": "0.1.0"},
+    "producer": {"tool": "plainweave", "version": "0.1.0"},
     "generated_at": "2026-06-04T10:00:00+10:00",
     "project": "AUTH"
   }
@@ -93,7 +93,7 @@ the protocol itself requires a different wrapper:
 | `PEER_CONTRACT` | Peer response did not match expected contract. | Yes | Report diagnostics; do not trust peer fact. |
 | `LOCKED` | Baseline or approved version is immutable. | Yes | Supersede or create a new draft. |
 | `UNSUPPORTED` | Operation is not supported in current capability set. | Yes | Probe capabilities and choose fallback. |
-| `INTERNAL` | Unexpected Charter failure. | Maybe | Retry once; then report with event/request id. |
+| `INTERNAL` | Unexpected Plainweave failure. | Maybe | Retry once; then report with event/request id. |
 
 ### 3.4 Freshness And Authority Labels
 
@@ -103,19 +103,19 @@ Every fact crossing a surface that an agent or peer consumes carries:
 {
   "authority": "accepted",
   "freshness": "current",
-  "source": {"kind": "charter", "ref": "REQ-AUTH-017@3"}
+  "source": {"kind": "plainweave", "ref": "REQ-AUTH-017@3"}
 }
 ```
 
 Allowed `authority` values:
 
-- `accepted`: accepted Charter project truth.
+- `accepted`: accepted Plainweave project truth.
 - `agent_proposed`: proposed by an agent, not accepted.
 - `human_proposed`: proposed by a human, not accepted.
 - `inferred`: deterministic inference, not accepted truth.
 - `imported`: imported from external source.
 - `test_derived`: derived from test result import.
-- `peer_reported`: reported by a Loom peer.
+- `peer_reported`: reported by a Weft peer.
 
 Allowed `freshness` values:
 
@@ -240,14 +240,14 @@ Rules:
 
 | Kind | Authority |
 |---|---|
-| `requirement` | Charter |
-| `requirement_version` | Charter |
-| `acceptance_criterion` | Charter |
-| `verification_method` | Charter |
-| `verification_record` | Charter |
-| `test_selector` | Charter-local reference to test address |
-| `file_ref` | Charter-local fragile file/path ref |
-| `clarion_entity` | Clarion |
+| `requirement` | Plainweave |
+| `requirement_version` | Plainweave |
+| `acceptance_criterion` | Plainweave |
+| `verification_method` | Plainweave |
+| `verification_record` | Plainweave |
+| `test_selector` | Plainweave-local reference to test address |
+| `file_ref` | Plainweave-local fragile file/path ref |
+| `loomweave_entity` | Loomweave |
 | `filigree_issue` | Filigree |
 | `wardline_finding` | Wardline |
 | `legis_attestation` | Legis |
@@ -265,7 +265,7 @@ Trace direction is fixed. Agents must not invert relations.
 | `verification_method` | `verifies` | `requirement_version` | Method is intended to verify version. |
 | `verification_record` | `evidences` | `verification_method` | Evidence record is an observation for a method. |
 | `test_selector` | `provides_evidence_for` | `verification_method` | Test selector supplies evidence when run. |
-| `clarion_entity` | `satisfies` | `requirement_version` | Code entity is accepted as satisfying version. |
+| `loomweave_entity` | `satisfies` | `requirement_version` | Code entity is accepted as satisfying version. |
 | `file_ref` | `fragile_satisfies` | `requirement_version` | File/path ref is a non-SEI implementation link. |
 | `filigree_issue` | `implements_work_for` | `requirement_version` | Issue tracks work related to version. |
 | `filigree_issue` | `resolves_gap` | `gap` | Issue tracks work intended to resolve gap. |
@@ -300,7 +300,7 @@ Rules:
 
 - `agent_proposed` links default to `proposed`.
 - Direct accepted creation is policy-controlled.
-- High, safety, and security requirement links to `clarion_entity`,
+- High, safety, and security requirement links to `loomweave_entity`,
   `wardline_finding`, `legis_attestation`, and `manual_attestation` require
   acceptance.
 - Stale links keep their old target snapshot. They are not deleted.
@@ -310,10 +310,10 @@ Rules:
 
 ```json
 {
-  "schema": "weft.charter.trace_link.v1",
+  "schema": "weft.plainweave.trace_link.v1",
   "id": "LINK-42",
   "state": "proposed",
-  "from": {"kind": "clarion_entity", "id": "clarion:eid:abc"},
+  "from": {"kind": "loomweave_entity", "id": "loomweave:eid:abc"},
   "relation": "satisfies",
   "to": {"kind": "requirement_version", "id": "REQ-AUTH-017", "version": 3},
   "authority": "agent_proposed",
@@ -325,7 +325,7 @@ Rules:
   "target_snapshot": {
     "locator": "auth.validate_token",
     "content_hash": "sha256:...",
-    "peer": "clarion",
+    "peer": "loomweave",
     "observed_at": "2026-06-04T10:00:00+10:00"
   }
 }
@@ -410,7 +410,7 @@ controlled and uses the standard envelopes.
 
 ```json
 {
-  "schema": "weft.charter.list.v1",
+  "schema": "weft.plainweave.list.v1",
   "ok": true,
   "data": {
     "items": [],
@@ -418,7 +418,7 @@ controlled and uses the standard envelopes.
     "next_offset": null
   },
   "warnings": [],
-  "meta": {"producer": {"tool": "charter", "version": "0.1.0"}}
+  "meta": {"producer": {"tool": "plainweave", "version": "0.1.0"}}
 }
 ```
 
@@ -426,14 +426,14 @@ controlled and uses the standard envelopes.
 
 ```json
 {
-  "schema": "weft.charter.batch.v1",
+  "schema": "weft.plainweave.batch.v1",
   "ok": true,
   "data": {
     "succeeded": [],
     "failed": []
   },
   "warnings": [],
-  "meta": {"producer": {"tool": "charter", "version": "0.1.0"}}
+  "meta": {"producer": {"tool": "plainweave", "version": "0.1.0"}}
 }
 ```
 
@@ -442,12 +442,12 @@ controlled and uses the standard envelopes.
 | Exit | Meaning |
 |---:|---|
 | 0 | Success, including reports with warnings. |
-| 1 | Charter advisory gate found configured local failures, if caller requested `--fail-on`. |
+| 1 | Plainweave advisory gate found configured local failures, if caller requested `--fail-on`. |
 | 2 | User/input/config/protocol error. |
 | 3 | Peer unavailable or stale where caller required peer freshness. |
 | 4 | Internal error. |
 
-Charter does not use exit code `1` for normal impact warnings unless the command
+Plainweave does not use exit code `1` for normal impact warnings unless the command
 explicitly asks for local advisory failure behavior.
 
 ## 8. Federation Capability Negotiation
@@ -458,7 +458,7 @@ Each adapter normalizes peer state into:
 
 ```json
 {
-  "peer": "clarion",
+  "peer": "loomweave",
   "status": "present",
   "version": "1.0.0",
   "capabilities": {
@@ -482,36 +482,36 @@ Allowed `status` values:
 
 ### 8.2 Degradation Rules
 
-- Clarion absent: use `file_ref` or `test_selector`; mark implementation links
+- Loomweave absent: use `file_ref` or `test_selector`; mark implementation links
   fragile.
-- Clarion present without SEI: do not create `clarion_entity` accepted links;
+- Loomweave present without SEI: do not create `loomweave_entity` accepted links;
   create proposed fragile links with `PEER_STALE` or `UNSUPPORTED` warning.
 - Filigree absent: create local gaps only.
 - Wardline absent: omit finding facts; do not infer no findings.
 - Legis absent: generate local advisory impact; do not emit governance events.
 - Peer stale: include peer facts only with `freshness: "stale"` and warning.
 
-## 9. Clarion SEI Link Contract
+## 9. Loomweave SEI Link Contract
 
 ### 9.1 Link Creation Flow
 
 1. Agent provides locator, file/line, or symbol.
-2. Charter calls Clarion capability probe.
-3. If `sei` and resolver capability are present, Charter resolves to opaque SEI.
-4. Charter creates `trace_link_propose` by default.
+2. Plainweave calls Loomweave capability probe.
+3. If `sei` and resolver capability are present, Plainweave resolves to opaque SEI.
+4. Plainweave creates `trace_link_propose` by default.
 5. Acceptance policy decides whether it can become accepted.
 
 ### 9.2 Stored Target Snapshot
 
 ```json
 {
-  "kind": "clarion_entity",
-  "id": "clarion:eid:abc",
+  "kind": "loomweave_entity",
+  "id": "loomweave:eid:abc",
   "snapshot": {
     "locator": "python:function:auth.validate_token",
     "content_hash": "sha256:...",
     "lineage_status": "alive",
-    "clarion_version": "1.0.0",
+    "loomweave_version": "1.0.0",
     "observed_at": "2026-06-04T10:00:00+10:00"
   }
 }
@@ -519,23 +519,23 @@ Allowed `status` values:
 
 ### 9.3 Refresh Outcomes
 
-| Clarion Result | Charter Action |
+| Loomweave Result | Plainweave Action |
 |---|---|
 | Same SEI, same content hash | Link remains `current`. |
 | Same SEI, changed content hash | Link remains accepted but `freshness: stale`; linked verification becomes stale. |
 | SEI locator changed, lineage alive | Link remains accepted; target snapshot updates; event emitted. |
 | SEI orphaned | Link becomes `orphaned`; `trace_orphaned` gap created. |
-| Clarion absent | Keep old link with `freshness: unknown`; no destructive change. |
+| Loomweave absent | Keep old link with `freshness: unknown`; no destructive change. |
 
-Charter never derives, parses, or remints SEI.
+Plainweave never derives, parses, or remints SEI.
 
 ## 10. Filigree Gap-To-Work Contract
 
-### 10.1 Charter Gap Contract
+### 10.1 Plainweave Gap Contract
 
 ```json
 {
-  "schema": "weft.charter.gap.v1",
+  "schema": "weft.plainweave.gap.v1",
   "id": "GAP-0007",
   "kind": "stale_verification",
   "requirement_id": "REQ-AUTH-017",
@@ -549,7 +549,7 @@ Charter never derives, parses, or remints SEI.
 
 ### 10.2 Work Creation Request To Filigree
 
-Charter sends only work intent and references. Filigree owns issue type,
+Plainweave sends only work intent and references. Filigree owns issue type,
 workflow, claim, and lifecycle semantics.
 
 ```json
@@ -557,22 +557,22 @@ workflow, claim, and lifecycle semantics.
   "title": "Refresh verification for REQ-AUTH-017",
   "type": "task",
   "priority": 1,
-  "body": "Charter gap GAP-0007: linked entity changed after last verification.",
+  "body": "Plainweave gap GAP-0007: linked entity changed after last verification.",
   "external_refs": [
-    {"kind": "charter_gap", "id": "GAP-0007"},
-    {"kind": "charter_requirement", "id": "REQ-AUTH-017", "version": 3}
+    {"kind": "plainweave_gap", "id": "GAP-0007"},
+    {"kind": "plainweave_requirement", "id": "REQ-AUTH-017", "version": 3}
   ]
 }
 ```
 
 ### 10.3 Closure Rule
 
-Filigree issue closure never resolves the Charter gap by itself. Charter resolves
+Filigree issue closure never resolves the Plainweave gap by itself. Plainweave resolves
 the gap only when:
 
 - current verification evidence is recorded;
 - the link is accepted/rejected/refreshed; or
-- a human/accepted policy waives the gap in Charter.
+- a human/accepted policy waives the gap in Plainweave.
 
 ## 11. Wardline Finding-To-Requirement Contract
 
@@ -595,7 +595,7 @@ the gap only when:
 
 ### 11.2 Finding Status Semantics
 
-| Wardline State | Charter Interpretation |
+| Wardline State | Plainweave Interpretation |
 |---|---|
 | `active` | Can violate/risk requirement if accepted link exists. |
 | `waived` | Still visible; may satisfy local waiver policy but remains risk context. |
@@ -611,14 +611,14 @@ requirements.
 
 ## 12. Legis Preflight Fact Envelope
 
-Legis consumes Charter facts through a versioned envelope. It must not need
-Charter table knowledge.
+Legis consumes Plainweave facts through a versioned envelope. It must not need
+Plainweave table knowledge.
 
 ```json
 {
-  "schema": "weft.charter.preflight_facts.v1",
+  "schema": "weft.plainweave.preflight_facts.v1",
   "producer": {
-    "tool": "charter",
+    "tool": "plainweave",
     "version": "0.1.0",
     "project": "AUTH"
   },
@@ -642,7 +642,7 @@ Charter table knowledge.
       },
       "message": "Touched requirement has stale verification",
       "evidence_refs": ["VER-AUTH-017-1"],
-      "source": {"kind": "charter_gap", "id": "GAP-0007"},
+      "source": {"kind": "plainweave_gap", "id": "GAP-0007"},
       "freshness": "current"
     }
   ],
@@ -669,7 +669,7 @@ Allowed fact kinds:
 - `orphaned_entity_link`
 - `untraced_change`
 
-Charter may classify `block_candidate`, but Legis decides whether that becomes a
+Plainweave may classify `block_candidate`, but Legis decides whether that becomes a
 block in any configured mode.
 
 ## 13. Event Schemas
@@ -678,7 +678,7 @@ block in any configured mode.
 
 ```json
 {
-  "schema": "weft.charter.event.v1",
+  "schema": "weft.plainweave.event.v1",
   "id": "EVT-0001",
   "timestamp": "2026-06-04T10:00:00+10:00",
   "actor": "agent:codex",
@@ -747,11 +747,11 @@ block in any configured mode.
 
 ### 14.5 Federation Contract Tests
 
-- Clarion absent degrades to fragile link with warning.
-- Clarion present with SEI creates opaque `clarion_entity` target.
-- Filigree issue closure does not resolve Charter verification gap.
+- Loomweave absent degrades to fragile link with warning.
+- Loomweave present with SEI creates opaque `loomweave_entity` target.
+- Filigree issue closure does not resolve Plainweave verification gap.
 - Waived Wardline finding remains visible in dossier.
-- Legis preflight envelope validates without access to Charter internals.
+- Legis preflight envelope validates without access to Plainweave internals.
 
 ## 15. Implementation Slices
 
@@ -763,22 +763,22 @@ contract-complete slices.
 | v0.1 | Local requirements, drafts, immutable versions, criteria, manual/proposed links, JSON CLI envelopes. | State machine tests; trace ontology validation; CLI JSON envelope fixtures. |
 | v0.2 | Verification records, stale detection on requirement changes, dossiers, MCP read tools. | Verification stale tests; dossier contract fixture; read MCP metadata. |
 | v0.3 | Baselines, path/test impact, context.md, MCP mutation tools. | Baseline status fixture; impact fixture; mutation idempotency tests. |
-| v0.4 | Clarion SEI and Filigree gap-to-work integrations. | Peer absence tests; SEI opaque-link tests; Filigree closure non-satisfaction test. |
+| v0.4 | Loomweave SEI and Filigree gap-to-work integrations. | Peer absence tests; SEI opaque-link tests; Filigree closure non-satisfaction test. |
 | v1.0 | Wardline links, Legis preflight envelope, stable federation fixtures. | Waived finding fixture; Legis envelope fixture; full federation diagnostics. |
 
 ## 16. ADR Priority
 
 Write these before implementation crosses each boundary:
 
-1. `ADR-001`: Charter authority boundary.
+1. `ADR-001`: Plainweave authority boundary.
 2. `ADR-002`: Requirement identity, drafts, and immutable versions.
 3. `ADR-003`: Trace-link ontology and authority states.
 4. `ADR-004`: CLI/MCP JSON envelope and error policy.
-5. `ADR-005`: Clarion SEI consumer contract.
+5. `ADR-005`: Loomweave SEI consumer contract.
 6. `ADR-006`: Legis preflight fact envelope.
 
 `ADR-003` is the highest-risk decision. If trace authority states are vague,
-Charter becomes an agent-generated traceability fiction machine.
+Plainweave becomes an agent-generated traceability fiction machine.
 
 ## 17. Remaining Risks
 

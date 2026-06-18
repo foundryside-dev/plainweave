@@ -5,9 +5,9 @@ import json
 from pathlib import Path
 from typing import Any
 
-from charter.envelopes import error_envelope, list_envelope, success_envelope
-from charter.errors import CharterError, ErrorCode
-from charter.models import (
+from plainweave.envelopes import error_envelope, list_envelope, success_envelope
+from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.models import (
     AcceptanceCriterion,
     Actor,
     Baseline,
@@ -34,18 +34,18 @@ from charter.models import (
     VerificationMethod,
     VerificationReason,
 )
-from charter.paths import charter_db_path, default_project_key, project_root
-from charter.service import CharterService
-from charter.store import connect, migrate, read_schema_meta
+from plainweave.paths import default_project_key, plainweave_db_path, project_root
+from plainweave.service import PlainweaveService
+from plainweave.store import connect, migrate, read_schema_meta
 
 
 def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
-    init_parser = subparsers.add_parser("init", help="Initialize a local Charter store.")
+    init_parser = subparsers.add_parser("init", help="Initialize a local Plainweave store.")
     init_parser.add_argument("--project-key", help="Stable project key for requirement IDs.")
     init_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
     init_parser.set_defaults(handler=handle_init)
 
-    doctor_parser = subparsers.add_parser("doctor", help="Report local Charter project health.")
+    doctor_parser = subparsers.add_parser("doctor", help="Report local Plainweave project health.")
     doctor_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
     doctor_parser.set_defaults(handler=handle_doctor)
 
@@ -227,13 +227,9 @@ def _register_baseline_commands(
 def _register_actor_commands(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
 ) -> None:
-    register_parser = subparsers.add_parser(
-        "register", help="Register an actor identity and its attestation kind."
-    )
+    register_parser = subparsers.add_parser("register", help="Register an actor identity and its attestation kind.")
     register_parser.add_argument("actor_id")
-    register_parser.add_argument(
-        "--kind", required=True, choices=["human", "agent", "attester"]
-    )
+    register_parser.add_argument("--kind", required=True, choices=["human", "agent", "attester"])
     register_parser.add_argument("--display-name", default=None)
     register_parser.add_argument("--actor", default="")
     register_parser.add_argument("--json", action="store_true")
@@ -293,10 +289,10 @@ def handle_init(args: argparse.Namespace) -> int:
     project_key = str(args.project_key or default_project_key(root))
     result = initialize_project(root, project_key)
     if bool(args.json):
-        print(json.dumps(success_envelope("weft.charter.init.v1", result, project=project_key)))
+        print(json.dumps(success_envelope("weft.plainweave.init.v1", result, project=project_key)))
     else:
         status = "created" if result["created"] else "already initialized"
-        print(f"Charter store {status}: {result['db_path']}")
+        print(f"Plainweave store {status}: {result['db_path']}")
     return 0
 
 
@@ -305,17 +301,17 @@ def handle_doctor(args: argparse.Namespace) -> int:
     result = inspect_project(root)
     project = result["project_key"] if isinstance(result["project_key"], str) else None
     if bool(args.json):
-        print(json.dumps(success_envelope("weft.charter.doctor.v1", result, project=project)))
+        print(json.dumps(success_envelope("weft.plainweave.doctor.v1", result, project=project)))
     else:
         status = "initialized" if result["initialized"] else "not initialized"
-        print(f"Charter project {status}: {result['db_path']}")
+        print(f"Plainweave project {status}: {result['db_path']}")
     return 0
 
 
 def handle_req_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement_draft.v1",
+        "weft.plainweave.requirement_draft.v1",
         lambda service: _draft_dict(
             service.create_requirement(str(args.title), str(args.statement), actor=str(args.actor))
         ),
@@ -325,7 +321,7 @@ def handle_req_add(args: argparse.Namespace) -> int:
 def handle_req_edit(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement_draft.v1",
+        "weft.plainweave.requirement_draft.v1",
         lambda service: _draft_dict(
             service.update_draft(
                 str(args.requirement_id),
@@ -343,7 +339,7 @@ def handle_req_edit(args: argparse.Namespace) -> int:
 def handle_req_show(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement.v1",
+        "weft.plainweave.requirement.v1",
         lambda service: _record_dict(service.get_requirement(str(args.requirement_id))),
     )
 
@@ -351,7 +347,7 @@ def handle_req_show(args: argparse.Namespace) -> int:
 def handle_req_search(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "weft.charter.requirement_list.v1",
+        "weft.plainweave.requirement_list.v1",
         lambda service: [_record_dict(item) for item in service.search_requirements(_optional_str(args.query))],
     )
 
@@ -359,7 +355,7 @@ def handle_req_search(args: argparse.Namespace) -> int:
 def handle_req_approve(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement_version.v1",
+        "weft.plainweave.requirement_version.v1",
         lambda service: _version_dict(
             service.approve_requirement(
                 str(args.requirement_id),
@@ -374,7 +370,7 @@ def handle_req_approve(args: argparse.Namespace) -> int:
 def handle_req_supersede(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement_version.v1",
+        "weft.plainweave.requirement_version.v1",
         lambda service: _version_dict(
             service.supersede_requirement(
                 str(args.requirement_id),
@@ -391,7 +387,7 @@ def handle_req_supersede(args: argparse.Namespace) -> int:
 def handle_req_deprecate(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement.v1",
+        "weft.plainweave.requirement.v1",
         lambda service: _record_dict(
             service.deprecate_requirement(
                 str(args.requirement_id),
@@ -406,7 +402,7 @@ def handle_req_deprecate(args: argparse.Namespace) -> int:
 def handle_req_reject(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement.v1",
+        "weft.plainweave.requirement.v1",
         lambda service: _record_dict(
             service.reject_requirement(
                 str(args.requirement_id),
@@ -421,7 +417,7 @@ def handle_req_reject(args: argparse.Namespace) -> int:
 def handle_criterion_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.acceptance_criterion.v1",
+        "weft.plainweave.acceptance_criterion.v1",
         lambda service: _criterion_dict(
             service.add_acceptance_criterion(
                 str(args.requirement_id),
@@ -436,7 +432,7 @@ def handle_criterion_add(args: argparse.Namespace) -> int:
 def handle_criterion_list(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "weft.charter.acceptance_criterion_list.v1",
+        "weft.plainweave.acceptance_criterion_list.v1",
         lambda service: [
             _criterion_dict(item)
             for item in service.list_acceptance_criteria(
@@ -450,7 +446,7 @@ def handle_criterion_list(args: argparse.Namespace) -> int:
 def handle_trace_propose(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.trace_link.v1",
+        "weft.plainweave.trace_link.v1",
         lambda service: _trace_dict(
             service.propose_trace_link(
                 TraceRef(str(args.from_kind), str(args.from_id)),
@@ -466,7 +462,7 @@ def handle_trace_propose(args: argparse.Namespace) -> int:
 def handle_trace_accept(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.trace_link.v1",
+        "weft.plainweave.trace_link.v1",
         lambda service: _trace_dict(service.accept_trace_link(str(args.link_id), actor=str(args.actor))),
     )
 
@@ -474,7 +470,7 @@ def handle_trace_accept(args: argparse.Namespace) -> int:
 def handle_trace_reject(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.trace_link.v1",
+        "weft.plainweave.trace_link.v1",
         lambda service: _trace_dict(
             service.reject_trace_link(str(args.link_id), actor=str(args.actor), reason=str(args.reason))
         ),
@@ -486,7 +482,7 @@ def handle_trace_list(args: argparse.Namespace) -> int:
     state = _optional_str(args.state)
     return _handle_service_list(
         args,
-        "weft.charter.trace_link_list.v1",
+        "weft.plainweave.trace_link_list.v1",
         lambda service: [_trace_dict(item) for item in service.trace_for(requirement_id=requirement_id, state=state)],
     )
 
@@ -494,7 +490,7 @@ def handle_trace_list(args: argparse.Namespace) -> int:
 def handle_baseline_create(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.baseline.v1",
+        "weft.plainweave.baseline.v1",
         lambda service: _baseline_dict(
             service.create_baseline(
                 str(args.name),
@@ -508,7 +504,7 @@ def handle_baseline_create(args: argparse.Namespace) -> int:
 def handle_baseline_show(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.baseline.v1",
+        "weft.plainweave.baseline.v1",
         lambda service: _baseline_dict(service.show_baseline(str(args.baseline_id))),
     )
 
@@ -516,7 +512,7 @@ def handle_baseline_show(args: argparse.Namespace) -> int:
 def handle_baseline_list(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "weft.charter.baseline_list.v1",
+        "weft.plainweave.baseline_list.v1",
         lambda service: [_baseline_dict(item) for item in service.list_baselines()],
     )
 
@@ -524,7 +520,7 @@ def handle_baseline_list(args: argparse.Namespace) -> int:
 def handle_baseline_diff(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.baseline_diff.v1",
+        "weft.plainweave.baseline_diff.v1",
         lambda service: _baseline_diff_dict(service.diff_baseline(str(args.baseline_id))),
     )
 
@@ -532,7 +528,7 @@ def handle_baseline_diff(args: argparse.Namespace) -> int:
 def handle_actor_register(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.actor.v1",
+        "weft.plainweave.actor.v1",
         lambda service: _actor_dict(
             service.register_actor(
                 str(args.actor_id),
@@ -547,7 +543,7 @@ def handle_actor_register(args: argparse.Namespace) -> int:
 def handle_verify_method_add(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.verification_method.v1",
+        "weft.plainweave.verification_method.v1",
         lambda service: _verification_method_dict(
             service.add_verification_method(
                 str(args.requirement_id),
@@ -562,7 +558,7 @@ def handle_verify_method_add(args: argparse.Namespace) -> int:
 def handle_verify_evidence_record(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.verification_evidence.v1",
+        "weft.plainweave.verification_evidence.v1",
         lambda service: _verification_evidence_dict(
             service.record_verification_evidence(
                 str(args.method_id),
@@ -577,7 +573,7 @@ def handle_verify_evidence_record(args: argparse.Namespace) -> int:
 def handle_verify_status(args: argparse.Namespace) -> int:
     return _handle_service_result(
         args,
-        "weft.charter.requirement_verification_status.v1",
+        "weft.plainweave.requirement_verification_status.v1",
         lambda service: _requirement_verification_status_dict(service.verification_status(str(args.requirement_id))),
     )
 
@@ -589,7 +585,7 @@ def handle_status_requirement(args: argparse.Namespace) -> int:
 def handle_status_unverified(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "weft.charter.requirement_verification_status_list.v1",
+        "weft.plainweave.requirement_verification_status_list.v1",
         lambda service: [
             _requirement_verification_status_dict(item) for item in service.list_unverified_requirements()
         ],
@@ -599,7 +595,7 @@ def handle_status_unverified(args: argparse.Namespace) -> int:
 def handle_status_stale(args: argparse.Namespace) -> int:
     return _handle_service_list(
         args,
-        "weft.charter.requirement_verification_status_list.v1",
+        "weft.plainweave.requirement_verification_status_list.v1",
         lambda service: [_requirement_verification_status_dict(item) for item in service.list_stale_requirements()],
     )
 
@@ -607,14 +603,14 @@ def handle_status_stale(args: argparse.Namespace) -> int:
 def handle_dossier(args: argparse.Namespace) -> int:
     try:
         dossier = _service().requirement_dossier(str(args.requirement_id))
-    except CharterError as exc:
+    except PlainweaveError as exc:
         return _emit_error(args, exc)
     dossier_data = _dossier_dict(dossier)
     if bool(args.json):
         print(
             json.dumps(
                 success_envelope(
-                    "weft.charter.requirement_dossier.v1",
+                    "weft.plainweave.requirement_dossier.v1",
                     dossier_data,
                     project=_current_project_key(),
                 )
@@ -626,7 +622,7 @@ def handle_dossier(args: argparse.Namespace) -> int:
 
 
 def initialize_project(root: Path, project_key: str) -> dict[str, object]:
-    db_path = charter_db_path(root)
+    db_path = plainweave_db_path(root)
     created = not db_path.exists()
     migrate(db_path, project_key=project_key)
     with connect(db_path) as connection:
@@ -640,7 +636,7 @@ def initialize_project(root: Path, project_key: str) -> dict[str, object]:
 
 
 def inspect_project(root: Path) -> dict[str, object]:
-    db_path = charter_db_path(root)
+    db_path = plainweave_db_path(root)
     if not db_path.exists():
         return {
             "initialized": False,
@@ -680,7 +676,7 @@ def _handle_service_list(
 def _handle_output(args: argparse.Namespace, action: Any) -> int:
     try:
         envelope = action(_service())
-    except CharterError as exc:
+    except PlainweaveError as exc:
         return _emit_error(args, exc)
     if bool(args.json):
         print(json.dumps(envelope))
@@ -689,7 +685,7 @@ def _handle_output(args: argparse.Namespace, action: Any) -> int:
     return 0
 
 
-def _emit_error(args: argparse.Namespace, exc: CharterError) -> int:
+def _emit_error(args: argparse.Namespace, exc: PlainweaveError) -> int:
     envelope = error_envelope(
         exc.code,
         exc.message,
@@ -705,17 +701,17 @@ def _emit_error(args: argparse.Namespace, exc: CharterError) -> int:
     return 4 if exc.code == ErrorCode.INTERNAL else 2
 
 
-def _service() -> CharterService:
-    db_path = charter_db_path(project_root())
+def _service() -> PlainweaveService:
+    db_path = plainweave_db_path(project_root())
     if not db_path.exists():
-        raise CharterError(
+        raise PlainweaveError(
             ErrorCode.NOT_FOUND,
-            "Charter project is not initialized",
+            "Plainweave project is not initialized",
             recoverable=True,
-            hint="Run `charter init` in this project and retry.",
+            hint="Run `plainweave init` in this project and retry.",
             details={"db_path": str(db_path)},
         )
-    return CharterService(db_path)
+    return PlainweaveService(db_path)
 
 
 def _current_project_key() -> str | None:

@@ -1,10 +1,10 @@
 {
-  "schema": "weft.charter.requirement_verification_status.v1",
+  "schema": "weft.plainweave.requirement_verification_status.v1",
   "ok": true,
   "data": {
     "requirement_id": "req-1",
     "id": "REQ-AUTH-0001",
-    "stable_id": "charter:req:AUTH:0001",
+    "stable_id": "plainweave:req:AUTH:0001",
     "current_version": 1,
     "status": "satisfied",
     "reasons": [
@@ -29,8 +29,8 @@
   "warnings": [],
   "meta": {
     "producer": {
-      "tool": "charter",
-      "version": "0.1.0"
+      "tool": "plainweave",
+      "version": "0.0.1"
     },
     "generated_at": "2026-06-05T09:07:00+10:00",
     "project": "AUTH"

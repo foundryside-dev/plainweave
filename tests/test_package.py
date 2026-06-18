@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import charter
+import plainweave
 
 
 def test_package_exposes_version() -> None:
-    assert charter.__version__ == "0.1.0"
+    assert plainweave.__version__ == "0.0.1"

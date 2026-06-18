@@ -1,20 +1,20 @@
-# Contributing to Charter
+# Contributing to Plainweave
 
-Charter is a local-first requirements and verification authority for the Loom
+Plainweave is a local-first requirements and verification authority for the Weft
 suite. It is early-stage; keep changes small, tested, and aligned with the
 authority boundary in `docs/concept.md`.
 
 ## Development setup
 
-Charter uses [uv](https://docs.astral.sh/uv/).
+Plainweave uses [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/foundryside-dev/charter
-cd charter
+git clone https://github.com/foundryside-dev/plainweave
+cd plainweave
 uv sync --group dev
 ```
 
-This installs Charter in a uv-managed virtual environment with `ruff`, `mypy`,
+This installs Plainweave in a uv-managed virtual environment with `ruff`, `mypy`,
 `pytest`, and coverage tooling.
 
 ## Code style
@@ -46,8 +46,8 @@ make ci
 - New behavior needs tests.
 - Agent-facing commands must support structured output once domain commands are
   introduced.
-- Do not move authority from Clarion, Filigree, Wardline, Legis, or future
-  Shuttle into Charter.
+- Do not move authority from Loomweave, Filigree, Wardline, Legis, or future
+  Shuttle into Plainweave.
 
 ## Commit messages
 
