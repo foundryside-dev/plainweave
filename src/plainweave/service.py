@@ -1016,6 +1016,20 @@ class PlainweaveService:
                 rows = connection.execute("select * from requirements order by display_id").fetchall()
             return [self._record_from_row(connection, row) for row in rows]
 
+    def requirement_preflight_profile(self, requirement_id: str) -> dict[str, object]:
+        with connect(self.db_path) as connection:
+            row = self._requirement_row(connection, requirement_id)
+            criticality = row["criticality"]
+            requirement_type = row["type"]
+            return {
+                "id": str(row["display_id"]),
+                "requirement_id": str(row["requirement_id"]),
+                "stable_id": str(row["stable_id"]),
+                "version": int(row["current_version"]),
+                "criticality": str(criticality) if criticality is not None else "unknown",
+                "type": str(requirement_type) if requirement_type is not None else "unknown",
+            }
+
     def _get_requirement(self, connection: sqlite3.Connection, requirement_id: str) -> RequirementRecord:
         return self._record_from_row(connection, self._requirement_row(connection, requirement_id))
 

@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from plainweave import __version__
 from plainweave.cli_commands import (
     _baseline_dict,
     _baseline_diff_dict,
@@ -23,6 +25,8 @@ from plainweave.service import PlainweaveService
 JsonObject = dict[str, object]
 ENTITY_TRACE_KINDS = {"loomweave_entity", "file_ref"}
 MAX_ENTITY_CONTEXT_REFS = 100
+PREFLIGHT_SCOPE_KINDS = {"pending_diff", "commit_range", "explicit_requirements", "project"}
+PREFLIGHT_SEVERITIES = {"info", "warn", "block_candidate"}
 
 MCP_TOOL_METADATA: dict[str, JsonObject] = {
     "plainweave_baseline_diff": {
@@ -55,6 +59,13 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
             "Returns local entity-to-intent context for peer planning; live peer identity resolution is "
             "explicit unavailable state."
         ),
+    },
+    "plainweave_preflight_facts_get": {
+        "name": "plainweave_preflight_facts_get",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": "Returns scoped Plainweave facts for Legis preflight; contains no governance verdicts.",
     },
     "plainweave_project_context_get": {
         "name": "plainweave_project_context_get",
@@ -116,6 +127,7 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.baseline.v1",
     "plainweave://contracts/weft.plainweave.baseline_diff.v1",
     "plainweave://contracts/weft.plainweave.entity_intent_context.v1",
+    "plainweave://contracts/weft.plainweave.preflight_facts.v1",
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
 ]
 
@@ -170,6 +182,36 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
         "freshness_states": ["current", "stale", "orphaned", "unknown", "unavailable"],
         "drift_states": ["not_detected", "stale", "orphaned", "unknown", "unavailable"],
         "authority_boundary": "Exact local trace matching only; Loomweave remains the identity authority.",
+    },
+    "plainweave://contracts/weft.plainweave.preflight_facts.v1": {
+        "contract": "weft.plainweave.preflight_facts.v1",
+        "required_sections": [
+            "producer",
+            "scope",
+            "generated_at",
+            "freshness",
+            "facts",
+            "summary",
+            "warnings",
+            "provenance",
+            "authority_boundary",
+        ],
+        "fact_kinds": [
+            "requirement_touched",
+            "requirement_nearby",
+            "requirement_verification_stale",
+            "requirement_verification_missing",
+            "baseline_drift",
+            "trace_gap",
+            "open_linked_work",
+            "active_finding_linked",
+            "waived_finding_linked",
+            "orphaned_entity_link",
+            "untraced_change",
+        ],
+        "severities": sorted(PREFLIGHT_SEVERITIES),
+        "freshness_states": ["current", "stale", "partial", "unavailable"],
+        "authority_boundary": "Plainweave emits facts only; Legis owns policy cells, audit, and enforcement.",
     },
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1": {
         "contract": "weft.plainweave.requirement_verification_status.v1",
@@ -312,6 +354,60 @@ class PlainweaveMcpSurface:
             }
 
         return self._result("weft.plainweave.entity_intent_context.v1", action)
+
+    def plainweave_preflight_facts_get(
+        self,
+        *,
+        scope_kind: str = "pending_diff",
+        base: str | None = None,
+        head: str | None = None,
+        requirement_ids: Sequence[str] | None = None,
+        entity_refs: Sequence[str] | None = None,
+        baseline_id: str | None = None,
+    ) -> JsonObject:
+        validation_error = self._validate_preflight_inputs(scope_kind, requirement_ids, entity_refs)
+        if validation_error is not None:
+            return validation_error
+
+        def action(service: PlainweaveService) -> JsonObject:
+            scoped_requirement_ids = self._preflight_requirement_ids(service, requirement_ids)
+            scoped_entity_refs = list(entity_refs or [])
+            facts: list[JsonObject] = []
+            warnings = self._preflight_warnings(scope_kind, scoped_requirement_ids)
+            scope = self._preflight_scope(
+                scope_kind,
+                base,
+                head,
+                scoped_requirement_ids,
+                scoped_entity_refs,
+                baseline_id,
+            )
+            for requirement_id in scoped_requirement_ids:
+                self._append_requirement_preflight_facts(service, facts, requirement_id)
+            if baseline_id is not None:
+                self._append_baseline_preflight_facts(service, facts, baseline_id, scoped_requirement_ids)
+            self._append_entity_preflight_facts(service, facts, scoped_entity_refs)
+            return {
+                "producer": {"tool": "plainweave", "version": __version__, "project": self._project_key()},
+                "scope": scope,
+                "generated_at": datetime.now(UTC).isoformat(),
+                "freshness": self._preflight_freshness(facts, warnings),
+                "facts": facts,
+                "summary": self._preflight_summary(facts),
+                "warnings": warnings,
+                "provenance": {
+                    "producer": "plainweave",
+                    "inputs": ["requirements", "verification_status", "trace_links", "baselines"],
+                },
+                "authority_boundary": {
+                    "local_only": True,
+                    "live_peer_calls": False,
+                    "governance_verdicts": False,
+                    "legis_policy_cells": "external",
+                },
+            }
+
+        return self._result("weft.plainweave.preflight_facts.v1", action)
 
     def plainweave_verification_status_get(self, requirement_id: str) -> JsonObject:
         return self._result(
@@ -465,6 +561,48 @@ class PlainweaveMcpSurface:
                 )
         return None
 
+    def _validate_preflight_inputs(
+        self,
+        scope_kind: str,
+        requirement_ids: Sequence[str] | None,
+        entity_refs: Sequence[str] | None,
+    ) -> JsonObject | None:
+        if scope_kind not in PREFLIGHT_SCOPE_KINDS:
+            return self._error(
+                PlainweaveError(
+                    ErrorCode.VALIDATION,
+                    "scope_kind is not supported",
+                    recoverable=True,
+                    hint=f"Use one of: {', '.join(sorted(PREFLIGHT_SCOPE_KINDS))}.",
+                    details={"scope_kind": scope_kind, "allowed": sorted(PREFLIGHT_SCOPE_KINDS)},
+                )
+            )
+        for field, values in (("requirement_ids", requirement_ids), ("entity_refs", entity_refs)):
+            if values is None:
+                continue
+            if len(values) > 100:
+                return self._error(
+                    PlainweaveError(
+                        ErrorCode.VALIDATION,
+                        f"{field} exceeds the maximum batch size",
+                        recoverable=True,
+                        hint=f"Pass at most 100 {field} per call.",
+                        details={field: len(values), "max": 100},
+                    )
+                )
+            for index, value in enumerate(values):
+                if not isinstance(value, str) or value == "":
+                    return self._error(
+                        PlainweaveError(
+                            ErrorCode.VALIDATION,
+                            f"{field} must contain non-empty strings",
+                            recoverable=True,
+                            hint=f"Remove empty {field} entries and retry.",
+                            details={"field": field, "index": index},
+                        )
+                    )
+        return None
+
     def _validate_filter(self, value: str, allowed: set[str], field: str) -> JsonObject | None:
         try:
             self._validate_choice(value, allowed, field)
@@ -483,6 +621,279 @@ class PlainweaveMcpSurface:
             return True
         prefix, separator, _version = value.rpartition("@")
         return separator == "@" and prefix in refs
+
+    def _preflight_requirement_ids(
+        self,
+        service: PlainweaveService,
+        requirement_ids: Sequence[str] | None,
+    ) -> list[str]:
+        if requirement_ids is not None:
+            return list(requirement_ids)
+        return [record.id for record in service.search_requirements()]
+
+    def _preflight_scope(
+        self,
+        scope_kind: str,
+        base: str | None,
+        head: str | None,
+        requirement_ids: Sequence[str],
+        entity_refs: Sequence[str],
+        baseline_id: str | None,
+    ) -> JsonObject:
+        scope: JsonObject = {
+            "kind": scope_kind,
+            "base": base,
+            "head": head,
+            "requirement_ids": list(requirement_ids),
+            "entity_refs": list(entity_refs),
+            "baseline_id": baseline_id,
+        }
+        return scope
+
+    def _preflight_warnings(self, scope_kind: str, requirement_ids: Sequence[str]) -> list[JsonObject]:
+        warnings: list[JsonObject] = []
+        if scope_kind in {"pending_diff", "commit_range"}:
+            warnings.append(
+                self._preflight_warning(
+                    "live_diff_resolution_unavailable",
+                    "Plainweave did not call Legis or Loomweave to resolve the live diff.",
+                )
+            )
+        if requirement_ids:
+            warnings.append(
+                self._preflight_warning(
+                    "goal_trail_unavailable",
+                    "Strategic goal nodes are not implemented in the local store.",
+                )
+            )
+        warnings.append(
+            self._preflight_warning(
+                "linked_work_facts_unavailable",
+                "Filigree linked-work facts are not joined by this local-only producer.",
+            )
+        )
+        warnings.append(
+            self._preflight_warning(
+                "finding_facts_unavailable",
+                "Wardline finding facts are not joined by this local-only producer.",
+            )
+        )
+        return warnings
+
+    def _preflight_warning(self, code: str, message: str) -> JsonObject:
+        return {
+            "code": code,
+            "severity": "info",
+            "message": message,
+            "freshness": "unavailable",
+            "provenance": {"producer": "plainweave", "inputs": []},
+        }
+
+    def _append_requirement_preflight_facts(
+        self,
+        service: PlainweaveService,
+        facts: list[JsonObject],
+        requirement_id: str,
+    ) -> None:
+        requirement = service.requirement_preflight_profile(requirement_id)
+        status = service.verification_status(requirement_id)
+        dossier = service.requirement_dossier(requirement_id)
+        self._append_preflight_fact(
+            facts,
+            kind="requirement_touched",
+            severity="info",
+            requirement=requirement,
+            message="Scoped requirement is included in the preflight context.",
+            evidence_refs=[str(requirement["id"])],
+            source={"kind": "scope", "id": str(requirement["id"])},
+            freshness="current",
+            inputs=["requirements"],
+        )
+        if status.status == "stale":
+            evidence_refs = [evidence.id for evidence in status.stale_evidence]
+            self._append_preflight_fact(
+                facts,
+                kind="requirement_verification_stale",
+                severity="warn",
+                requirement=requirement,
+                message="Scoped requirement has stale verification evidence.",
+                evidence_refs=evidence_refs,
+                source={"kind": "verification_status", "id": str(requirement["id"])},
+                freshness="current",
+                inputs=["verification_evidence"],
+            )
+        elif status.status == "unverified":
+            self._append_preflight_fact(
+                facts,
+                kind="requirement_verification_missing",
+                severity="warn",
+                requirement=requirement,
+                message="Scoped requirement has no current satisfying verification evidence.",
+                evidence_refs=[],
+                source={"kind": "verification_status", "id": str(requirement["id"])},
+                freshness="current",
+                inputs=["verification_methods", "verification_evidence"],
+            )
+        accepted_current = [
+            trace
+            for trace in dossier.traces.items
+            if trace.state == "accepted"
+            and trace.freshness == "current"
+            and trace.from_ref.kind in ENTITY_TRACE_KINDS
+            and trace.to_ref.kind == "requirement_version"
+            and trace.to_ref.id == f"{requirement['id']}@{requirement['version']}"
+        ]
+        if not accepted_current:
+            self._append_preflight_fact(
+                facts,
+                kind="trace_gap",
+                severity="warn",
+                requirement=requirement,
+                message="Scoped requirement has no accepted current code-entity trace.",
+                evidence_refs=[trace.id for trace in dossier.traces.items],
+                source={"kind": "trace_links", "id": str(requirement["id"])},
+                freshness="current",
+                inputs=["trace_links"],
+            )
+        stale_or_orphaned = [
+            trace
+            for trace in dossier.traces.items
+            if trace.from_ref.kind in ENTITY_TRACE_KINDS and trace.state in {"stale", "orphaned"}
+        ]
+        if stale_or_orphaned:
+            self._append_preflight_fact(
+                facts,
+                kind="orphaned_entity_link",
+                severity="warn",
+                requirement=requirement,
+                message="Scoped requirement has stale or orphaned entity trace links.",
+                evidence_refs=[trace.id for trace in stale_or_orphaned],
+                source={"kind": "trace_links", "id": str(requirement["id"])},
+                freshness="current",
+                inputs=["trace_links"],
+            )
+
+    def _append_baseline_preflight_facts(
+        self,
+        service: PlainweaveService,
+        facts: list[JsonObject],
+        baseline_id: str,
+        requirement_ids: Sequence[str],
+    ) -> None:
+        scoped = set(requirement_ids)
+        diff = service.diff_baseline(baseline_id)
+        for item in diff.items:
+            if item.id not in scoped and item.requirement_id not in scoped and item.stable_id not in scoped:
+                continue
+            if item.status == "unchanged":
+                continue
+            requirement = service.requirement_preflight_profile(item.requirement_id)
+            self._append_preflight_fact(
+                facts,
+                kind="baseline_drift",
+                severity="warn",
+                requirement=requirement,
+                message=f"Scoped requirement baseline state is {item.status}.",
+                evidence_refs=[baseline_id],
+                source={"kind": "baseline_diff", "id": baseline_id},
+                freshness="current",
+                inputs=["baselines", "baseline_members"],
+            )
+
+    def _append_entity_preflight_facts(
+        self,
+        service: PlainweaveService,
+        facts: list[JsonObject],
+        entity_refs: Sequence[str],
+    ) -> None:
+        traces = service.trace_for()
+        for entity_ref in entity_refs:
+            matching = [trace for trace in traces if self._trace_matches_entity_ref(trace, entity_ref)]
+            accepted_current = [
+                trace for trace in matching if trace.state == "accepted" and trace.freshness == "current"
+            ]
+            if not accepted_current:
+                self._append_preflight_fact(
+                    facts,
+                    kind="untraced_change",
+                    severity="block_candidate",
+                    requirement=self._unavailable_requirement_profile(),
+                    message="Scoped entity has no accepted current requirement trace.",
+                    evidence_refs=[entity_ref],
+                    source={"kind": "entity_ref", "id": entity_ref},
+                    freshness="partial",
+                    inputs=["trace_links"],
+                )
+
+    def _append_preflight_fact(
+        self,
+        facts: list[JsonObject],
+        *,
+        kind: str,
+        severity: str,
+        requirement: JsonObject,
+        message: str,
+        evidence_refs: Sequence[str],
+        source: JsonObject,
+        freshness: str,
+        inputs: Sequence[str],
+    ) -> None:
+        if severity not in PREFLIGHT_SEVERITIES:
+            raise PlainweaveError(
+                ErrorCode.INTERNAL,
+                "preflight severity is not supported",
+                recoverable=True,
+                hint="Refresh local Plainweave state and retry.",
+            )
+        facts.append(
+            {
+                "id": f"FACT-{len(facts) + 1:04d}",
+                "kind": kind,
+                "severity": severity,
+                "requirement": requirement,
+                "message": message,
+                "evidence_refs": list(evidence_refs),
+                "source": source,
+                "freshness": freshness,
+                "provenance": {"producer": "plainweave", "inputs": list(inputs)},
+            }
+        )
+
+    def _unavailable_requirement_profile(self) -> JsonObject:
+        return {
+            "id": None,
+            "requirement_id": None,
+            "stable_id": None,
+            "version": None,
+            "criticality": "unknown",
+            "type": "unknown",
+        }
+
+    def _preflight_freshness(self, facts: Sequence[JsonObject], warnings: Sequence[JsonObject]) -> str:
+        if any(fact["freshness"] in {"partial", "unavailable"} for fact in facts):
+            return "partial"
+        if any(warning["freshness"] == "unavailable" for warning in warnings):
+            return "partial"
+        if any(fact["freshness"] == "stale" for fact in facts):
+            return "stale"
+        return "current"
+
+    def _preflight_summary(self, facts: Sequence[JsonObject]) -> JsonObject:
+        severity_counts = {"info": 0, "warn": 0, "block_candidate": 0}
+        by_kind: dict[str, int] = {}
+        by_freshness: dict[str, int] = {}
+        for fact in facts:
+            severity = str(fact["severity"])
+            severity_counts[severity] += 1
+            kind = str(fact["kind"])
+            freshness = str(fact["freshness"])
+            by_kind[kind] = by_kind.get(kind, 0) + 1
+            by_freshness[freshness] = by_freshness.get(freshness, 0) + 1
+        summary: JsonObject = dict(severity_counts)
+        summary["facts"] = len(facts)
+        summary["by_kind"] = dict(sorted(by_kind.items()))
+        summary["by_freshness"] = dict(sorted(by_freshness.items()))
+        return summary
 
     def _entity_intent_context_item(
         self,

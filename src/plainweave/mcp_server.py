@@ -82,6 +82,25 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
         return active_surface.plainweave_entity_intent_context_get(entity_refs=entity_refs)
 
     @mcp.tool()
+    def plainweave_preflight_facts_get(
+        scope_kind: str = "pending_diff",
+        base: str | None = None,
+        head: str | None = None,
+        requirement_ids: list[str] | None = None,
+        entity_refs: list[str] | None = None,
+        baseline_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Read scoped Plainweave facts for Legis preflight. This tool returns no governance verdict."""
+        return active_surface.plainweave_preflight_facts_get(
+            scope_kind=scope_kind,
+            base=base,
+            head=head,
+            requirement_ids=requirement_ids,
+            entity_refs=entity_refs,
+            baseline_id=baseline_id,
+        )
+
+    @mcp.tool()
     def plainweave_verification_status_get(requirement_id: str) -> dict[str, Any]:
         """Read derived local verification status with reason codes and evidence freshness."""
         return active_surface.plainweave_verification_status_get(requirement_id)

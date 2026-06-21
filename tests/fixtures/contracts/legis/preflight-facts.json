@@ -1,0 +1,91 @@
+{
+  "schema": "weft.plainweave.preflight_facts.v1",
+  "producer": {
+    "tool": "plainweave",
+    "version": "0.0.1",
+    "project": "AUTH"
+  },
+  "scope": {
+    "kind": "pending_diff",
+    "base": "main",
+    "head": "WORKTREE",
+    "requirement_ids": [
+      "REQ-AUTH-0001"
+    ],
+    "entity_refs": [
+      "loomweave:eid:auth.validate_token"
+    ],
+    "baseline_id": "BASELINE-0001"
+  },
+  "generated_at": "2026-06-04T10:00:00+10:00",
+  "freshness": "partial",
+  "facts": [
+    {
+      "id": "FACT-0001",
+      "kind": "requirement_verification_stale",
+      "severity": "warn",
+      "requirement": {
+        "id": "REQ-AUTH-0001",
+        "requirement_id": "req-1",
+        "stable_id": "plainweave:req:AUTH:0001",
+        "version": 2,
+        "criticality": "high",
+        "type": "security"
+      },
+      "message": "Scoped requirement has stale verification evidence.",
+      "evidence_refs": [
+        "EVID-0001"
+      ],
+      "source": {
+        "kind": "verification_status",
+        "id": "REQ-AUTH-0001"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "verification_evidence"
+        ]
+      }
+    }
+  ],
+  "summary": {
+    "info": 0,
+    "warn": 1,
+    "block_candidate": 0,
+    "facts": 1,
+    "by_kind": {
+      "requirement_verification_stale": 1
+    },
+    "by_freshness": {
+      "current": 1
+    }
+  },
+  "warnings": [
+    {
+      "code": "live_diff_resolution_unavailable",
+      "severity": "info",
+      "message": "Plainweave did not call Legis or Loomweave to resolve the live diff.",
+      "freshness": "unavailable",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": []
+      }
+    }
+  ],
+  "provenance": {
+    "producer": "plainweave",
+    "inputs": [
+      "requirements",
+      "verification_status",
+      "trace_links",
+      "baselines"
+    ]
+  },
+  "authority_boundary": {
+    "local_only": true,
+    "live_peer_calls": false,
+    "governance_verdicts": false,
+    "legis_policy_cells": "external"
+  }
+}

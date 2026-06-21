@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, cast
 
+from plainweave import __version__
 from plainweave.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA, PlainweaveMcpSurface
 from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
@@ -63,6 +64,17 @@ def assert_error(envelope: dict[str, Any], code: str) -> None:
     assert envelope["error"]["hint"]
 
 
+def assert_no_verdict_keys(value: object) -> None:
+    if isinstance(value, dict):
+        forbidden = {"allow", "allowed", "block", "blocked", "verdict", "decision"}
+        assert forbidden.isdisjoint(value)
+        for item in value.values():
+            assert_no_verdict_keys(item)
+    elif isinstance(value, list):
+        for item in value:
+            assert_no_verdict_keys(item)
+
+
 def test_mcp_tool_inventory_is_agent_task_surface() -> None:
     expected_tools = {
         "plainweave_project_context_get",
@@ -74,6 +86,7 @@ def test_mcp_tool_inventory_is_agent_task_surface() -> None:
         "plainweave_baseline_get",
         "plainweave_baseline_diff",
         "plainweave_entity_intent_context_get",
+        "plainweave_preflight_facts_get",
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
     }
@@ -102,6 +115,7 @@ def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources
     assert all(capability["mutates"] is False for capability in context["capabilities"])
     assert "plainweave://contracts/weft.plainweave.requirement_dossier.v1" in context["contract_resources"]
     assert "plainweave://contracts/weft.plainweave.entity_intent_context.v1" in context["contract_resources"]
+    assert "plainweave://contracts/weft.plainweave.preflight_facts.v1" in context["contract_resources"]
 
 
 def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path) -> None:
@@ -138,10 +152,129 @@ def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path)
     assert data(surface.plainweave_baseline_get(baseline.id))["id"] == baseline.id
     assert data(surface.plainweave_baseline_diff(baseline.id))["summary"]["unchanged"] == 1
     assert data(surface.plainweave_entity_intent_context_get(entity_refs=["src/auth.py"]))["summary"]["resolved"] == 1
+    assert data(surface.plainweave_preflight_facts_get(requirement_ids=[requirement_id]))["summary"]["info"] >= 1
     assert data(surface.plainweave_verification_status_get(requirement_id))["status"] == "satisfied"
     assert data(surface.plainweave_verification_status_list(status_filter="unverified"))["items"] == []
 
     assert db_snapshot(service.db_path) == before
+
+
+def test_mcp_preflight_facts_returns_scoped_advisory_facts_without_verdicts(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    stale_requirement = approve_requirement(service, title="Rotate signing keys", key="approve-stale")
+    method = service.add_verification_method(
+        stale_requirement,
+        method="test",
+        target="tests/test_keys.py::test_rotation",
+        actor="human:john",
+    )
+    service.record_verification_evidence(
+        method.id,
+        status="passing",
+        evidence_ref="pytest:tests/test_keys.py::test_rotation",
+        actor="agent:codex",
+    )
+    service.create_trace_link(
+        TraceRef("loomweave_entity", "loomweave:eid:key-rotation"),
+        "satisfies",
+        TraceRef("requirement_version", f"{stale_requirement}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    baseline = service.create_baseline("Release 1.0", actor="human:john")
+    service.supersede_requirement(
+        stale_requirement,
+        title="Rotate signing keys promptly",
+        statement="The API shall rotate signing keys within the configured window.",
+        actor="human:john",
+        expected_version=1,
+        idempotency_key="supersede-stale",
+    )
+    missing_requirement = approve_requirement(service, title="Audit password resets", key="approve-missing")
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    envelope = surface.plainweave_preflight_facts_get(
+        scope_kind="pending_diff",
+        base="main",
+        head="WORKTREE",
+        requirement_ids=[stale_requirement, missing_requirement],
+        entity_refs=["loomweave:eid:key-rotation", "loomweave:eid:untraced"],
+        baseline_id=baseline.id,
+    )
+
+    assert envelope["schema"] == "weft.plainweave.preflight_facts.v1"
+    preflight = data(envelope)
+    assert set(preflight) == {
+        "producer",
+        "scope",
+        "generated_at",
+        "freshness",
+        "facts",
+        "summary",
+        "warnings",
+        "provenance",
+        "authority_boundary",
+    }
+    assert preflight["producer"] == {"tool": "plainweave", "version": __version__, "project": "AUTH"}
+    assert preflight["scope"] == {
+        "kind": "pending_diff",
+        "base": "main",
+        "head": "WORKTREE",
+        "requirement_ids": [stale_requirement, missing_requirement],
+        "entity_refs": ["loomweave:eid:key-rotation", "loomweave:eid:untraced"],
+        "baseline_id": baseline.id,
+    }
+    assert preflight["freshness"] == "partial"
+    assert preflight["authority_boundary"] == {
+        "local_only": True,
+        "live_peer_calls": False,
+        "governance_verdicts": False,
+        "legis_policy_cells": "external",
+    }
+    assert_no_verdict_keys(preflight)
+
+    facts = cast(list[dict[str, Any]], preflight["facts"])
+    fact_kinds = {fact["kind"] for fact in facts}
+    assert {
+        "requirement_touched",
+        "requirement_verification_stale",
+        "requirement_verification_missing",
+        "baseline_drift",
+        "trace_gap",
+        "untraced_change",
+    }.issubset(fact_kinds)
+    for fact in facts:
+        assert set(fact) == {
+            "id",
+            "kind",
+            "severity",
+            "requirement",
+            "message",
+            "evidence_refs",
+            "source",
+            "freshness",
+            "provenance",
+        }
+        assert fact["severity"] in {"info", "warn", "block_candidate"}
+        assert fact["freshness"] in {"current", "stale", "partial", "unavailable"}
+        assert fact["provenance"]["producer"] == "plainweave"
+        assert fact["source"]["kind"]
+
+    summary = cast(dict[str, Any], preflight["summary"])
+    assert summary["info"] == sum(1 for fact in facts if fact["severity"] == "info")
+    assert summary["warn"] == sum(1 for fact in facts if fact["severity"] == "warn")
+    assert summary["block_candidate"] == sum(1 for fact in facts if fact["severity"] == "block_candidate")
+    assert summary["facts"] == len(facts)
+    assert summary["by_kind"]["untraced_change"] == 1
+    assert summary["by_freshness"]["partial"] >= 1
+
+    warnings = cast(list[dict[str, Any]], preflight["warnings"])
+    assert {warning["code"] for warning in warnings} == {
+        "live_diff_resolution_unavailable",
+        "goal_trail_unavailable",
+        "linked_work_facts_unavailable",
+        "finding_facts_unavailable",
+    }
 
 
 def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Path) -> None:
@@ -280,6 +413,7 @@ def test_mcp_errors_use_plainweave_error_envelope(tmp_path: Path) -> None:
     assert_error(surface.plainweave_requirement_search(status_filter="done"), "VALIDATION")
     assert_error(surface.plainweave_trace_link_list(state_filter="missing"), "VALIDATION")
     assert_error(surface.plainweave_entity_intent_context_get(entity_refs=[]), "VALIDATION")
+    assert_error(surface.plainweave_preflight_facts_get(scope_kind="release_verdict"), "VALIDATION")
     assert_error(surface.plainweave_verification_status_list(status_filter="satisfied"), "VALIDATION")
 
 

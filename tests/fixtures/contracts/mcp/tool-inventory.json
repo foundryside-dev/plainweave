@@ -30,6 +30,13 @@
       "authority_boundary": "Returns local entity-to-intent context for peer planning; live peer identity resolution is explicit unavailable state."
     },
     {
+      "name": "plainweave_preflight_facts_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns scoped Plainweave facts for Legis preflight; contains no governance verdicts."
+    },
+    {
       "name": "plainweave_project_context_get",
       "mutates": false,
       "local_only": true,

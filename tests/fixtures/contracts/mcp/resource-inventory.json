@@ -7,6 +7,7 @@
     "plainweave://contracts/weft.plainweave.baseline.v1",
     "plainweave://contracts/weft.plainweave.baseline_diff.v1",
     "plainweave://contracts/weft.plainweave.entity_intent_context.v1",
+    "plainweave://contracts/weft.plainweave.preflight_facts.v1",
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1"
   ]
 }
