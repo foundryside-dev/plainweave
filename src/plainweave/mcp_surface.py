@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from plainweave.cli_commands import (
     _baseline_dict,
@@ -16,10 +16,13 @@ from plainweave.cli_commands import (
 )
 from plainweave.envelopes import error_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.models import TraceLink, TraceRef
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
 
 JsonObject = dict[str, object]
+ENTITY_TRACE_KINDS = {"loomweave_entity", "file_ref"}
+MAX_ENTITY_CONTEXT_REFS = 100
 
 MCP_TOOL_METADATA: dict[str, JsonObject] = {
     "plainweave_baseline_diff": {
@@ -42,6 +45,16 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
         "local_only": True,
         "peer_side_effects": [],
         "authority_boundary": "Lists local immutable baselines without creating or changing snapshots.",
+    },
+    "plainweave_entity_intent_context_get": {
+        "name": "plainweave_entity_intent_context_get",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Returns local entity-to-intent context for peer planning; live peer identity resolution is "
+            "explicit unavailable state."
+        ),
     },
     "plainweave_project_context_get": {
         "name": "plainweave_project_context_get",
@@ -102,6 +115,7 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.requirement_dossier.v1",
     "plainweave://contracts/weft.plainweave.baseline.v1",
     "plainweave://contracts/weft.plainweave.baseline_diff.v1",
+    "plainweave://contracts/weft.plainweave.entity_intent_context.v1",
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
 ]
 
@@ -138,6 +152,24 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
         "contract": "weft.plainweave.baseline_diff.v1",
         "statuses": ["unchanged", "changed", "missing_current", "new_since_baseline", "superseded_since_baseline"],
         "authority_boundary": "Diff facts only; not a release-readiness verdict.",
+    },
+    "plainweave://contracts/weft.plainweave.entity_intent_context.v1": {
+        "contract": "weft.plainweave.entity_intent_context.v1",
+        "required_sections": [
+            "input_ref",
+            "resolution",
+            "bindings",
+            "requirement_trail",
+            "orphan",
+            "freshness",
+            "drift",
+        ],
+        "resolution_states": ["resolved", "unresolved"],
+        "peer_resolution_states": ["unavailable"],
+        "orphan_states": ["bound", "stale_binding", "orphaned_trace", "pending_review", "unbound"],
+        "freshness_states": ["current", "stale", "orphaned", "unknown", "unavailable"],
+        "drift_states": ["not_detected", "stale", "orphaned", "unknown", "unavailable"],
+        "authority_boundary": "Exact local trace matching only; Loomweave remains the identity authority.",
     },
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1": {
         "contract": "weft.plainweave.requirement_verification_status.v1",
@@ -260,6 +292,27 @@ class PlainweaveMcpSurface:
             lambda service: _baseline_diff_dict(service.diff_baseline(baseline_id)),
         )
 
+    def plainweave_entity_intent_context_get(self, *, entity_refs: Sequence[str]) -> JsonObject:
+        validation_error = self._validate_entity_refs(entity_refs)
+        if validation_error is not None:
+            return validation_error
+
+        def action(service: PlainweaveService) -> JsonObject:
+            traces = service.trace_for()
+            items = [self._entity_intent_context_item(service, entity_ref, traces) for entity_ref in entity_refs]
+            return {
+                "items": items,
+                "summary": self._entity_intent_summary(items),
+                "authority_boundary": {
+                    "local_only": True,
+                    "live_peer_calls": False,
+                    "identity_authority": "loomweave",
+                    "drift_source": "local_trace_freshness",
+                },
+            }
+
+        return self._result("weft.plainweave.entity_intent_context.v1", action)
+
     def plainweave_verification_status_get(self, requirement_id: str) -> JsonObject:
         return self._result(
             "weft.plainweave.requirement_verification_status.v1",
@@ -378,6 +431,40 @@ class PlainweaveMcpSurface:
                 details={field: value, "allowed": sorted(allowed)},
             )
 
+    def _validate_entity_refs(self, entity_refs: Sequence[str]) -> JsonObject | None:
+        if len(entity_refs) == 0:
+            return self._error(
+                PlainweaveError(
+                    ErrorCode.VALIDATION,
+                    "entity_refs must contain at least one entity reference",
+                    recoverable=True,
+                    hint="Pass one or more Loomweave SEI or locator strings.",
+                    details={"entity_refs": []},
+                )
+            )
+        if len(entity_refs) > MAX_ENTITY_CONTEXT_REFS:
+            return self._error(
+                PlainweaveError(
+                    ErrorCode.VALIDATION,
+                    "entity_refs exceeds the maximum batch size",
+                    recoverable=True,
+                    hint=f"Pass at most {MAX_ENTITY_CONTEXT_REFS} entity refs per call.",
+                    details={"count": len(entity_refs), "max": MAX_ENTITY_CONTEXT_REFS},
+                )
+            )
+        for index, entity_ref in enumerate(entity_refs):
+            if not isinstance(entity_ref, str) or entity_ref == "":
+                return self._error(
+                    PlainweaveError(
+                        ErrorCode.VALIDATION,
+                        "entity_refs must be non-empty strings",
+                        recoverable=True,
+                        hint="Remove empty refs and retry with explicit Loomweave SEI or locator strings.",
+                        details={"index": index},
+                    )
+                )
+        return None
+
     def _validate_filter(self, value: str, allowed: set[str], field: str) -> JsonObject | None:
         try:
             self._validate_choice(value, allowed, field)
@@ -396,3 +483,248 @@ class PlainweaveMcpSurface:
             return True
         prefix, separator, _version = value.rpartition("@")
         return separator == "@" and prefix in refs
+
+    def _entity_intent_context_item(
+        self,
+        service: PlainweaveService,
+        entity_ref: str,
+        traces: Sequence[TraceLink],
+    ) -> JsonObject:
+        matching_traces = [trace for trace in traces if self._trace_matches_entity_ref(trace, entity_ref)]
+        binding_pairs = [self._entity_binding_context(service, trace) for trace in matching_traces]
+        requirement_ids = self._resolved_requirement_ids(binding_pairs)
+        return {
+            "input_ref": entity_ref,
+            "resolution": {
+                "state": "resolved" if matching_traces else "unresolved",
+                "matched_refs": self._matched_entity_refs(entity_ref, matching_traces),
+                "peer_resolution": self._peer_resolution_unavailable(),
+            },
+            "bindings": [binding for binding, _requirement_id in binding_pairs],
+            "requirement_trail": [
+                self._requirement_trail_entry(service, requirement_id, binding_pairs)
+                for requirement_id in requirement_ids
+            ],
+            "orphan": self._entity_orphan_context(matching_traces),
+            "freshness": self._entity_freshness_context(matching_traces),
+            "drift": self._entity_drift_context(matching_traces),
+        }
+
+    def _entity_binding_context(
+        self,
+        service: PlainweaveService,
+        trace: TraceLink,
+    ) -> tuple[JsonObject, str | None]:
+        requirement_ref = self._requirement_ref_for_trace(trace)
+        base: JsonObject = {
+            "trace": _trace_dict(trace),
+            "requirement_ref": self._trace_ref_dict(requirement_ref) if requirement_ref is not None else None,
+        }
+        if requirement_ref is None:
+            base.update(
+                {
+                    "requirement_resolution": {
+                        "state": "unavailable",
+                        "reason": "Trace link is not connected to a requirement ref.",
+                    },
+                    "requirement": None,
+                    "verification": {
+                        "state": "unavailable",
+                        "reason": "Verification requires a resolved requirement.",
+                    },
+                }
+            )
+            return base, None
+
+        requirement_id = self._requirement_id_from_ref(requirement_ref)
+        try:
+            requirement = service.get_requirement(requirement_id)
+            verification = service.verification_status(requirement_id)
+        except PlainweaveError as exc:
+            if exc.code != ErrorCode.NOT_FOUND:
+                raise
+            base.update(
+                {
+                    "requirement_resolution": {
+                        "state": "unresolved",
+                        "reason": "Local trace target does not resolve to a requirement.",
+                    },
+                    "requirement": None,
+                    "verification": {
+                        "state": "unavailable",
+                        "reason": "Verification requires a resolved requirement.",
+                    },
+                }
+            )
+            return base, None
+
+        base.update(
+            {
+                "requirement_resolution": {"state": "resolved"},
+                "requirement": _record_dict(requirement),
+                "verification": _requirement_verification_status_dict(verification),
+            }
+        )
+        return base, requirement.requirement_id
+
+    def _requirement_trail_entry(
+        self,
+        service: PlainweaveService,
+        requirement_id: str,
+        binding_pairs: Sequence[tuple[JsonObject, str | None]],
+    ) -> JsonObject:
+        requirement = service.get_requirement(requirement_id)
+        verification = service.verification_status(requirement_id)
+        return {
+            "requirement": _record_dict(requirement),
+            "via_bindings": [
+                cast(JsonObject, binding["trace"])
+                for binding, binding_requirement_id in binding_pairs
+                if binding_requirement_id == requirement_id
+            ],
+            "verification": _requirement_verification_status_dict(verification),
+            "goal_trail": {
+                "state": "unavailable",
+                "reason": "The strategic goal node layer is not implemented in the local store.",
+            },
+        }
+
+    def _entity_intent_summary(self, items: Sequence[JsonObject]) -> JsonObject:
+        resolved = 0
+        orphaned = 0
+        for item in items:
+            resolution = cast(JsonObject, item["resolution"])
+            orphan = cast(JsonObject, item["orphan"])
+            if resolution["state"] == "resolved":
+                resolved += 1
+            if orphan["is_orphan"] is True:
+                orphaned += 1
+        return {
+            "requested": len(items),
+            "resolved": resolved,
+            "unresolved": len(items) - resolved,
+            "peer_resolution_unavailable": len(items),
+            "orphaned": orphaned,
+        }
+
+    def _trace_matches_entity_ref(self, trace: TraceLink, entity_ref: str) -> bool:
+        return self._trace_ref_matches_entity_input(trace.from_ref, entity_ref) or self._trace_ref_matches_entity_input(
+            trace.to_ref,
+            entity_ref,
+        )
+
+    def _trace_ref_matches_entity_input(self, trace_ref: TraceRef, entity_ref: str) -> bool:
+        return trace_ref.kind in ENTITY_TRACE_KINDS and trace_ref.id == entity_ref
+
+    def _matched_entity_refs(self, entity_ref: str, traces: Sequence[TraceLink]) -> list[JsonObject]:
+        matches: list[JsonObject] = []
+        seen: set[tuple[str, str]] = set()
+        for trace in traces:
+            for trace_ref in (trace.from_ref, trace.to_ref):
+                key = (trace_ref.kind, trace_ref.id)
+                if self._trace_ref_matches_entity_input(trace_ref, entity_ref) and key not in seen:
+                    seen.add(key)
+                    matches.append({"kind": trace_ref.kind, "id": trace_ref.id, "match": "exact_local_trace"})
+        return matches
+
+    def _peer_resolution_unavailable(self) -> JsonObject:
+        return {
+            "state": "unavailable",
+            "peer": "loomweave",
+            "reason": "Plainweave does not make live peer identity calls from this local-only read surface.",
+        }
+
+    def _resolved_requirement_ids(self, binding_pairs: Sequence[tuple[JsonObject, str | None]]) -> list[str]:
+        requirement_ids: list[str] = []
+        seen: set[str] = set()
+        for _binding, requirement_id in binding_pairs:
+            if requirement_id is not None and requirement_id not in seen:
+                seen.add(requirement_id)
+                requirement_ids.append(requirement_id)
+        return requirement_ids
+
+    def _requirement_ref_for_trace(self, trace: TraceLink) -> TraceRef | None:
+        for trace_ref in (trace.to_ref, trace.from_ref):
+            if trace_ref.kind in {"requirement", "requirement_version"}:
+                return trace_ref
+        return None
+
+    def _requirement_id_from_ref(self, trace_ref: TraceRef) -> str:
+        if trace_ref.kind == "requirement_version":
+            requirement_id, separator, _version = trace_ref.id.rpartition("@")
+            if separator == "@":
+                return requirement_id
+        return trace_ref.id
+
+    def _trace_ref_dict(self, trace_ref: TraceRef) -> JsonObject:
+        return {"kind": trace_ref.kind, "id": trace_ref.id}
+
+    def _entity_orphan_context(self, traces: Sequence[TraceLink]) -> JsonObject:
+        accepted_bindings = sum(1 for trace in traces if trace.state == "accepted" and trace.freshness == "current")
+        nonaccepted_bindings = len(traces) - accepted_bindings
+        if accepted_bindings:
+            state = "bound"
+            is_orphan = False
+        elif any(trace.state == "orphaned" for trace in traces):
+            state = "orphaned_trace"
+            is_orphan = True
+        elif any(trace.state == "stale" or trace.freshness == "stale" for trace in traces):
+            state = "stale_binding"
+            is_orphan = True
+        elif any(trace.state == "proposed" for trace in traces):
+            state = "pending_review"
+            is_orphan = True
+        else:
+            state = "unbound"
+            is_orphan = True
+        return {
+            "state": state,
+            "is_orphan": is_orphan,
+            "accepted_bindings": accepted_bindings,
+            "nonaccepted_bindings": nonaccepted_bindings,
+        }
+
+    def _entity_freshness_context(self, traces: Sequence[TraceLink]) -> JsonObject:
+        if not traces:
+            return {
+                "state": "unavailable",
+                "source": "local_trace_freshness",
+                "trace_freshness": [],
+            }
+        values = [trace.freshness for trace in traces]
+        return {
+            "state": self._worst_freshness(values),
+            "source": "local_trace_freshness",
+            "trace_freshness": values,
+        }
+
+    def _entity_drift_context(self, traces: Sequence[TraceLink]) -> JsonObject:
+        if not traces:
+            return {
+                "state": "unavailable",
+                "source": "local_trace_freshness",
+                "reason": "No local binding and no live Loomweave drift check was made.",
+            }
+        freshness = self._worst_freshness([trace.freshness for trace in traces])
+        if freshness == "current":
+            return {
+                "state": "not_detected",
+                "source": "local_trace_freshness",
+                "reason": "All local trace freshness values are current.",
+            }
+        return {
+            "state": freshness,
+            "source": "local_trace_freshness",
+            "reason": "At least one local trace link reports non-current freshness.",
+        }
+
+    def _worst_freshness(self, values: Sequence[str]) -> str:
+        if "orphaned" in values:
+            return "orphaned"
+        if "stale" in values:
+            return "stale"
+        if "current" in values:
+            return "current"
+        if "unknown" in values:
+            return "unknown"
+        return "unknown"

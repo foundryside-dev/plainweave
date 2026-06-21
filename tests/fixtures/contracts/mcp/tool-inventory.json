@@ -23,6 +23,13 @@
       "authority_boundary": "Lists local immutable baselines without creating or changing snapshots."
     },
     {
+      "name": "plainweave_entity_intent_context_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local entity-to-intent context for peer planning; live peer identity resolution is explicit unavailable state."
+    },
+    {
       "name": "plainweave_project_context_get",
       "mutates": false,
       "local_only": true,

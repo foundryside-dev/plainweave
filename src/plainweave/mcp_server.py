@@ -77,6 +77,11 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
         return active_surface.plainweave_baseline_diff(baseline_id)
 
     @mcp.tool()
+    def plainweave_entity_intent_context_get(entity_refs: list[str]) -> dict[str, Any]:
+        """Read local entity intent context for peer planning. Live Loomweave resolution is unavailable state."""
+        return active_surface.plainweave_entity_intent_context_get(entity_refs=entity_refs)
+
+    @mcp.tool()
     def plainweave_verification_status_get(requirement_id: str) -> dict[str, Any]:
         """Read derived local verification status with reason codes and evidence freshness."""
         return active_surface.plainweave_verification_status_get(requirement_id)

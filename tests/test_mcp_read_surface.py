@@ -73,6 +73,7 @@ def test_mcp_tool_inventory_is_agent_task_surface() -> None:
         "plainweave_baseline_list",
         "plainweave_baseline_get",
         "plainweave_baseline_diff",
+        "plainweave_entity_intent_context_get",
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
     }
@@ -100,6 +101,7 @@ def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources
     assert context["authority_boundary"]["live_peer_calls"] is False
     assert all(capability["mutates"] is False for capability in context["capabilities"])
     assert "plainweave://contracts/weft.plainweave.requirement_dossier.v1" in context["contract_resources"]
+    assert "plainweave://contracts/weft.plainweave.entity_intent_context.v1" in context["contract_resources"]
 
 
 def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path) -> None:
@@ -135,10 +137,113 @@ def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path)
     assert data(surface.plainweave_baseline_list())["items"][0]["id"] == baseline.id
     assert data(surface.plainweave_baseline_get(baseline.id))["id"] == baseline.id
     assert data(surface.plainweave_baseline_diff(baseline.id))["summary"]["unchanged"] == 1
+    assert data(surface.plainweave_entity_intent_context_get(entity_refs=["src/auth.py"]))["summary"]["resolved"] == 1
     assert data(surface.plainweave_verification_status_get(requirement_id))["status"] == "satisfied"
     assert data(surface.plainweave_verification_status_list(status_filter="unverified"))["items"] == []
 
     assert db_snapshot(service.db_path) == before
+
+
+def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    satisfied_requirement = approve_requirement(
+        service,
+        title="Reject expired bearer tokens",
+        key="approve-satisfied",
+    )
+    method = service.add_verification_method(
+        satisfied_requirement,
+        method="test",
+        target="tests/test_auth.py::test_expired",
+        actor="human:john",
+    )
+    service.record_verification_evidence(
+        method.id,
+        status="passing",
+        evidence_ref="pytest:tests/test_auth.py::test_expired",
+        actor="agent:codex",
+    )
+    stale_requirement = approve_requirement(
+        service,
+        title="Rotate signing keys",
+        statement="The API shall rotate signing keys.",
+        criterion="Rotated keys are accepted.",
+        key="approve-stale",
+    )
+    sei_ref = "loomweave:eid:auth.validate_token"
+    service.create_trace_link(
+        TraceRef("loomweave_entity", sei_ref),
+        "satisfies",
+        TraceRef("requirement_version", f"{satisfied_requirement}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    stale_link = service.create_trace_link(
+        TraceRef("file_ref", "src/auth.py"),
+        "fragile_satisfies",
+        TraceRef("requirement_version", f"{stale_requirement}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    service.mark_trace_stale(stale_link.id, actor="agent:codex", reason="content changed")
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    context = data(
+        surface.plainweave_entity_intent_context_get(
+            entity_refs=[sei_ref, "src/auth.py", "loomweave:eid:missing"],
+        )
+    )
+
+    assert context["authority_boundary"] == {
+        "local_only": True,
+        "live_peer_calls": False,
+        "identity_authority": "loomweave",
+        "drift_source": "local_trace_freshness",
+    }
+    assert context["summary"] == {
+        "requested": 3,
+        "resolved": 2,
+        "unresolved": 1,
+        "peer_resolution_unavailable": 3,
+        "orphaned": 2,
+    }
+    items = {item["input_ref"]: item for item in context["items"]}
+
+    resolved = items[sei_ref]
+    assert resolved["resolution"]["state"] == "resolved"
+    assert resolved["resolution"]["matched_refs"] == [
+        {"kind": "loomweave_entity", "id": sei_ref, "match": "exact_local_trace"}
+    ]
+    assert resolved["resolution"]["peer_resolution"]["state"] == "unavailable"
+    assert resolved["bindings"][0]["trace"]["from"]["id"] == sei_ref
+    assert resolved["bindings"][0]["requirement"]["id"] == "REQ-AUTH-0001"
+    assert resolved["bindings"][0]["verification"]["status"] == "satisfied"
+    assert resolved["requirement_trail"][0]["goal_trail"]["state"] == "unavailable"
+    assert resolved["orphan"] == {
+        "state": "bound",
+        "is_orphan": False,
+        "accepted_bindings": 1,
+        "nonaccepted_bindings": 0,
+    }
+    assert resolved["freshness"]["state"] == "current"
+    assert resolved["drift"]["state"] == "not_detected"
+
+    stale = items["src/auth.py"]
+    assert stale["resolution"]["state"] == "resolved"
+    assert stale["orphan"]["state"] == "stale_binding"
+    assert stale["orphan"]["is_orphan"] is True
+    assert stale["freshness"]["state"] == "stale"
+    assert stale["drift"]["state"] == "stale"
+
+    missing = items["loomweave:eid:missing"]
+    assert missing["resolution"]["state"] == "unresolved"
+    assert missing["resolution"]["peer_resolution"]["state"] == "unavailable"
+    assert missing["bindings"] == []
+    assert missing["requirement_trail"] == []
+    assert missing["orphan"]["state"] == "unbound"
+    assert missing["orphan"]["is_orphan"] is True
+    assert missing["freshness"]["state"] == "unavailable"
+    assert missing["drift"]["state"] == "unavailable"
 
 
 def test_mcp_list_tools_are_paginated_and_filterable(tmp_path: Path) -> None:
@@ -174,6 +279,7 @@ def test_mcp_errors_use_plainweave_error_envelope(tmp_path: Path) -> None:
     assert_error(surface.plainweave_requirement_get("REQ-AUTH-4040"), "NOT_FOUND")
     assert_error(surface.plainweave_requirement_search(status_filter="done"), "VALIDATION")
     assert_error(surface.plainweave_trace_link_list(state_filter="missing"), "VALIDATION")
+    assert_error(surface.plainweave_entity_intent_context_get(entity_refs=[]), "VALIDATION")
     assert_error(surface.plainweave_verification_status_list(status_filter="satisfied"), "VALIDATION")
 
 

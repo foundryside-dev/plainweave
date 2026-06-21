@@ -329,6 +329,7 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
         "plainweave_baseline_list",
         "plainweave_baseline_get",
         "plainweave_baseline_diff",
+        "plainweave_entity_intent_context_get",
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
     }
@@ -353,6 +354,7 @@ def test_mcp_resource_inventory_fixture_contract() -> None:
         "plainweave://contracts/weft.plainweave.requirement_dossier.v1",
         "plainweave://contracts/weft.plainweave.baseline.v1",
         "plainweave://contracts/weft.plainweave.baseline_diff.v1",
+        "plainweave://contracts/weft.plainweave.entity_intent_context.v1",
         "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
     ]
 
