@@ -9,7 +9,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
 
+from plainweave.bindings import SeiBinding
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.intent_graph import CorpusEntry, IntentLevel, IntentNode, Trace
 from plainweave.models import (
     AcceptanceCriterion,
     Actor,
@@ -17,6 +19,7 @@ from plainweave.models import (
     BaselineDiff,
     BaselineDiffItem,
     BaselineMember,
+    CodeEntity,
     DossierAcceptanceCriteriaSection,
     DossierAuthoritySummary,
     DossierBaselineExposure,
@@ -26,6 +29,8 @@ from plainweave.models import (
     DossierPeerFacts,
     DossierRequirementSection,
     DossierTraceSection,
+    IntentEdge,
+    IntentGoal,
     RequirementDossier,
     RequirementDraft,
     RequirementRecord,
@@ -988,6 +993,371 @@ class PlainweaveService:
             rows = connection.execute(f"select * from trace_links{where} order by link_id", params).fetchall()
             return [self._trace_from_row(row) for row in rows]
 
+    def create_goal(self, title: str, statement: str, *, actor: str) -> IntentGoal:
+        self._require_actor(actor)
+        if not title:
+            raise self._error(ErrorCode.VALIDATION, "goal title is required")
+        if not statement:
+            raise self._error(ErrorCode.VALIDATION, "goal statement is required")
+        now = self._now()
+        with connect(self.db_path) as connection:
+            project_key = self._project_key(connection)
+            number = self._next_goal_number(connection)
+            goal_id = f"goal-{number}"
+            display_id = f"GOAL-{project_key}-{number:04d}"
+            stable_id = f"plainweave:goal:{project_key}:{number:04d}"
+            connection.execute(
+                """
+                insert into intent_goals(
+                  goal_id, display_id, stable_id, title, statement, status,
+                  created_by, created_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (goal_id, display_id, stable_id, title, statement, "active", actor, now, now),
+            )
+            self._record_event(
+                connection,
+                "intent_goal_created",
+                "intent_goal",
+                goal_id,
+                actor,
+                None,
+                {"id": display_id},
+                now,
+            )
+            connection.commit()
+            return IntentGoal(goal_id, display_id, stable_id, title, statement, "active", actor, now)
+
+    def link_goal_to_requirement(self, goal_id: str, requirement_id: str, *, actor: str) -> IntentEdge:
+        self._require_actor(actor)
+        now = self._now()
+        with connect(self.db_path) as connection:
+            goal = self._goal_row(connection, goal_id)
+            requirement = self._requirement_row(connection, requirement_id)
+            canonical_goal_id = str(goal["goal_id"])
+            canonical_requirement_id = str(requirement["requirement_id"])
+            existing = connection.execute(
+                """
+                select * from intent_edges
+                where goal_id = ? and requirement_id = ? and relation = ?
+                """,
+                (canonical_goal_id, canonical_requirement_id, "justifies"),
+            ).fetchone()
+            if existing is None:
+                edge_id = f"IEDGE-{self._next_intent_edge_number(connection):04d}"
+                connection.execute(
+                    """
+                    insert into intent_edges(
+                      edge_id, goal_id, requirement_id, relation, authority,
+                      freshness, created_by, created_at, updated_at
+                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        edge_id,
+                        canonical_goal_id,
+                        canonical_requirement_id,
+                        "justifies",
+                        "accepted",
+                        "current",
+                        actor,
+                        now,
+                        now,
+                    ),
+                )
+                self._record_event(
+                    connection,
+                    "intent_edge_created",
+                    "intent_edge",
+                    edge_id,
+                    actor,
+                    None,
+                    {"goal_id": canonical_goal_id, "requirement_id": canonical_requirement_id},
+                    now,
+                )
+                connection.commit()
+                row = self._intent_edge_row(connection, edge_id)
+            else:
+                row = existing
+            return self._intent_edge_from_row(row)
+
+    def record_code_entity(
+        self,
+        entity_id: str,
+        *,
+        entity_kind: str,
+        actor: str,
+        display_name: str | None = None,
+        content_hash: str | None = None,
+        public: bool = True,
+        source: str = "loomweave_catalog",
+        freshness: str = "current",
+    ) -> CodeEntity:
+        self._require_actor(actor)
+        if not entity_id:
+            raise self._error(ErrorCode.VALIDATION, "entity_id is required")
+        if not entity_kind:
+            raise self._error(ErrorCode.VALIDATION, "entity_kind is required")
+        now = self._now()
+        with connect(self.db_path) as connection:
+            connection.execute(
+                """
+                insert into code_entities(
+                  entity_id, entity_kind, display_name, content_hash, public,
+                  source, freshness, recorded_by, recorded_at, updated_at
+                ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict(entity_id) do update set
+                  entity_kind = excluded.entity_kind,
+                  display_name = excluded.display_name,
+                  content_hash = excluded.content_hash,
+                  public = excluded.public,
+                  source = excluded.source,
+                  freshness = excluded.freshness,
+                  recorded_by = excluded.recorded_by,
+                  updated_at = excluded.updated_at
+                """,
+                (
+                    entity_id,
+                    entity_kind,
+                    display_name,
+                    content_hash,
+                    1 if public else 0,
+                    source,
+                    freshness,
+                    actor,
+                    now,
+                    now,
+                ),
+            )
+            self._record_event(
+                connection,
+                "code_entity_recorded",
+                "code_entity",
+                entity_id,
+                actor,
+                None,
+                {"entity_kind": entity_kind, "source": source, "public": public},
+                now,
+            )
+            connection.commit()
+            return self._code_entity_from_row(self._code_entity_row(connection, entity_id))
+
+    def bind_sei_to_requirement(
+        self,
+        entity_id: str,
+        requirement_id: str,
+        *,
+        actor: str,
+        content_hash_at_attach: str | None = None,
+        entity_kind: str = "loomweave_entity",
+        provenance: dict[str, Any] | None = None,
+    ) -> SeiBinding:
+        self._require_actor(actor)
+        if not entity_id:
+            raise self._error(ErrorCode.VALIDATION, "entity_id is required")
+        if not entity_kind:
+            raise self._error(ErrorCode.VALIDATION, "entity_kind is required")
+        now = self._now()
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            canonical_requirement_id = str(requirement["requirement_id"])
+            entity = connection.execute("select * from code_entities where entity_id = ?", (entity_id,)).fetchone()
+            if entity is None:
+                connection.execute(
+                    """
+                    insert into code_entities(
+                      entity_id, entity_kind, display_name, content_hash, public,
+                      source, freshness, recorded_by, recorded_at, updated_at
+                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        entity_id,
+                        entity_kind,
+                        None,
+                        content_hash_at_attach,
+                        1,
+                        "authoring_time_bind",
+                        "unknown" if content_hash_at_attach is None else "current",
+                        actor,
+                        now,
+                        now,
+                    ),
+                )
+            existing = connection.execute(
+                """
+                select * from entity_associations
+                where entity_id = ? and requirement_id = ? and relation = ?
+                """,
+                (entity_id, canonical_requirement_id, "satisfies"),
+            ).fetchone()
+            if existing is None:
+                association_id = f"EASSOC-{self._next_association_number(connection):04d}"
+                connection.execute(
+                    """
+                    insert into entity_associations(
+                      association_id, entity_id, entity_kind, requirement_id, relation,
+                      content_hash_at_attach, drift_status, freshness, bound_by, bound_at,
+                      provenance_json
+                    ) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        association_id,
+                        entity_id,
+                        entity_kind,
+                        canonical_requirement_id,
+                        "satisfies",
+                        content_hash_at_attach,
+                        "unknown" if content_hash_at_attach is None else "attached",
+                        "unknown" if content_hash_at_attach is None else "current",
+                        actor,
+                        now,
+                        json.dumps(provenance or {}, sort_keys=True),
+                    ),
+                )
+                self._record_event(
+                    connection,
+                    "sei_binding_created",
+                    "entity_association",
+                    association_id,
+                    actor,
+                    None,
+                    {"entity_id": entity_id, "requirement_id": canonical_requirement_id},
+                    now,
+                )
+                connection.commit()
+                row = self._association_row(connection, association_id)
+            else:
+                row = existing
+            return self._binding_from_row(row)
+
+    def list_sei_bindings(self, requirement_id: str | None = None) -> list[SeiBinding]:
+        with connect(self.db_path) as connection:
+            params: tuple[object, ...]
+            if requirement_id is None:
+                rows = connection.execute(
+                    "select * from entity_associations order by entity_id, requirement_id"
+                ).fetchall()
+            else:
+                requirement = self._requirement_row(connection, requirement_id)
+                params = (str(requirement["requirement_id"]),)
+                rows = connection.execute(
+                    """
+                    select * from entity_associations
+                    where requirement_id = ?
+                    order by entity_id, requirement_id
+                    """,
+                    params,
+                ).fetchall()
+            return [self._binding_from_row(row) for row in rows]
+
+    def is_binding_drifted(self, binding: SeiBinding, current_content_hash: str) -> bool:
+        if binding.content_hash_at_attach is None:
+            return False
+        return binding.content_hash_at_attach != current_content_hash
+
+    def intent_orphans(self, level: IntentLevel) -> list[IntentNode]:
+        with connect(self.db_path) as connection:
+            if level == IntentLevel.CODE:
+                rows = connection.execute(
+                    """
+                    select c.entity_id
+                    from code_entities c
+                    left join entity_associations a on a.entity_id = c.entity_id
+                    where c.public = 1 and a.association_id is null
+                    order by c.entity_id
+                    """
+                ).fetchall()
+                return [IntentNode(IntentLevel.CODE, str(row["entity_id"])) for row in rows]
+            if level == IntentLevel.REQUIREMENT:
+                rows = connection.execute(
+                    """
+                    select r.requirement_id
+                    from requirements r
+                    left join intent_edges e on e.requirement_id = r.requirement_id
+                    where r.status in ('draft', 'approved') and e.edge_id is null
+                    order by r.display_id
+                    """
+                ).fetchall()
+                return [IntentNode(IntentLevel.REQUIREMENT, str(row["requirement_id"])) for row in rows]
+            rows = connection.execute(
+                """
+                select g.goal_id
+                from intent_goals g
+                left join intent_edges e on e.goal_id = g.goal_id
+                where g.status = 'active' and e.edge_id is null
+                order by g.display_id
+                """
+            ).fetchall()
+            return [IntentNode(IntentLevel.GOAL, str(row["goal_id"])) for row in rows]
+
+    def intent_trace(self, node: IntentNode) -> Trace:
+        with connect(self.db_path) as connection:
+            if node.level == IntentLevel.CODE:
+                requirement_ids = self._requirement_ids_for_entity(connection, node.node_id)
+                up_nodes = self._dedupe_nodes(
+                    [
+                        *(IntentNode(IntentLevel.REQUIREMENT, requirement_id) for requirement_id in requirement_ids),
+                        *(
+                            IntentNode(IntentLevel.GOAL, goal_id)
+                            for requirement_id in requirement_ids
+                            for goal_id in self._goal_ids_for_requirement(connection, requirement_id)
+                        ),
+                    ]
+                )
+                return Trace(node, tuple(up_nodes), ())
+            if node.level == IntentLevel.REQUIREMENT:
+                requirement = self._requirement_row(connection, node.node_id)
+                requirement_id = str(requirement["requirement_id"])
+                up_tuple = tuple(
+                    IntentNode(IntentLevel.GOAL, goal_id)
+                    for goal_id in self._goal_ids_for_requirement(connection, requirement_id)
+                )
+                down_tuple = tuple(
+                    IntentNode(IntentLevel.CODE, entity_id)
+                    for entity_id in self._entity_ids_for_requirement(connection, requirement_id)
+                )
+                return Trace(node, up_tuple, down_tuple)
+            goal = self._goal_row(connection, node.node_id)
+            goal_id = str(goal["goal_id"])
+            requirement_ids = self._requirement_ids_for_goal(connection, goal_id)
+            down_nodes = self._dedupe_nodes(
+                [
+                    *(IntentNode(IntentLevel.REQUIREMENT, requirement_id) for requirement_id in requirement_ids),
+                    *(
+                        IntentNode(IntentLevel.CODE, entity_id)
+                        for requirement_id in requirement_ids
+                        for entity_id in self._entity_ids_for_requirement(connection, requirement_id)
+                    ),
+                ]
+            )
+            return Trace(node, (), tuple(down_nodes))
+
+    def intent_corpus(self) -> list[CorpusEntry]:
+        with connect(self.db_path) as connection:
+            rows = connection.execute(
+                """
+                select requirement_id from requirements
+                where status in ('draft', 'approved')
+                order by display_id
+                """
+            ).fetchall()
+            entries: list[CorpusEntry] = []
+            for row in rows:
+                requirement_id = str(row["requirement_id"])
+                entries.append(
+                    CorpusEntry(
+                        IntentNode(IntentLevel.REQUIREMENT, requirement_id),
+                        tuple(
+                            IntentNode(IntentLevel.GOAL, goal_id)
+                            for goal_id in self._goal_ids_for_requirement(connection, requirement_id)
+                        ),
+                        tuple(
+                            IntentNode(IntentLevel.CODE, entity_id)
+                            for entity_id in self._entity_ids_for_requirement(connection, requirement_id)
+                        ),
+                    )
+                )
+            return entries
+
     def get_requirement(self, requirement_id: str) -> RequirementRecord:
         with connect(self.db_path) as connection:
             return self._get_requirement(connection, requirement_id)
@@ -1536,6 +1906,18 @@ class PlainweaveService:
         count = int(connection.execute("select count(*) from requirements").fetchone()[0])
         return count + 1
 
+    def _next_goal_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from intent_goals").fetchone()[0])
+        return count + 1
+
+    def _next_intent_edge_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from intent_edges").fetchone()[0])
+        return count + 1
+
+    def _next_association_number(self, connection: sqlite3.Connection) -> int:
+        count = int(connection.execute("select count(*) from entity_associations").fetchone()[0])
+        return count + 1
+
     def _next_criterion_number(self, connection: sqlite3.Connection) -> int:
         count = int(connection.execute("select count(*) from acceptance_criteria").fetchone()[0])
         return count + 1
@@ -1858,6 +2240,141 @@ class PlainweaveService:
             row["accepted_by"] if isinstance(row["accepted_by"], str) else None,
             snapshot if isinstance(snapshot, dict) else {},
         )
+
+    def _goal_row(self, connection: sqlite3.Connection, goal_id: str) -> sqlite3.Row:
+        row = connection.execute(
+            "select * from intent_goals where goal_id = ? or display_id = ? or stable_id = ?",
+            (goal_id, goal_id, goal_id),
+        ).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"goal not found: {goal_id}")
+        return cast(sqlite3.Row, row)
+
+    def _intent_edge_row(self, connection: sqlite3.Connection, edge_id: str) -> sqlite3.Row:
+        row = connection.execute("select * from intent_edges where edge_id = ?", (edge_id,)).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"intent edge not found: {edge_id}")
+        return cast(sqlite3.Row, row)
+
+    def _association_row(self, connection: sqlite3.Connection, association_id: str) -> sqlite3.Row:
+        row = connection.execute(
+            "select * from entity_associations where association_id = ?",
+            (association_id,),
+        ).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"entity association not found: {association_id}")
+        return cast(sqlite3.Row, row)
+
+    def _code_entity_row(self, connection: sqlite3.Connection, entity_id: str) -> sqlite3.Row:
+        row = connection.execute("select * from code_entities where entity_id = ?", (entity_id,)).fetchone()
+        if row is None:
+            raise self._error(ErrorCode.NOT_FOUND, f"code entity not found: {entity_id}")
+        return cast(sqlite3.Row, row)
+
+    def _goal_from_row(self, row: sqlite3.Row) -> IntentGoal:
+        return IntentGoal(
+            str(row["goal_id"]),
+            str(row["display_id"]),
+            str(row["stable_id"]),
+            str(row["title"]),
+            str(row["statement"]),
+            str(row["status"]),
+            str(row["created_by"]),
+            str(row["created_at"]),
+        )
+
+    def _intent_edge_from_row(self, row: sqlite3.Row) -> IntentEdge:
+        return IntentEdge(
+            str(row["edge_id"]),
+            str(row["goal_id"]),
+            str(row["requirement_id"]),
+            str(row["relation"]),
+            str(row["authority"]),
+            str(row["freshness"]),
+            str(row["created_by"]),
+            str(row["created_at"]),
+        )
+
+    def _code_entity_from_row(self, row: sqlite3.Row) -> CodeEntity:
+        return CodeEntity(
+            str(row["entity_id"]),
+            str(row["entity_kind"]),
+            row["display_name"] if isinstance(row["display_name"], str) else None,
+            row["content_hash"] if isinstance(row["content_hash"], str) else None,
+            bool(row["public"]),
+            str(row["source"]),
+            str(row["freshness"]),
+            str(row["recorded_by"]),
+            str(row["recorded_at"]),
+        )
+
+    def _binding_from_row(self, row: sqlite3.Row) -> SeiBinding:
+        provenance = json.loads(str(row["provenance_json"]))
+        return SeiBinding(
+            str(row["entity_id"]),
+            str(row["entity_kind"]),
+            str(row["requirement_id"]),
+            row["content_hash_at_attach"] if isinstance(row["content_hash_at_attach"], str) else None,
+            str(row["drift_status"]),
+            str(row["freshness"]),
+            str(row["bound_by"]),
+            str(row["bound_at"]),
+            provenance if isinstance(provenance, dict) else {},
+        )
+
+    def _goal_ids_for_requirement(self, connection: sqlite3.Connection, requirement_id: str) -> list[str]:
+        rows = connection.execute(
+            """
+            select goal_id from intent_edges
+            where requirement_id = ? and relation = ? and freshness = ?
+            order by goal_id
+            """,
+            (requirement_id, "justifies", "current"),
+        ).fetchall()
+        return [str(row["goal_id"]) for row in rows]
+
+    def _requirement_ids_for_goal(self, connection: sqlite3.Connection, goal_id: str) -> list[str]:
+        rows = connection.execute(
+            """
+            select requirement_id from intent_edges
+            where goal_id = ? and relation = ? and freshness = ?
+            order by requirement_id
+            """,
+            (goal_id, "justifies", "current"),
+        ).fetchall()
+        return [str(row["requirement_id"]) for row in rows]
+
+    def _requirement_ids_for_entity(self, connection: sqlite3.Connection, entity_id: str) -> list[str]:
+        rows = connection.execute(
+            """
+            select requirement_id from entity_associations
+            where entity_id = ? and relation = ?
+            order by requirement_id
+            """,
+            (entity_id, "satisfies"),
+        ).fetchall()
+        return [str(row["requirement_id"]) for row in rows]
+
+    def _entity_ids_for_requirement(self, connection: sqlite3.Connection, requirement_id: str) -> list[str]:
+        rows = connection.execute(
+            """
+            select entity_id from entity_associations
+            where requirement_id = ? and relation = ?
+            order by entity_id
+            """,
+            (requirement_id, "satisfies"),
+        ).fetchall()
+        return [str(row["entity_id"]) for row in rows]
+
+    def _dedupe_nodes(self, nodes: list[IntentNode]) -> list[IntentNode]:
+        seen: set[IntentNode] = set()
+        deduped: list[IntentNode] = []
+        for node in nodes:
+            if node in seen:
+                continue
+            seen.add(node)
+            deduped.append(node)
+        return deduped
 
     def _validate_trace_relation(self, from_ref: TraceRef, relation: str, to_ref: TraceRef) -> None:
         allowed = {

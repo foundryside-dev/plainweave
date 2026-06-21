@@ -321,6 +321,9 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
     fixture = load_fixture("mcp/tool-inventory.json")
 
     expected_tools = {
+        "plainweave_intent_corpus",
+        "plainweave_intent_orphans",
+        "plainweave_intent_trace",
         "plainweave_project_context_get",
         "plainweave_requirement_search",
         "plainweave_requirement_get",
@@ -354,6 +357,10 @@ def test_mcp_resource_inventory_fixture_contract() -> None:
         "plainweave://contracts/weft.plainweave.baseline.v1",
         "plainweave://contracts/weft.plainweave.baseline_diff.v1",
         "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
+        "plainweave://contracts/weft.plainweave.sei_binding.v1",
+        "plainweave://contracts/weft.plainweave.intent_orphans.v1",
+        "plainweave://contracts/weft.plainweave.intent_trace.v1",
+        "plainweave://contracts/weft.plainweave.intent_corpus.v1",
     ]
 
 

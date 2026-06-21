@@ -65,6 +65,9 @@ def assert_error(envelope: dict[str, Any], code: str) -> None:
 
 def test_mcp_tool_inventory_is_agent_task_surface() -> None:
     expected_tools = {
+        "plainweave_intent_corpus",
+        "plainweave_intent_orphans",
+        "plainweave_intent_trace",
         "plainweave_project_context_get",
         "plainweave_requirement_search",
         "plainweave_requirement_get",
@@ -95,7 +98,7 @@ def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources
 
     assert context["initialized"] is True
     assert context["project_key"] == "AUTH"
-    assert context["schema_version"] == 1
+    assert context["schema_version"] == 2
     assert context["authority_boundary"]["local_only"] is True
     assert context["authority_boundary"]["live_peer_calls"] is False
     assert all(capability["mutates"] is False for capability in context["capabilities"])
@@ -139,6 +142,42 @@ def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path)
     assert data(surface.plainweave_verification_status_list(status_filter="unverified"))["items"] == []
 
     assert db_snapshot(service.db_path) == before
+
+
+def test_mcp_intent_graph_read_tools_are_paginated_and_do_not_mutate_state(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    requirement_id = approve_requirement(service)
+    canonical_requirement_id = service.get_requirement(requirement_id).requirement_id
+    sei = "loomweave:eid:auth.verify-token"
+    service.record_code_entity(
+        sei,
+        entity_kind="loomweave_entity",
+        display_name="auth.verify_token",
+        content_hash="sha256:old",
+        actor="agent:loomweave",
+    )
+    goal = service.create_goal(
+        "Make authentication intent explainable",
+        "Every public authentication surface can answer why it exists.",
+        actor="human:john",
+    )
+    service.link_goal_to_requirement(goal.id, requirement_id, actor="human:john")
+    before = db_snapshot(service.db_path)
+
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    code_orphans = data(surface.plainweave_intent_orphans(level="code", limit=1, offset=0))
+    assert code_orphans["items"][0]["node_id"] == sei
+
+    service.bind_sei_to_requirement(sei, requirement_id, actor="agent:codex", content_hash_at_attach="sha256:old")
+    after_bind = db_snapshot(service.db_path)
+    trace = data(surface.plainweave_intent_trace(level="code", node_id=sei))
+    corpus = data(surface.plainweave_intent_corpus(limit=10, offset=0))
+
+    assert [item["level"] for item in trace["up"]] == ["requirement", "goal"]
+    assert corpus["items"][0]["requirement"]["node_id"] == canonical_requirement_id
+    assert db_snapshot(service.db_path) == after_bind
+    assert before != after_bind
 
 
 def test_mcp_list_tools_are_paginated_and_filterable(tmp_path: Path) -> None:

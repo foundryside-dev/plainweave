@@ -13,21 +13,17 @@ minted shell) and optionally ladder that requirement to a goal. One call,
 attributed (who bound it, when). Code that skips the bind is exactly what
 surfaces as an orphan via :mod:`plainweave.intent_graph`.
 
-IMPLEMENTATION PENDING — see the ``.filigree`` backlog ("ADR-029 binding schema
-for requirement↔SEI" and "authoring-time write surface"). This module defines the
-*target interface only*; the ADR-029 association calls are not wired. The
-``loomweave:eid:`` SEI scheme is **FROZEN** — Plainweave consumes it, never mints
-or reinterprets it. See ``docs/MODULE-MAP.md``.
+The ``loomweave:eid:`` SEI scheme is **FROZEN** — Plainweave consumes it, never
+mints or reinterprets it. Persistence lives in :mod:`plainweave.service`; this
+module holds the public value object and small drift helpers used by CLI/MCP
+serializers.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-
-_PENDING = (
-    "Plainweave SEI bindings are not implemented yet. This is a target interface "
-    "stub from the repo standup — see docs/MODULE-MAP.md and the .filigree backlog."
-)
+from datetime import UTC, datetime
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -41,11 +37,20 @@ class SeiBinding:
     when the binding was made (ADR-029).
     """
 
-    sei: str
+    entity_id: str
+    entity_kind: str
     requirement_id: str
-    content_hash_at_attach: str
+    content_hash_at_attach: str | None
+    drift_status: str
+    freshness: str
     bound_by: str
     bound_at: str
+    provenance: dict[str, Any]
+
+    @property
+    def sei(self) -> str:
+        """Backward-compatible alias for the opaque Loomweave entity ID."""
+        return self.entity_id
 
 
 def bind_sei_to_requirement(
@@ -53,19 +58,41 @@ def bind_sei_to_requirement(
     requirement_id: str,
     *,
     bound_by: str,
+    content_hash_at_attach: str | None = None,
+    entity_kind: str = "loomweave_entity",
+    bound_at: str | None = None,
+    provenance: dict[str, Any] | None = None,
 ) -> SeiBinding:
-    """Bind a code SEI to a requirement at authoring time (design §5), recording
-    the association through the ADR-029 contract.
+    """Construct a SEI binding value object for the ADR-029 contract.
 
-    IMPLEMENTATION PENDING.
+    The service method with the same semantic name persists this object. This
+    module-level helper stays storage-free so callers can validate envelope
+    shapes without opening a project database.
     """
-    raise NotImplementedError(_PENDING)
+    if not sei:
+        raise ValueError("sei is required")
+    if not requirement_id:
+        raise ValueError("requirement_id is required")
+    if not bound_by:
+        raise ValueError("bound_by is required")
+    return SeiBinding(
+        entity_id=sei,
+        entity_kind=entity_kind,
+        requirement_id=requirement_id,
+        content_hash_at_attach=content_hash_at_attach,
+        drift_status="unknown" if content_hash_at_attach is None else "attached",
+        freshness="unknown" if content_hash_at_attach is None else "current",
+        bound_by=bound_by,
+        bound_at=bound_at or datetime.now(UTC).isoformat(),
+        provenance=dict(provenance or {}),
+    )
 
 
 def is_drifted(binding: SeiBinding, current_content_hash: str) -> bool:
     """Whether the bound entity's content has changed since the binding was made
     (``content_hash_at_attach`` vs. ``current_content_hash``; ADR-029 drift).
-
-    IMPLEMENTATION PENDING.
     """
-    raise NotImplementedError(_PENDING)
+
+    if binding.content_hash_at_attach is None:
+        return False
+    return binding.content_hash_at_attach != current_content_hash

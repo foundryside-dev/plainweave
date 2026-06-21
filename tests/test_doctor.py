@@ -48,6 +48,6 @@ def test_doctor_json_reports_initialized_project(
     assert envelope["data"] == {
         "initialized": True,
         "project_key": "AUTH",
-        "schema_version": 1,
+        "schema_version": 2,
         "db_path": str(tmp_path / ".plainweave" / "plainweave.db"),
     }

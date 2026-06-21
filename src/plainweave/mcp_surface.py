@@ -7,8 +7,11 @@ from typing import Any
 from plainweave.cli_commands import (
     _baseline_dict,
     _baseline_diff_dict,
+    _corpus_entry_dict,
     _current_project_key,
     _dossier_dict,
+    _intent_node_dict,
+    _intent_trace_dict,
     _record_dict,
     _requirement_verification_status_dict,
     _trace_dict,
@@ -16,12 +19,34 @@ from plainweave.cli_commands import (
 )
 from plainweave.envelopes import error_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.intent_graph import IntentLevel, IntentNode
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
 
 JsonObject = dict[str, object]
 
 MCP_TOOL_METADATA: dict[str, JsonObject] = {
+    "plainweave_intent_corpus": {
+        "name": "plainweave_intent_corpus",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": "Returns local readable intent corpus rows; no consolidation verdict is made.",
+    },
+    "plainweave_intent_orphans": {
+        "name": "plainweave_intent_orphans",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": "Returns local missing-justification facts; it does not decide release readiness.",
+    },
+    "plainweave_intent_trace": {
+        "name": "plainweave_intent_trace",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": "Returns local code-up/down intent graph neighbors without creating accepted truth.",
+    },
     "plainweave_baseline_diff": {
         "name": "plainweave_baseline_diff",
         "mutates": False,
@@ -103,6 +128,10 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.baseline.v1",
     "plainweave://contracts/weft.plainweave.baseline_diff.v1",
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
+    "plainweave://contracts/weft.plainweave.sei_binding.v1",
+    "plainweave://contracts/weft.plainweave.intent_orphans.v1",
+    "plainweave://contracts/weft.plainweave.intent_trace.v1",
+    "plainweave://contracts/weft.plainweave.intent_corpus.v1",
 ]
 
 REQUIREMENT_STATUS_FILTERS = {"draft", "approved", "deprecated", "rejected"}
@@ -143,6 +172,36 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
         "contract": "weft.plainweave.requirement_verification_status.v1",
         "statuses": ["satisfied", "unsatisfied", "unverified", "stale", "unknown", "waived"],
         "authority_boundary": "Derived local status with reason codes and evidence freshness.",
+    },
+    "plainweave://contracts/weft.plainweave.sei_binding.v1": {
+        "contract": "weft.plainweave.sei_binding.v1",
+        "required_keys": [
+            "entity_id",
+            "entity_kind",
+            "requirement_id",
+            "content_hash_at_attach",
+            "drift_status",
+            "freshness",
+            "bound_by",
+            "bound_at",
+            "provenance",
+        ],
+        "authority_boundary": "Plainweave consumes opaque SEIs and records local bindings; it does not mint SEIs.",
+    },
+    "plainweave://contracts/weft.plainweave.intent_orphans.v1": {
+        "contract": "weft.plainweave.intent_orphans.v1",
+        "data_shape": {"items": [{"level": "code|requirement|goal", "node_id": "opaque node id"}]},
+        "authority_boundary": "Orphan facts are review prompts, not release verdicts.",
+    },
+    "plainweave://contracts/weft.plainweave.intent_trace.v1": {
+        "contract": "weft.plainweave.intent_trace.v1",
+        "required_sections": ["node", "up", "down"],
+        "authority_boundary": "Trace reads local intent graph context without creating accepted truth.",
+    },
+    "plainweave://contracts/weft.plainweave.intent_corpus.v1": {
+        "contract": "weft.plainweave.intent_corpus.v1",
+        "data_shape": {"items": [{"requirement": "IntentNode", "goals": "IntentNode[]", "code": "IntentNode[]"}]},
+        "authority_boundary": "Corpus rows support human/agent curation; they are not deduplication verdicts.",
     },
 }
 
@@ -236,6 +295,40 @@ class PlainweaveMcpSurface:
             return self._list(links, limit=limit, offset=offset)
 
         return self._result("weft.plainweave.trace_link_list.v1", action, list_result=True)
+
+    def plainweave_intent_orphans(
+        self,
+        *,
+        level: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> JsonObject:
+        def action(service: PlainweaveService) -> JsonObject:
+            intent_level = self._intent_level(level)
+            return self._list(
+                [_intent_node_dict(item) for item in service.intent_orphans(intent_level)],
+                limit=limit,
+                offset=offset,
+            )
+
+        return self._result("weft.plainweave.intent_orphans.v1", action, list_result=True)
+
+    def plainweave_intent_trace(self, *, level: str, node_id: str) -> JsonObject:
+        def action(service: PlainweaveService) -> JsonObject:
+            return _intent_trace_dict(service.intent_trace(IntentNode(self._intent_level(level), node_id)))
+
+        return self._result("weft.plainweave.intent_trace.v1", action)
+
+    def plainweave_intent_corpus(self, *, limit: int = 50, offset: int = 0) -> JsonObject:
+        return self._result(
+            "weft.plainweave.intent_corpus.v1",
+            lambda service: self._list(
+                [_corpus_entry_dict(item) for item in service.intent_corpus()],
+                limit=limit,
+                offset=offset,
+            ),
+            list_result=True,
+        )
 
     def plainweave_baseline_list(self, *, limit: int = 25, offset: int = 0) -> JsonObject:
         return self._result(
@@ -377,6 +470,19 @@ class PlainweaveMcpSurface:
                 hint=f"Use one of: {', '.join(sorted(allowed))}.",
                 details={field: value, "allowed": sorted(allowed)},
             )
+
+    def _intent_level(self, value: str) -> IntentLevel:
+        try:
+            return IntentLevel(value)
+        except ValueError:
+            allowed = [level.value for level in IntentLevel]
+            raise PlainweaveError(
+                ErrorCode.VALIDATION,
+                "intent level is not supported",
+                recoverable=True,
+                hint=f"Use one of: {', '.join(allowed)}.",
+                details={"level": value, "allowed": allowed},
+            ) from None
 
     def _validate_filter(self, value: str, allowed: set[str], field: str) -> JsonObject | None:
         try:

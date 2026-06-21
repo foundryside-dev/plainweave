@@ -5,8 +5,10 @@ import json
 from pathlib import Path
 from typing import Any
 
+from plainweave.bindings import SeiBinding
 from plainweave.envelopes import error_envelope, list_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.intent_graph import CorpusEntry, IntentLevel, IntentNode, Trace
 from plainweave.models import (
     AcceptanceCriterion,
     Actor,
@@ -14,6 +16,7 @@ from plainweave.models import (
     BaselineDiff,
     BaselineDiffItem,
     BaselineMember,
+    CodeEntity,
     DossierAcceptanceCriteriaSection,
     DossierAuthoritySummary,
     DossierBaselineExposure,
@@ -23,6 +26,8 @@ from plainweave.models import (
     DossierPeerFacts,
     DossierRequirementSection,
     DossierTraceSection,
+    IntentEdge,
+    IntentGoal,
     RequirementDossier,
     RequirementDraft,
     RequirementRecord,
@@ -60,6 +65,22 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     trace_parser = subparsers.add_parser("trace", help="Manage trace links.")
     trace_subparsers = trace_parser.add_subparsers(dest="trace_command", required=True)
     _register_trace_commands(trace_subparsers)
+
+    catalog_parser = subparsers.add_parser("catalog", help="Record code entities discovered by sibling catalog tools.")
+    catalog_subparsers = catalog_parser.add_subparsers(dest="catalog_command", required=True)
+    _register_catalog_commands(catalog_subparsers)
+
+    goal_parser = subparsers.add_parser("goal", help="Manage strategic intent goals.")
+    goal_subparsers = goal_parser.add_subparsers(dest="goal_command", required=True)
+    _register_goal_commands(goal_subparsers)
+
+    bind_parser = subparsers.add_parser("bind", help="Bind code entities to requirements.")
+    bind_subparsers = bind_parser.add_subparsers(dest="bind_command", required=True)
+    _register_bind_commands(bind_subparsers)
+
+    intent_parser = subparsers.add_parser("intent", help="Read the code-up intent graph.")
+    intent_subparsers = intent_parser.add_subparsers(dest="intent_command", required=True)
+    _register_intent_commands(intent_subparsers)
 
     baseline_parser = subparsers.add_parser("baseline", help="Manage requirement baselines.")
     baseline_subparsers = baseline_parser.add_subparsers(dest="baseline_command", required=True)
@@ -197,6 +218,72 @@ def _register_trace_commands(
     list_parser.add_argument("--state")
     list_parser.add_argument("--json", action="store_true")
     list_parser.set_defaults(handler=handle_trace_list)
+
+
+def _register_catalog_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    record_parser = subparsers.add_parser("record", help="Record a public code entity from a sibling catalog.")
+    record_parser.add_argument("entity_id")
+    record_parser.add_argument("--entity-kind", default="loomweave_entity")
+    record_parser.add_argument("--display-name")
+    record_parser.add_argument("--content-hash")
+    record_parser.add_argument("--source", default="loomweave_catalog")
+    record_parser.add_argument("--freshness", default="current")
+    record_parser.add_argument("--private", action="store_true")
+    record_parser.add_argument("--actor", default="")
+    record_parser.add_argument("--json", action="store_true")
+    record_parser.set_defaults(handler=handle_catalog_record)
+
+
+def _register_goal_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    add_parser = subparsers.add_parser("add", help="Create a strategic intent goal.")
+    add_parser.add_argument("--title", required=True)
+    add_parser.add_argument("--statement", required=True)
+    add_parser.add_argument("--actor", default="")
+    add_parser.add_argument("--json", action="store_true")
+    add_parser.set_defaults(handler=handle_goal_add)
+
+    link_parser = subparsers.add_parser("link", help="Link a goal to a requirement.")
+    link_parser.add_argument("goal_id")
+    link_parser.add_argument("requirement_id")
+    link_parser.add_argument("--actor", default="")
+    link_parser.add_argument("--json", action="store_true")
+    link_parser.set_defaults(handler=handle_goal_link)
+
+
+def _register_bind_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    sei_parser = subparsers.add_parser("sei", help="Bind a Loomweave SEI to a requirement.")
+    sei_parser.add_argument("entity_id")
+    sei_parser.add_argument("requirement_id")
+    sei_parser.add_argument("--entity-kind", default="loomweave_entity")
+    sei_parser.add_argument("--content-hash")
+    sei_parser.add_argument("--actor", default="")
+    sei_parser.add_argument("--json", action="store_true")
+    sei_parser.set_defaults(handler=handle_bind_sei)
+
+
+def _register_intent_commands(
+    subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
+) -> None:
+    orphans_parser = subparsers.add_parser("orphans", help="List graph nodes with no upward justification edge.")
+    orphans_parser.add_argument("level", choices=[level.value for level in IntentLevel])
+    orphans_parser.add_argument("--json", action="store_true")
+    orphans_parser.set_defaults(handler=handle_intent_orphans)
+
+    trace_parser = subparsers.add_parser("trace", help="Show the justification neighborhood for a graph node.")
+    trace_parser.add_argument("level", choices=[level.value for level in IntentLevel])
+    trace_parser.add_argument("node_id")
+    trace_parser.add_argument("--json", action="store_true")
+    trace_parser.set_defaults(handler=handle_intent_trace)
+
+    corpus_parser = subparsers.add_parser("corpus", help="Dump the readable requirement intent corpus.")
+    corpus_parser.add_argument("--json", action="store_true")
+    corpus_parser.set_defaults(handler=handle_intent_corpus)
 
 
 def _register_baseline_commands(
@@ -484,6 +571,88 @@ def handle_trace_list(args: argparse.Namespace) -> int:
         args,
         "weft.plainweave.trace_link_list.v1",
         lambda service: [_trace_dict(item) for item in service.trace_for(requirement_id=requirement_id, state=state)],
+    )
+
+
+def handle_catalog_record(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.plainweave.code_entity.v1",
+        lambda service: _code_entity_dict(
+            service.record_code_entity(
+                str(args.entity_id),
+                entity_kind=str(args.entity_kind),
+                display_name=args.display_name if isinstance(args.display_name, str) else None,
+                content_hash=args.content_hash if isinstance(args.content_hash, str) else None,
+                public=not bool(args.private),
+                source=str(args.source),
+                freshness=str(args.freshness),
+                actor=str(args.actor),
+            )
+        ),
+    )
+
+
+def handle_goal_add(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.plainweave.intent_goal.v1",
+        lambda service: _intent_goal_dict(
+            service.create_goal(str(args.title), str(args.statement), actor=str(args.actor))
+        ),
+    )
+
+
+def handle_goal_link(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.plainweave.intent_edge.v1",
+        lambda service: _intent_edge_dict(
+            service.link_goal_to_requirement(str(args.goal_id), str(args.requirement_id), actor=str(args.actor))
+        ),
+    )
+
+
+def handle_bind_sei(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.plainweave.sei_binding.v1",
+        lambda service: _sei_binding_dict(
+            service.bind_sei_to_requirement(
+                str(args.entity_id),
+                str(args.requirement_id),
+                entity_kind=str(args.entity_kind),
+                content_hash_at_attach=args.content_hash if isinstance(args.content_hash, str) else None,
+                actor=str(args.actor),
+                provenance={"source": "plainweave_cli"},
+            )
+        ),
+    )
+
+
+def handle_intent_orphans(args: argparse.Namespace) -> int:
+    return _handle_service_list(
+        args,
+        "weft.plainweave.intent_orphans.v1",
+        lambda service: [_intent_node_dict(item) for item in service.intent_orphans(IntentLevel(str(args.level)))],
+    )
+
+
+def handle_intent_trace(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.plainweave.intent_trace.v1",
+        lambda service: _intent_trace_dict(
+            service.intent_trace(IntentNode(IntentLevel(str(args.level)), str(args.node_id)))
+        ),
+    )
+
+
+def handle_intent_corpus(args: argparse.Namespace) -> int:
+    return _handle_service_list(
+        args,
+        "weft.plainweave.intent_corpus.v1",
+        lambda service: [_corpus_entry_dict(item) for item in service.intent_corpus()],
     )
 
 
@@ -801,6 +970,80 @@ def _trace_dict(link: TraceLink) -> dict[str, object]:
         "created_by": link.created_by,
         "accepted_by": link.accepted_by,
         "target_snapshot": link.target_snapshot,
+    }
+
+
+def _intent_goal_dict(goal: IntentGoal) -> dict[str, object]:
+    return {
+        "goal_id": goal.goal_id,
+        "id": goal.id,
+        "stable_id": goal.stable_id,
+        "title": goal.title,
+        "statement": goal.statement,
+        "status": goal.status,
+        "created_by": goal.created_by,
+        "created_at": goal.created_at,
+    }
+
+
+def _intent_edge_dict(edge: IntentEdge) -> dict[str, object]:
+    return {
+        "edge_id": edge.edge_id,
+        "goal_id": edge.goal_id,
+        "requirement_id": edge.requirement_id,
+        "relation": edge.relation,
+        "authority": edge.authority,
+        "freshness": edge.freshness,
+        "created_by": edge.created_by,
+        "created_at": edge.created_at,
+    }
+
+
+def _code_entity_dict(entity: CodeEntity) -> dict[str, object]:
+    return {
+        "entity_id": entity.entity_id,
+        "entity_kind": entity.entity_kind,
+        "display_name": entity.display_name,
+        "content_hash": entity.content_hash,
+        "public": entity.public,
+        "source": entity.source,
+        "freshness": entity.freshness,
+        "recorded_by": entity.recorded_by,
+        "recorded_at": entity.recorded_at,
+    }
+
+
+def _sei_binding_dict(binding: SeiBinding) -> dict[str, object]:
+    return {
+        "entity_id": binding.entity_id,
+        "entity_kind": binding.entity_kind,
+        "requirement_id": binding.requirement_id,
+        "content_hash_at_attach": binding.content_hash_at_attach,
+        "drift_status": binding.drift_status,
+        "freshness": binding.freshness,
+        "bound_by": binding.bound_by,
+        "bound_at": binding.bound_at,
+        "provenance": binding.provenance,
+    }
+
+
+def _intent_node_dict(node: IntentNode) -> dict[str, object]:
+    return {"level": node.level.value, "node_id": node.node_id}
+
+
+def _intent_trace_dict(trace: Trace) -> dict[str, object]:
+    return {
+        "node": _intent_node_dict(trace.node),
+        "up": [_intent_node_dict(node) for node in trace.up],
+        "down": [_intent_node_dict(node) for node in trace.down],
+    }
+
+
+def _corpus_entry_dict(entry: CorpusEntry) -> dict[str, object]:
+    return {
+        "requirement": _intent_node_dict(entry.requirement),
+        "goals": [_intent_node_dict(node) for node in entry.goals],
+        "code": [_intent_node_dict(node) for node in entry.code],
     }
 
 

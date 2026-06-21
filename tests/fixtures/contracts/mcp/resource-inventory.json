@@ -6,6 +6,10 @@
     "plainweave://contracts/weft.plainweave.requirement_dossier.v1",
     "plainweave://contracts/weft.plainweave.baseline.v1",
     "plainweave://contracts/weft.plainweave.baseline_diff.v1",
-    "plainweave://contracts/weft.plainweave.requirement_verification_status.v1"
+    "plainweave://contracts/weft.plainweave.requirement_verification_status.v1",
+    "plainweave://contracts/weft.plainweave.sei_binding.v1",
+    "plainweave://contracts/weft.plainweave.intent_orphans.v1",
+    "plainweave://contracts/weft.plainweave.intent_trace.v1",
+    "plainweave://contracts/weft.plainweave.intent_corpus.v1"
   ]
 }

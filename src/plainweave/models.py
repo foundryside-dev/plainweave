@@ -97,6 +97,43 @@ class TraceLink:
 
 
 @dataclass(frozen=True)
+class IntentGoal:
+    goal_id: str
+    id: str
+    stable_id: str
+    title: str
+    statement: str
+    status: str
+    created_by: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class IntentEdge:
+    edge_id: str
+    goal_id: str
+    requirement_id: str
+    relation: str
+    authority: str
+    freshness: str
+    created_by: str
+    created_at: str
+
+
+@dataclass(frozen=True)
+class CodeEntity:
+    entity_id: str
+    entity_kind: str
+    display_name: str | None
+    content_hash: str | None
+    public: bool
+    source: str
+    freshness: str
+    recorded_by: str
+    recorded_at: str
+
+
+@dataclass(frozen=True)
 class BaselineMember:
     requirement_id: str
     id: str
