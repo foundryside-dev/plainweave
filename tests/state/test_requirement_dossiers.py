@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 import pytest
+from tests.loomweave_test_utils import seed_loomweave_catalog
 
 from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.models import DossierNextAction, TraceRef
@@ -15,7 +16,7 @@ from plainweave.store import connect, migrate
 def service_for(tmp_path: Path) -> PlainweaveService:
     db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return PlainweaveService(db_path)
+    return PlainweaveService(db_path, root=tmp_path)
 
 
 def approve_requirement(
@@ -171,6 +172,7 @@ def test_traces_are_grouped_by_direction_state_and_relation_while_preserving_sta
     tmp_path: Path,
 ) -> None:
     service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
     requirement_id = approve_requirement(service)
     accepted = service.create_trace_link(
         TraceRef("file_ref", "src/auth.py"),
@@ -180,7 +182,7 @@ def test_traces_are_grouped_by_direction_state_and_relation_while_preserving_sta
         authority="accepted",
     )
     proposed = service.propose_trace_link(
-        TraceRef("loomweave_entity", "sei:token-validator"),
+        TraceRef("loomweave_entity", seed["public_locator"]),
         "satisfies",
         TraceRef("requirement_version", f"{requirement_id}@1"),
         actor="agent:codex",
@@ -204,6 +206,7 @@ def test_traces_are_grouped_by_direction_state_and_relation_while_preserving_sta
     dossier = service.requirement_dossier(requirement_id)
 
     assert [item.id for item in dossier.traces.incoming] == [accepted.id, proposed.id, stale.id]
+    assert dossier.traces.incoming[1].from_ref.id == seed["public_sei"]
     assert [item.id for item in dossier.traces.outgoing] == [outgoing.id]
     assert dossier.traces.by_state == {"accepted": 1, "proposed": 2, "stale": 1}
     assert dossier.traces.by_relation == {"fragile_satisfies": 2, "resolves_gap": 1, "satisfies": 1}

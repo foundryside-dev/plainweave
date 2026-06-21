@@ -7,12 +7,13 @@ from plainweave.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA, Plainwe
 from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
 from plainweave.store import connect, migrate
+from tests.loomweave_test_utils import seed_loomweave_catalog
 
 
 def service_for(tmp_path: Path) -> PlainweaveService:
     db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return PlainweaveService(db_path)
+    return PlainweaveService(db_path, root=tmp_path)
 
 
 def approve_requirement(
@@ -66,6 +67,7 @@ def assert_error(envelope: dict[str, Any], code: str) -> None:
 def test_mcp_tool_inventory_is_agent_task_surface() -> None:
     expected_tools = {
         "plainweave_project_context_get",
+        "plainweave_loomweave_catalog_list",
         "plainweave_requirement_search",
         "plainweave_requirement_get",
         "plainweave_requirement_dossier_get",
@@ -88,6 +90,7 @@ def test_mcp_tool_inventory_is_agent_task_surface() -> None:
 
 def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources(tmp_path: Path) -> None:
     service_for(tmp_path)
+    seed_loomweave_catalog(tmp_path)
 
     surface = PlainweaveMcpSurface(tmp_path)
 
@@ -100,10 +103,13 @@ def test_mcp_project_context_lists_read_only_capabilities_and_contract_resources
     assert context["authority_boundary"]["live_peer_calls"] is False
     assert all(capability["mutates"] is False for capability in context["capabilities"])
     assert "plainweave://contracts/weft.plainweave.requirement_dossier.v1" in context["contract_resources"]
+    assert context["peer_read_capabilities"]["loomweave"]["adapter_status"]["status"] == "available"
+    assert context["peer_read_capabilities"]["loomweave"]["degraded"] == []
 
 
 def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path) -> None:
     service = service_for(tmp_path)
+    seed_loomweave_catalog(tmp_path)
     requirement_id = approve_requirement(service)
     method = service.add_verification_method(
         requirement_id,
@@ -132,6 +138,7 @@ def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path)
     assert data(surface.plainweave_requirement_get(requirement_id))["id"] == requirement_id
     assert data(surface.plainweave_requirement_dossier_get(requirement_id))["peer_facts"]["live_peer_calls"] is False
     assert data(surface.plainweave_trace_link_list(requirement_id=requirement_id))["items"][0]["state"] == "accepted"
+    assert data(surface.plainweave_loomweave_catalog_list())["items"]
     assert data(surface.plainweave_baseline_list())["items"][0]["id"] == baseline.id
     assert data(surface.plainweave_baseline_get(baseline.id))["id"] == baseline.id
     assert data(surface.plainweave_baseline_diff(baseline.id))["summary"]["unchanged"] == 1
@@ -139,6 +146,50 @@ def test_mcp_read_tools_return_envelopes_and_do_not_mutate_state(tmp_path: Path)
     assert data(surface.plainweave_verification_status_list(status_filter="unverified"))["items"] == []
 
     assert db_snapshot(service.db_path) == before
+
+
+def test_mcp_loomweave_catalog_list_is_paginated_and_reports_adapter_status(tmp_path: Path) -> None:
+    service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    first_page = data(surface.plainweave_loomweave_catalog_list(limit=1, offset=0))
+    second_page = data(surface.plainweave_loomweave_catalog_list(limit=10, offset=1))
+
+    assert first_page["limit"] == 1
+    assert first_page["offset"] == 0
+    assert first_page["adapter_status"]["status"] == "available"
+    assert first_page["degraded"] == []
+    assert first_page["has_more"] is True
+    assert second_page["has_more"] is False
+    all_items = first_page["items"] + second_page["items"]
+    assert [item["locator"] for item in all_items] == [
+        "python:function:pkg.main",
+        seed["public_locator"],
+        "python:module:pkg",
+    ]
+    assert all_items[1]["sei"] == seed["public_sei"]
+    assert all_items[1]["source"]["line_start"] == 10
+
+
+def test_mcp_dossier_peer_facts_report_loomweave_trace_sources(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    requirement_id = approve_requirement(service)
+    service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", f"{requirement_id}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    dossier = data(surface.plainweave_requirement_dossier_get(requirement_id))
+
+    assert "loomweave" in dossier["peer_facts"]["sources"]
+    assert any("Loomweave" in note for note in dossier["peer_facts"]["notes"])
+    assert dossier["traces"]["items"][0]["target_snapshot"]["sei"] == seed["public_sei"]
 
 
 def test_mcp_list_tools_are_paginated_and_filterable(tmp_path: Path) -> None:

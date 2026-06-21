@@ -702,7 +702,8 @@ def _emit_error(args: argparse.Namespace, exc: PlainweaveError) -> int:
 
 
 def _service() -> PlainweaveService:
-    db_path = plainweave_db_path(project_root())
+    root = project_root()
+    db_path = plainweave_db_path(root)
     if not db_path.exists():
         raise PlainweaveError(
             ErrorCode.NOT_FOUND,
@@ -711,7 +712,7 @@ def _service() -> PlainweaveService:
             hint="Run `plainweave init` in this project and retry.",
             details={"db_path": str(db_path)},
         )
-    return PlainweaveService(db_path)
+    return PlainweaveService(db_path, root=root)
 
 
 def _current_project_key() -> str | None:

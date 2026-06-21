@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.loomweave_adapter import LoomweaveAdapter, LoomweaveIdentityError
 from plainweave.models import (
     AcceptanceCriterion,
     Actor,
@@ -50,8 +51,9 @@ class PlainweaveService:
     #: All kinds accepted by :meth:`register_actor`.
     ACTOR_KINDS = frozenset({"human", "agent", "attester"})
 
-    def __init__(self, db_path: Path) -> None:
+    def __init__(self, db_path: Path, *, root: Path | None = None) -> None:
         self.db_path = db_path
+        self.root = root.resolve() if root is not None else db_path.parent.parent.resolve()
 
     def register_actor(
         self,
@@ -269,11 +271,7 @@ class PlainweaveService:
                 verification,
                 baseline_exposure,
                 gaps,
-                DossierPeerFacts(
-                    False,
-                    [],
-                    ["Dossier is computed from the local Plainweave store only."],
-                ),
+                self._dossier_peer_facts(traces),
                 next_actions,
             )
 
@@ -914,6 +912,7 @@ class PlainweaveService:
     ) -> TraceLink:
         self._require_actor(actor)
         self._validate_trace_relation(from_ref, relation, to_ref)
+        from_ref, target_snapshot = self._normalize_trace_refs(from_ref)
         now = self._now()
         state = "accepted" if authority == "accepted" else "proposed"
         accepted_by = actor if authority == "accepted" else None
@@ -944,7 +943,7 @@ class PlainweaveService:
                     accepted_by,
                     now,
                     now,
-                    "{}",
+                    json.dumps(target_snapshot, sort_keys=True),
                 ),
             )
             self._record_event(
@@ -959,7 +958,17 @@ class PlainweaveService:
             )
             connection.commit()
             return TraceLink(
-                link_id, state, from_ref, relation, to_ref, authority, "current", confidence, actor, accepted_by, {}
+                link_id,
+                state,
+                from_ref,
+                relation,
+                to_ref,
+                authority,
+                "current",
+                confidence,
+                actor,
+                accepted_by,
+                target_snapshot,
             )
 
     def accept_trace_link(self, link_id: str, *, actor: str) -> TraceLink:
@@ -1813,16 +1822,32 @@ class PlainweaveService:
             self._validate_trace_transition(str(row["state"]), state)
             if state == "accepted":
                 self._require_accepted_trace_targets(connection, TraceRef(str(row["to_kind"]), str(row["to_id"])))
+                normalized_from_ref, target_snapshot = self._normalize_trace_refs(
+                    TraceRef(str(row["from_kind"]), str(row["from_id"]))
+                )
+            else:
+                normalized_from_ref = TraceRef(str(row["from_kind"]), str(row["from_id"]))
+                target_snapshot = self._snapshot_from_row(row)
             next_authority = authority or str(row["authority"])
             next_freshness = freshness or str(row["freshness"])
             accepted_by = actor if state == "accepted" else row["accepted_by"]
             connection.execute(
                 """
                 update trace_links
-                set state = ?, authority = ?, freshness = ?, accepted_by = ?, updated_at = ?
+                set state = ?, from_id = ?, authority = ?, freshness = ?, accepted_by = ?, updated_at = ?,
+                    target_snapshot_json = ?
                 where link_id = ?
                 """,
-                (state, next_authority, next_freshness, accepted_by, now, link_id),
+                (
+                    state,
+                    normalized_from_ref.id,
+                    next_authority,
+                    next_freshness,
+                    accepted_by,
+                    now,
+                    json.dumps(target_snapshot, sort_keys=True),
+                    link_id,
+                ),
             )
             self._record_event(
                 connection,
@@ -1844,8 +1869,8 @@ class PlainweaveService:
         return cast(sqlite3.Row, row)
 
     def _trace_from_row(self, row: sqlite3.Row) -> TraceLink:
-        snapshot = json.loads(str(row["target_snapshot_json"]))
-        return TraceLink(
+        snapshot = self._snapshot_from_row(row)
+        link = TraceLink(
             str(row["link_id"]),
             str(row["state"]),
             TraceRef(str(row["from_kind"]), str(row["from_id"])),
@@ -1856,7 +1881,154 @@ class PlainweaveService:
             float(row["confidence"]) if row["confidence"] is not None else None,
             str(row["created_by"]),
             row["accepted_by"] if isinstance(row["accepted_by"], str) else None,
-            snapshot if isinstance(snapshot, dict) else {},
+            snapshot,
+        )
+        if link.from_ref.kind == "loomweave_entity" and link.state not in {"rejected", "stale", "orphaned"}:
+            return self._enrich_loomweave_trace(link)
+        return link
+
+    def _snapshot_from_row(self, row: sqlite3.Row) -> dict[str, Any]:
+        snapshot = json.loads(str(row["target_snapshot_json"]))
+        return snapshot if isinstance(snapshot, dict) else {}
+
+    def _normalize_trace_refs(self, from_ref: TraceRef) -> tuple[TraceRef, dict[str, Any]]:
+        if from_ref.kind != "loomweave_entity":
+            return from_ref, {}
+        try:
+            snapshot = self._loomweave_adapter().resolve_identity(from_ref.id)
+        except LoomweaveIdentityError as exc:
+            raise self._loomweave_error(exc) from exc
+        if snapshot.sei is None:
+            raise self._error(ErrorCode.UNSUPPORTED, "Loomweave entity has no stable identity")
+        return TraceRef("loomweave_entity", snapshot.sei), snapshot.to_dict()
+
+    def _enrich_loomweave_trace(self, link: TraceLink) -> TraceLink:
+        lookup = self._snapshot_lookup(link)
+        if lookup is None:
+            return link
+        try:
+            current = self._loomweave_adapter().resolve_identity(lookup)
+        except LoomweaveIdentityError as exc:
+            return self._trace_with_degraded_snapshot(link, exc)
+        snapshot = current.to_dict()
+        attached_hash = self._attached_hash(link.target_snapshot)
+        if attached_hash is not None:
+            snapshot["content_hash_at_attach"] = attached_hash
+        freshness = "current"
+        if (
+            attached_hash is not None
+            and current.content_hash is not None
+            and attached_hash != current.content_hash
+        ):
+            freshness = "stale"
+            degraded = self._snapshot_degraded(snapshot)
+            degraded.append(
+                {
+                    "code": "content_hash_drift",
+                    "message": "Current Loomweave content hash differs from the attach-time hash.",
+                }
+            )
+            snapshot["degraded"] = degraded
+        snapshot["freshness"] = freshness
+        return TraceLink(
+            link.id,
+            link.state,
+            link.from_ref,
+            link.relation,
+            link.to_ref,
+            link.authority,
+            freshness,
+            link.confidence,
+            link.created_by,
+            link.accepted_by,
+            snapshot,
+        )
+
+    def _trace_with_degraded_snapshot(self, link: TraceLink, exc: LoomweaveIdentityError) -> TraceLink:
+        snapshot = dict(link.target_snapshot)
+        degraded = self._snapshot_degraded(snapshot)
+        degraded.append(self._loomweave_adapter().snapshot_error(exc))
+        snapshot["degraded"] = degraded
+        freshness = "orphaned" if exc.reason in {"orphaned", "not_found"} else "unknown"
+        snapshot["freshness"] = freshness
+        if freshness == "orphaned":
+            snapshot["lineage_status"] = "orphaned"
+        return TraceLink(
+            link.id,
+            link.state,
+            link.from_ref,
+            link.relation,
+            link.to_ref,
+            link.authority,
+            freshness,
+            link.confidence,
+            link.created_by,
+            link.accepted_by,
+            snapshot,
+        )
+
+    def _snapshot_lookup(self, link: TraceLink) -> str | None:
+        sei = link.target_snapshot.get("sei")
+        if isinstance(sei, str) and sei:
+            return sei
+        if link.from_ref.id:
+            return link.from_ref.id
+        return None
+
+    def _attached_hash(self, snapshot: dict[str, Any]) -> str | None:
+        attached = snapshot.get("content_hash_at_attach")
+        if isinstance(attached, str):
+            return attached
+        content_hash = snapshot.get("content_hash")
+        return content_hash if isinstance(content_hash, str) else None
+
+    def _snapshot_degraded(self, snapshot: dict[str, Any]) -> list[dict[str, object]]:
+        degraded = snapshot.get("degraded")
+        if not isinstance(degraded, list):
+            return []
+        return [dict(item) for item in degraded if isinstance(item, dict)]
+
+    def _dossier_peer_facts(self, traces: DossierTraceSection) -> DossierPeerFacts:
+        loomweave_traces = [
+            item
+            for item in traces.items
+            if item.from_ref.kind == "loomweave_entity" or isinstance(item.target_snapshot.get("sei"), str)
+        ]
+        if not loomweave_traces:
+            return DossierPeerFacts(
+                False,
+                [],
+                ["Dossier is computed from the local Plainweave store only."],
+            )
+        capability = self._loomweave_adapter().adapter_capability()
+        degraded = capability["degraded"] if isinstance(capability["degraded"], list) else []
+        notes = ["Dossier includes Loomweave identity snapshots from local trace links."]
+        for item in degraded:
+            if isinstance(item, dict) and isinstance(item.get("message"), str):
+                notes.append(str(item["message"]))
+        status = capability["adapter_status"] if isinstance(capability["adapter_status"], dict) else {}
+        return DossierPeerFacts(
+            status.get("identity_http") == "configured",
+            ["loomweave"],
+            notes,
+        )
+
+    def _loomweave_adapter(self) -> LoomweaveAdapter:
+        return LoomweaveAdapter(self.root)
+
+    def _loomweave_error(self, exc: LoomweaveIdentityError) -> PlainweaveError:
+        code = {
+            "not_found": ErrorCode.NOT_FOUND,
+            "orphaned": ErrorCode.CONFLICT,
+            "unreachable": ErrorCode.PEER_ABSENT,
+            "unsupported": ErrorCode.UNSUPPORTED,
+        }.get(exc.reason, ErrorCode.INTERNAL)
+        return PlainweaveError(
+            code,
+            exc.message,
+            recoverable=True,
+            hint="Resolve the Loomweave entity through Loomweave and retry with an alive SEI or locator.",
+            details={"reason": exc.reason, "degraded": exc.degraded},
         )
 
     def _validate_trace_relation(self, from_ref: TraceRef, relation: str, to_ref: TraceRef) -> None:

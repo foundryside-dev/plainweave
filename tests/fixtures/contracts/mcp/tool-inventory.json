@@ -23,6 +23,13 @@
       "authority_boundary": "Lists local immutable baselines without creating or changing snapshots."
     },
     {
+      "name": "plainweave_loomweave_catalog_list",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Reads Loomweave local catalog identity snapshots without mutating Plainweave or Loomweave."
+    },
+    {
       "name": "plainweave_project_context_get",
       "mutates": false,
       "local_only": true,

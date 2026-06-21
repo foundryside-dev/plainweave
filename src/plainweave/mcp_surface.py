@@ -16,6 +16,7 @@ from plainweave.cli_commands import (
 )
 from plainweave.envelopes import error_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.loomweave_adapter import LoomweaveAdapter
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
 
@@ -49,6 +50,15 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
         "local_only": True,
         "peer_side_effects": [],
         "authority_boundary": "Reports local Plainweave project context and read-only capability metadata.",
+    },
+    "plainweave_loomweave_catalog_list": {
+        "name": "plainweave_loomweave_catalog_list",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Reads Loomweave local catalog identity snapshots without mutating Plainweave or Loomweave."
+        ),
     },
     "plainweave_requirement_dossier_get": {
         "name": "plainweave_requirement_dossier_get",
@@ -157,6 +167,9 @@ class PlainweaveMcpSurface:
         context: JsonObject = {
             **result,
             "capabilities": [dict(value) for value in MCP_TOOL_METADATA.values()],
+            "peer_read_capabilities": {
+                "loomweave": self._loomweave_adapter().adapter_capability(),
+            },
             "authority_boundary": {
                 "local_only": True,
                 "live_peer_calls": False,
@@ -167,6 +180,23 @@ class PlainweaveMcpSurface:
         if include_contracts:
             context["contract_resources"] = list(MCP_RESOURCE_URIS)
         return success_envelope("weft.plainweave.project_context.v1", context, project=project)
+
+    def plainweave_loomweave_catalog_list(self, *, limit: int = 50, offset: int = 0) -> JsonObject:
+        try:
+            self._validate_pagination(limit, offset)
+            page = self._loomweave_adapter().list_catalog(limit=limit, offset=offset)
+        except PlainweaveError as exc:
+            return self._error(exc)
+        data: JsonObject = {
+            "items": [item.to_dict() for item in page.items],
+            "limit": page.limit,
+            "offset": page.offset,
+            "has_more": page.has_more,
+            "next_offset": page.next_offset,
+            "adapter_status": page.adapter_status,
+            "degraded": page.degraded,
+        }
+        return success_envelope("weft.plainweave.loomweave_catalog.v1", data, project=self._project_key())
 
     def plainweave_requirement_search(
         self,
@@ -326,7 +356,10 @@ class PlainweaveMcpSurface:
                 hint="Run `plainweave init` in this project and retry.",
                 details={"db_path": str(db_path)},
             )
-        return PlainweaveService(db_path)
+        return PlainweaveService(db_path, root=self.root)
+
+    def _loomweave_adapter(self) -> LoomweaveAdapter:
+        return LoomweaveAdapter(self.root)
 
     def _project_key(self) -> str | None:
         if self.root == project_root():

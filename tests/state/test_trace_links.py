@@ -1,19 +1,21 @@
 from __future__ import annotations
 
+import sqlite3
 from pathlib import Path
 
 import pytest
+from tests.loomweave_test_utils import seed_loomweave_catalog
 
 from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
-from plainweave.store import migrate
+from plainweave.store import connect, migrate
 
 
 def service_for(tmp_path: Path) -> PlainweaveService:
     db_path = tmp_path / ".plainweave" / "plainweave.db"
     migrate(db_path, project_key="AUTH")
-    return PlainweaveService(db_path)
+    return PlainweaveService(db_path, root=tmp_path)
 
 
 def approved_requirement_ref(service: PlainweaveService) -> str:
@@ -71,6 +73,7 @@ def test_accept_and_reject_trace_links_preserve_actor_attribution(tmp_path: Path
 
 def test_stale_and_orphaned_states_remain_distinct(tmp_path: Path) -> None:
     service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
     requirement_version_ref = approved_requirement_ref(service)
     stale = service.create_trace_link(
         TraceRef("file_ref", "src/auth.py"),
@@ -80,7 +83,7 @@ def test_stale_and_orphaned_states_remain_distinct(tmp_path: Path) -> None:
         authority="accepted",
     )
     orphaned = service.create_trace_link(
-        TraceRef("loomweave_entity", "sei:abc123"),
+        TraceRef("loomweave_entity", seed["public_locator"]),
         "satisfies",
         TraceRef("requirement_version", requirement_version_ref),
         actor="human:john",
@@ -112,9 +115,10 @@ def test_inverted_canonical_relation_returns_validation(tmp_path: Path) -> None:
 
 def test_high_risk_code_links_remain_proposed_until_accepted(tmp_path: Path) -> None:
     service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
 
     link = service.propose_trace_link(
-        TraceRef("loomweave_entity", "sei:security-sensitive"),
+        TraceRef("loomweave_entity", seed["public_locator"]),
         "satisfies",
         TraceRef("requirement_version", "REQ-AUTH-0001@1"),
         actor="agent:codex",
@@ -138,3 +142,117 @@ def test_accepting_local_requirement_version_trace_requires_existing_version(tmp
         service.accept_trace_link(link.id, actor="human:john")
 
     assert exc_info.value.code == ErrorCode.NOT_FOUND
+
+
+def test_invented_loomweave_entity_ids_cannot_create_trace_links(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    approved = approved_requirement_ref(service)
+    seed_loomweave_catalog(tmp_path)
+
+    with pytest.raises(PlainweaveError) as exc_info:
+        service.create_trace_link(
+            TraceRef("loomweave_entity", "python:function:pkg.invented"),
+            "satisfies",
+            TraceRef("requirement_version", approved),
+            actor="human:john",
+            authority="accepted",
+        )
+
+    assert exc_info.value.code == ErrorCode.NOT_FOUND
+    assert service.trace_for() == []
+
+
+def test_valid_loomweave_locator_creates_trace_link_snapshot_and_normalizes_to_sei(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    approved = approved_requirement_ref(service)
+    seed = seed_loomweave_catalog(tmp_path)
+
+    link = service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", approved),
+        actor="human:john",
+        authority="accepted",
+    )
+
+    assert link.from_ref.id == seed["public_sei"]
+    assert link.target_snapshot["sei"] == seed["public_sei"]
+    assert link.target_snapshot["locator"] == seed["public_locator"]
+    assert link.target_snapshot["content_hash"] == "hash-public-v1"
+    assert link.target_snapshot["content_hash_at_attach"] == "hash-public-v1"
+    assert link.target_snapshot["public_signal"]["state"] == "explicit_public_tag"
+    assert link.target_snapshot["lineage_status"] == "alive"
+    assert link.target_snapshot["freshness"] == "current"
+    assert link.target_snapshot["source"]["line_start"] == 10
+
+
+def test_read_time_hash_drift_marks_loomweave_trace_stale_without_mutating_storage(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    approved = approved_requirement_ref(service)
+    seed = seed_loomweave_catalog(tmp_path)
+    link = service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", approved),
+        actor="human:john",
+        authority="accepted",
+    )
+    with connect(service.db_path) as connection:
+        stored_before = str(
+            connection.execute(
+                "select target_snapshot_json from trace_links where link_id = ?",
+                (link.id,),
+            ).fetchone()["target_snapshot_json"]
+        )
+    with sqlite3.connect(seed["db_path"]) as connection:
+        connection.execute(
+            "update entities set content_hash = 'hash-public-v2' where id = ?",
+            (seed["public_locator"],),
+        )
+        connection.execute(
+            "update sei_bindings set body_hash = 'hash-public-v2' where sei = ?",
+            (seed["public_sei"],),
+        )
+
+    returned = service.trace_for()[0]
+
+    assert returned.freshness == "stale"
+    assert returned.target_snapshot["freshness"] == "stale"
+    assert returned.target_snapshot["content_hash"] == "hash-public-v2"
+    assert returned.target_snapshot["content_hash_at_attach"] == "hash-public-v1"
+    with connect(service.db_path) as connection:
+        stored_after = str(
+            connection.execute(
+                "select target_snapshot_json from trace_links where link_id = ?",
+                (link.id,),
+            ).fetchone()["target_snapshot_json"]
+        )
+    assert stored_after == stored_before
+
+
+def test_read_time_orphaned_loomweave_identity_returns_degraded_trace_without_deleting_row(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    approved = approved_requirement_ref(service)
+    seed = seed_loomweave_catalog(tmp_path)
+    link = service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", approved),
+        actor="human:john",
+        authority="accepted",
+    )
+    with sqlite3.connect(seed["db_path"]) as connection:
+        connection.execute(
+            "update sei_bindings set status = 'orphaned', current_locator = null where sei = ?",
+            (seed["public_sei"],),
+        )
+
+    returned = service.trace_for()[0]
+
+    assert returned.id == link.id
+    assert returned.state == "accepted"
+    assert returned.freshness == "orphaned"
+    assert returned.target_snapshot["freshness"] == "orphaned"
+    assert any(item["code"] == "identity_orphaned" for item in returned.target_snapshot["degraded"])
+    with connect(service.db_path) as connection:
+        assert connection.execute("select count(*) from trace_links").fetchone()[0] == 1

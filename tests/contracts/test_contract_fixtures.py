@@ -322,6 +322,7 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
 
     expected_tools = {
         "plainweave_project_context_get",
+        "plainweave_loomweave_catalog_list",
         "plainweave_requirement_search",
         "plainweave_requirement_get",
         "plainweave_requirement_dossier_get",
