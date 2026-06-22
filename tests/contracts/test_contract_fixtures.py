@@ -341,6 +341,7 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
         "plainweave_intent_orphans",
         "plainweave_intent_trace",
         "plainweave_project_context_get",
+        "plainweave_loomweave_catalog_list",
         "plainweave_requirement_search",
         "plainweave_requirement_get",
         "plainweave_requirement_dossier_get",

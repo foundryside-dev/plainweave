@@ -18,6 +18,11 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
         return active_surface.plainweave_project_context_get(include_contracts=include_contracts)
 
     @mcp.tool()
+    def plainweave_loomweave_catalog_list(limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        """List Loomweave catalog identity snapshots from the local read-only adapter."""
+        return active_surface.plainweave_loomweave_catalog_list(limit=limit, offset=offset)
+
+    @mcp.tool()
     def plainweave_requirement_search(
         query: str | None = None,
         status_filter: str | None = None,

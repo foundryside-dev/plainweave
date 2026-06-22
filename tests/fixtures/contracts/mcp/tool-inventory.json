@@ -51,6 +51,13 @@
       "authority_boundary": "Returns local code-up/down intent graph neighbors without creating accepted truth."
     },
     {
+      "name": "plainweave_loomweave_catalog_list",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Reads Loomweave local catalog identity snapshots without mutating Plainweave or Loomweave."
+    },
+    {
       "name": "plainweave_preflight_facts_get",
       "mutates": false,
       "local_only": true,
