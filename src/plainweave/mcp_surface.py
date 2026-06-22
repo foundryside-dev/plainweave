@@ -12,6 +12,7 @@ from plainweave.cli_commands import (
     _corpus_entry_dict,
     _current_project_key,
     _dossier_dict,
+    _intent_goal_dict,
     _intent_node_dict,
     _intent_trace_dict,
     _record_dict,
@@ -1133,10 +1134,29 @@ class PlainweaveMcpSurface:
                 if binding_requirement_id == requirement_id
             ],
             "verification": _requirement_verification_status_dict(verification),
-            "goal_trail": {
+            "goal_trail": self._goal_trail(service, requirement_id),
+        }
+
+    def _goal_trail(self, service: PlainweaveService, requirement_id: str) -> JsonObject:
+        try:
+            goals = service.goals_for_requirement(requirement_id)
+        except PlainweaveError as exc:
+            if exc.code != ErrorCode.NOT_FOUND:
+                raise
+            return {
                 "state": "unavailable",
-                "reason": "The strategic goal node layer is not implemented in the local store.",
-            },
+                "goals": [],
+                "reason": "Requirement could not be resolved for goal laddering.",
+            }
+        if not goals:
+            return {
+                "state": "no_goal",
+                "goals": [],
+                "reason": "Requirement ladders to no strategic goal (laddering gap).",
+            }
+        return {
+            "state": "resolved",
+            "goals": [{**_intent_goal_dict(goal), "edge_freshness": edge_freshness} for goal, edge_freshness in goals],
         }
 
     def _entity_intent_summary(self, items: Sequence[JsonObject]) -> JsonObject:

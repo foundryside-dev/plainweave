@@ -1089,6 +1089,29 @@ class PlainweaveService:
                 row = existing
             return self._intent_edge_from_row(row)
 
+    def goals_for_requirement(self, requirement_id: str) -> list[tuple[IntentGoal, str]]:
+        """Goals that justify a requirement, each paired with its edge freshness.
+
+        Returns every ``justifies`` edge (current and stale) so callers can
+        surface laddering that has drifted. An empty list means the requirement
+        ladders to no strategic goal. Raises ``NOT_FOUND`` when the requirement
+        itself does not resolve.
+        """
+        with connect(self.db_path) as connection:
+            requirement = self._requirement_row(connection, requirement_id)
+            canonical_requirement_id = str(requirement["requirement_id"])
+            rows = connection.execute(
+                """
+                select g.*, e.freshness as edge_freshness
+                from intent_edges e
+                join intent_goals g on g.goal_id = e.goal_id
+                where e.requirement_id = ? and e.relation = ?
+                order by g.display_id
+                """,
+                (canonical_requirement_id, "justifies"),
+            ).fetchall()
+        return [(self._goal_from_row(row), str(row["edge_freshness"])) for row in rows]
+
     def record_code_entity(
         self,
         entity_id: str,

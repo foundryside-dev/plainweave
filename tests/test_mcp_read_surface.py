@@ -331,6 +331,12 @@ def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Pat
         authority="accepted",
     )
     service.mark_trace_stale(stale_link.id, actor="agent:codex", reason="content changed")
+    goal = service.create_goal(
+        "Bearer tokens are trustworthy",
+        "Every accepted bearer token is provably unexpired.",
+        actor="human:john",
+    )
+    service.link_goal_to_requirement(goal.id, satisfied_requirement, actor="human:john")
     surface = PlainweaveMcpSurface(tmp_path)
 
     context = data(
@@ -363,7 +369,11 @@ def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Pat
     assert resolved["bindings"][0]["trace"]["from"]["id"] == sei_ref
     assert resolved["bindings"][0]["requirement"]["id"] == "REQ-AUTH-0001"
     assert resolved["bindings"][0]["verification"]["status"] == "satisfied"
-    assert resolved["requirement_trail"][0]["goal_trail"]["state"] == "unavailable"
+    satisfied_goal_trail = resolved["requirement_trail"][0]["goal_trail"]
+    assert satisfied_goal_trail["state"] == "resolved"
+    assert satisfied_goal_trail["goals"][0]["id"] == goal.id
+    assert satisfied_goal_trail["goals"][0]["title"] == "Bearer tokens are trustworthy"
+    assert satisfied_goal_trail["goals"][0]["edge_freshness"] == "current"
     assert resolved["orphan"] == {
         "state": "bound",
         "is_orphan": False,
@@ -379,6 +389,9 @@ def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Pat
     assert stale["orphan"]["is_orphan"] is True
     assert stale["freshness"]["state"] == "stale"
     assert stale["drift"]["state"] == "stale"
+    stale_goal_trail = stale["requirement_trail"][0]["goal_trail"]
+    assert stale_goal_trail["state"] == "no_goal"
+    assert stale_goal_trail["goals"] == []
 
     missing = items["loomweave:eid:missing"]
     assert missing["resolution"]["state"] == "unresolved"
