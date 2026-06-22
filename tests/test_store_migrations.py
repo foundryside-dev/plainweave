@@ -34,6 +34,10 @@ def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> 
             "requirement_versions",
             "acceptance_criteria",
             "trace_links",
+            "intent_goals",
+            "intent_edges",
+            "code_entities",
+            "entity_associations",
             "baselines",
             "baseline_members",
             "verification_methods",
@@ -42,7 +46,7 @@ def test_migration_creates_required_tables_and_is_idempotent(tmp_path: Path) -> 
             "idempotency_keys",
         }
         metadata = dict(connection.execute("select key, value from schema_meta").fetchall())
-        assert metadata == {"project_key": "AUTH", "schema_version": "1"}
+        assert metadata == {"project_key": "AUTH", "schema_version": "2"}
 
 
 def test_store_connections_enable_foreign_keys(tmp_path: Path) -> None:

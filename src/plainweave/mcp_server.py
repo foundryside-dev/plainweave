@@ -62,6 +62,21 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
         )
 
     @mcp.tool()
+    def plainweave_intent_orphans(level: str, limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        """List local intent graph nodes with no upward justification edge. This tool is read-only."""
+        return active_surface.plainweave_intent_orphans(level=level, limit=limit, offset=offset)
+
+    @mcp.tool()
+    def plainweave_intent_trace(level: str, node_id: str) -> dict[str, Any]:
+        """Read the local up/down intent neighborhood for a code, requirement, or goal node."""
+        return active_surface.plainweave_intent_trace(level=level, node_id=node_id)
+
+    @mcp.tool()
+    def plainweave_intent_corpus(limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        """Read local requirement corpus rows with linked goals and code entities."""
+        return active_surface.plainweave_intent_corpus(limit=limit, offset=offset)
+
+    @mcp.tool()
     def plainweave_baseline_list(limit: int = 25, offset: int = 0) -> dict[str, Any]:
         """List local immutable Plainweave baselines. This tool is read-only."""
         return active_surface.plainweave_baseline_list(limit=limit, offset=offset)

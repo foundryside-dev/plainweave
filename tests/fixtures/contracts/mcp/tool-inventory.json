@@ -30,6 +30,27 @@
       "authority_boundary": "Returns local entity-to-intent context for peer planning; live peer identity resolution is explicit unavailable state."
     },
     {
+      "name": "plainweave_intent_corpus",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local readable intent corpus rows; no consolidation verdict is made."
+    },
+    {
+      "name": "plainweave_intent_orphans",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local missing-justification facts; it does not decide release readiness."
+    },
+    {
+      "name": "plainweave_intent_trace",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local code-up/down intent graph neighbors without creating accepted truth."
+    },
+    {
       "name": "plainweave_preflight_facts_get",
       "mutates": false,
       "local_only": true,

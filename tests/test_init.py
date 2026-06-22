@@ -35,10 +35,10 @@ def test_init_json_creates_project_store(
     assert envelope["data"] == {
         "created": True,
         "project_key": "AUTH",
-        "schema_version": 1,
+        "schema_version": 2,
         "db_path": str(db_path),
     }
-    assert schema_meta(db_path) == {"project_key": "AUTH", "schema_version": "1"}
+    assert schema_meta(db_path) == {"project_key": "AUTH", "schema_version": "2"}
 
 
 def test_init_json_is_idempotent(
@@ -53,4 +53,4 @@ def test_init_json_is_idempotent(
     envelope = read_json_output(capsys.readouterr().out)
     data = cast(dict[str, Any], envelope["data"])
     assert data["created"] is False
-    assert schema_meta(tmp_path / ".plainweave" / "plainweave.db") == {"project_key": "AUTH", "schema_version": "1"}
+    assert schema_meta(tmp_path / ".plainweave" / "plainweave.db") == {"project_key": "AUTH", "schema_version": "2"}

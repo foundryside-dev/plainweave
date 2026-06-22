@@ -5,7 +5,7 @@ from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 @contextmanager
@@ -111,6 +111,59 @@ def migrate(db_path: Path, *, project_key: str) -> None:
               created_at text not null,
               updated_at text not null,
               target_snapshot_json text not null
+            );
+
+            create table if not exists intent_goals (
+              goal_id text primary key,
+              display_id text not null unique,
+              stable_id text not null unique,
+              title text not null,
+              statement text not null,
+              status text not null,
+              created_by text not null,
+              created_at text not null,
+              updated_at text not null
+            );
+
+            create table if not exists intent_edges (
+              edge_id text primary key,
+              goal_id text not null references intent_goals(goal_id),
+              requirement_id text not null references requirements(requirement_id),
+              relation text not null,
+              authority text not null,
+              freshness text not null,
+              created_by text not null,
+              created_at text not null,
+              updated_at text not null,
+              unique(goal_id, requirement_id, relation)
+            );
+
+            create table if not exists code_entities (
+              entity_id text primary key,
+              entity_kind text not null,
+              display_name text,
+              content_hash text,
+              public integer not null,
+              source text not null,
+              freshness text not null,
+              recorded_by text not null,
+              recorded_at text not null,
+              updated_at text not null
+            );
+
+            create table if not exists entity_associations (
+              association_id text primary key,
+              entity_id text not null references code_entities(entity_id),
+              entity_kind text not null,
+              requirement_id text not null references requirements(requirement_id),
+              relation text not null,
+              content_hash_at_attach text,
+              drift_status text not null,
+              freshness text not null,
+              bound_by text not null,
+              bound_at text not null,
+              provenance_json text not null,
+              unique(entity_id, requirement_id, relation)
             );
 
             create table if not exists baselines (
@@ -242,9 +295,13 @@ def migrate(db_path: Path, *, project_key: str) -> None:
         }
         if "request_hash" not in existing_columns:
             connection.execute("alter table idempotency_keys add column request_hash text")
-        connection.executemany(
-            "insert or ignore into schema_meta(key, value) values (?, ?)",
-            [("project_key", project_key), ("schema_version", str(SCHEMA_VERSION))],
+        connection.execute("insert or ignore into schema_meta(key, value) values (?, ?)", ("project_key", project_key))
+        connection.execute(
+            """
+            insert into schema_meta(key, value) values (?, ?)
+            on conflict(key) do update set value = excluded.value
+            """,
+            ("schema_version", str(SCHEMA_VERSION)),
         )
         connection.commit()
 
