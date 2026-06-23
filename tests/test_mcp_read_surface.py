@@ -9,6 +9,7 @@ from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
 from plainweave.store import connect, migrate
 from tests.loomweave_test_utils import seed_loomweave_catalog
+from tests.preflight_contract import validate_preflight_facts
 
 
 def service_for(tmp_path: Path) -> PlainweaveService:
@@ -65,15 +66,42 @@ def assert_error(envelope: dict[str, Any], code: str) -> None:
     assert envelope["error"]["hint"]
 
 
+_VERDICT_KEYS = {"allow", "allowed", "block", "blocked", "verdict", "decision", "gate", "enforcement"}
+_VERDICT_VALUE_TOKENS = {
+    "allow",
+    "allowed",
+    "block",
+    "blocked",
+    "block_candidate",
+    "deny",
+    "denied",
+    "approved",
+    "rejected",
+    "pass_fail",
+    "verdict",
+}
+_NEUTRAL_FACT_SEVERITIES = {"info", "warn", "critical"}
+
+
 def assert_no_verdict_keys(value: object) -> None:
+    """Reject gate/verdict semantics by key, by severity value, and by string value.
+
+    Key-only checks miss a verdict smuggled into a *value* (e.g. severity
+    "block_candidate"), so this also asserts severities use the neutral fact
+    vocabulary and that no string anywhere is a verdict token.
+    """
     if isinstance(value, dict):
-        forbidden = {"allow", "allowed", "block", "blocked", "verdict", "decision"}
-        assert forbidden.isdisjoint(value)
+        assert _VERDICT_KEYS.isdisjoint(value)
+        severity = value.get("severity")
+        if isinstance(severity, str):
+            assert severity in _NEUTRAL_FACT_SEVERITIES, f"non-neutral severity value: {severity}"
         for item in value.values():
             assert_no_verdict_keys(item)
     elif isinstance(value, list):
         for item in value:
             assert_no_verdict_keys(item)
+    elif isinstance(value, str):
+        assert value.strip().lower() not in _VERDICT_VALUE_TOKENS, f"verdict-like value: {value}"
 
 
 def test_mcp_tool_inventory_is_agent_task_surface() -> None:
@@ -215,6 +243,8 @@ def test_mcp_preflight_facts_returns_scoped_advisory_facts_without_verdicts(tmp_
 
     assert envelope["schema"] == "weft.plainweave.preflight_facts.v1"
     preflight = data(envelope)
+    # Live output runs through the SAME validator as the golden fixture (no drift).
+    validate_preflight_facts(preflight)
     assert set(preflight) == {
         "producer",
         "scope",
@@ -266,15 +296,15 @@ def test_mcp_preflight_facts_returns_scoped_advisory_facts_without_verdicts(tmp_
             "freshness",
             "provenance",
         }
-        assert fact["severity"] in {"info", "warn", "block_candidate"}
-        assert fact["freshness"] in {"current", "stale", "partial", "unavailable"}
+        assert fact["severity"] in {"info", "warn", "critical"}
+        assert fact["freshness"] in {"current", "partial", "unavailable"}
         assert fact["provenance"]["producer"] == "plainweave"
         assert fact["source"]["kind"]
 
     summary = cast(dict[str, Any], preflight["summary"])
     assert summary["info"] == sum(1 for fact in facts if fact["severity"] == "info")
     assert summary["warn"] == sum(1 for fact in facts if fact["severity"] == "warn")
-    assert summary["block_candidate"] == sum(1 for fact in facts if fact["severity"] == "block_candidate")
+    assert summary["critical"] == sum(1 for fact in facts if fact["severity"] == "critical")
     assert summary["facts"] == len(facts)
     assert summary["by_kind"]["untraced_change"] == 1
     assert summary["by_freshness"]["partial"] >= 1
@@ -286,6 +316,82 @@ def test_mcp_preflight_facts_returns_scoped_advisory_facts_without_verdicts(tmp_
         "linked_work_facts_unavailable",
         "finding_facts_unavailable",
     }
+
+
+def test_mcp_preflight_freshness_is_current_for_fully_resolved_explicit_scope(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    requirement_id = approve_requirement(service)
+    method = service.add_verification_method(
+        requirement_id,
+        method="test",
+        target="tests/test_auth.py::test_expired",
+        actor="human:john",
+    )
+    service.record_verification_evidence(
+        method.id,
+        status="passing",
+        evidence_ref="pytest:tests/test_auth.py::test_expired",
+        actor="agent:codex",
+    )
+    service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", f"{requirement_id}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    preflight = data(
+        surface.plainweave_preflight_facts_get(scope_kind="explicit_requirements", requirement_ids=[requirement_id])
+    )
+
+    # Non-diff scope, every fact current -> "current" is reachable (was a dead constant).
+    assert preflight["freshness"] == "current"
+    assert {fact["kind"] for fact in preflight["facts"]} == {"requirement_touched"}
+
+
+def test_mcp_preflight_freshness_is_unavailable_for_empty_project_scope(tmp_path: Path) -> None:
+    service_for(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    preflight = data(surface.plainweave_preflight_facts_get(scope_kind="project"))
+
+    assert preflight["facts"] == []
+    assert preflight["freshness"] == "unavailable"
+
+
+def test_mcp_preflight_soft_degrades_an_unresolvable_requirement_id(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    requirement_id = approve_requirement(service)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    envelope = surface.plainweave_preflight_facts_get(
+        scope_kind="explicit_requirements",
+        requirement_ids=[requirement_id, "REQ-AUTH-9999"],
+    )
+
+    # One missing id must NOT hard-fail the whole report (was a NOT_FOUND abort).
+    assert envelope["ok"] is True
+    preflight = data(envelope)
+    assert any(fact["requirement"]["id"] == requirement_id for fact in preflight["facts"])
+    warning_codes = {warning["code"] for warning in preflight["warnings"]}
+    assert "requirement_unresolved" in warning_codes
+
+
+def test_mcp_preflight_labels_corpus_fallback_requirements_nearby_not_touched(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    approve_requirement(service)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    # Default pending_diff with no explicit ids falls back to the whole corpus; with the
+    # diff unresolved, those requirements are "nearby", not proven "touched".
+    preflight = data(surface.plainweave_preflight_facts_get(scope_kind="pending_diff"))
+
+    fact_kinds = {fact["kind"] for fact in preflight["facts"]}
+    assert "requirement_nearby" in fact_kinds
+    assert "requirement_touched" not in fact_kinds
 
 
 def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Path) -> None:
@@ -354,9 +460,10 @@ def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Pat
     assert context["summary"] == {
         "requested": 3,
         "resolved": 2,
+        "resolved_no_binding": 0,
         "unresolved": 1,
         "peer_resolution_unavailable": 3,
-        "orphaned": 2,
+        "orphaned": 1,
     }
     items = {item["input_ref"]: item for item in context["items"]}
 
@@ -365,6 +472,8 @@ def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Pat
     assert resolved["resolution"]["matched_refs"] == [
         {"kind": "loomweave_entity", "id": sei_ref, "match": "exact_local_trace"}
     ]
+    assert resolved["resolution"]["local_catalog"]["state"] == "resolved"
+    assert resolved["resolution"]["local_catalog"]["sei"] == sei_ref
     assert resolved["resolution"]["peer_resolution"]["state"] == "unavailable"
     assert resolved["bindings"][0]["trace"]["from"]["id"] == sei_ref
     assert resolved["bindings"][0]["requirement"]["id"] == "REQ-AUTH-0001"
@@ -395,13 +504,100 @@ def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Pat
 
     missing = items["loomweave:eid:missing"]
     assert missing["resolution"]["state"] == "unresolved"
+    assert missing["resolution"]["local_catalog"]["state"] == "unresolved"
     assert missing["resolution"]["peer_resolution"]["state"] == "unavailable"
     assert missing["bindings"] == []
     assert missing["requirement_trail"] == []
-    assert missing["orphan"]["state"] == "unbound"
-    assert missing["orphan"]["is_orphan"] is True
+    # A ref Plainweave cannot resolve is NOT asserted to be a known orphan, and must
+    # not inflate summary.orphaned — that count is for genuine unbound/stale bindings.
+    assert missing["orphan"]["state"] == "unavailable"
+    assert missing["orphan"]["is_orphan"] is False
     assert missing["freshness"]["state"] == "unavailable"
     assert missing["drift"]["state"] == "unavailable"
+
+
+def test_mcp_entity_intent_context_resolves_loomweave_locator_inputs(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    requirement_id = approve_requirement(service, key="approve-locator")
+    # The trace is stored under the canonical SEI (writes canonicalize locator -> SEI).
+    service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", f"{requirement_id}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    # A peer (e.g. Warpline) holding the legacy locator form must still resolve the
+    # binding, not be told the entity is unresolved + an unbound orphan.
+    context = data(surface.plainweave_entity_intent_context_get(entity_refs=[seed["public_locator"]]))
+
+    item = context["items"][0]
+    assert item["resolution"]["state"] == "resolved"
+    assert item["resolution"]["local_catalog"]["state"] == "resolved"
+    assert item["resolution"]["local_catalog"]["sei"] == seed["public_sei"]
+    assert item["resolution"]["matched_refs"] == [
+        {"kind": "loomweave_entity", "id": seed["public_sei"], "match": "canonical_identity"}
+    ]
+    assert item["bindings"][0]["requirement"]["id"] == requirement_id
+    assert item["orphan"]["state"] == "bound"
+    assert item["orphan"]["is_orphan"] is False
+    assert context["summary"]["resolved"] == 1
+    assert context["summary"]["orphaned"] == 0
+
+
+def test_mcp_entity_intent_context_distinguishes_resolved_no_binding_from_unresolved(tmp_path: Path) -> None:
+    service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    context = data(
+        surface.plainweave_entity_intent_context_get(
+            entity_refs=[seed["public_sei"], "loomweave:eid:unknown"],
+        )
+    )
+    items = {item["input_ref"]: item for item in context["items"]}
+
+    # Known to Loomweave's local catalog but bound to no requirement: a real orphan.
+    known = items[seed["public_sei"]]
+    assert known["resolution"]["state"] == "resolved_no_binding"
+    assert known["resolution"]["local_catalog"]["state"] == "resolved"
+    assert known["orphan"]["state"] == "unbound"
+    assert known["orphan"]["is_orphan"] is True
+
+    # Not known to Loomweave at all: cannot be resolved, and not a claimed orphan.
+    unknown = items["loomweave:eid:unknown"]
+    assert unknown["resolution"]["state"] == "unresolved"
+    assert unknown["resolution"]["local_catalog"]["state"] == "unresolved"
+    assert unknown["orphan"]["state"] == "unavailable"
+    assert unknown["orphan"]["is_orphan"] is False
+
+    assert context["summary"] == {
+        "requested": 2,
+        "resolved": 0,
+        "resolved_no_binding": 1,
+        "unresolved": 1,
+        "peer_resolution_unavailable": 2,
+        "orphaned": 1,
+    }
+
+
+def test_mcp_entity_intent_context_distinguishes_unavailable_catalog_from_unresolved(tmp_path: Path) -> None:
+    # No Loomweave catalog seeded: the local catalog cannot be consulted at all.
+    service_for(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    context = data(surface.plainweave_entity_intent_context_get(entity_refs=["loomweave:eid:anything"]))
+
+    item = context["items"][0]
+    # "unavailable" (catalog absent) must be distinguishable from "unresolved" (catalog
+    # present, ref not found) so a peer can tell an outage from a genuine miss.
+    assert item["resolution"]["local_catalog"]["state"] == "unavailable"
+    assert item["resolution"]["state"] == "unresolved"
+    assert item["orphan"]["state"] == "unavailable"
+    assert item["orphan"]["is_orphan"] is False
 
 
 def test_mcp_intent_graph_read_tools_are_paginated_and_do_not_mutate_state(tmp_path: Path) -> None:
@@ -483,7 +679,9 @@ def test_mcp_loomweave_catalog_list_is_paginated_and_reports_adapter_status(tmp_
     assert first_page["limit"] == 1
     assert first_page["offset"] == 0
     assert first_page["adapter_status"]["status"] == "available"
-    assert first_page["degraded"] == []
+    assert first_page["coverage"]["complete"] is False
+    assert set(first_page["coverage"]["absent_tags"]) == {"http-route", "cli-command"}
+    assert any(item["code"] == "public_surface_tags_incomplete" for item in first_page["degraded"])
     assert first_page["has_more"] is True
     assert second_page["has_more"] is False
     all_items = first_page["items"] + second_page["items"]

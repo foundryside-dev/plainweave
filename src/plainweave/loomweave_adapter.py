@@ -6,6 +6,8 @@ import sqlite3
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -50,6 +52,7 @@ class LoomweaveCatalogEntity:
     freshness: str
     observed_at: str
     degraded: list[JsonObject]
+    signals: list[JsonObject]
 
     def to_dict(self) -> JsonObject:
         return {
@@ -66,6 +69,7 @@ class LoomweaveCatalogEntity:
             "freshness": self.freshness,
             "observed_at": self.observed_at,
             "degraded": [dict(item) for item in self.degraded],
+            "signals": [dict(item) for item in self.signals],
         }
 
 
@@ -78,9 +82,13 @@ class LoomweaveCatalogPage:
     next_offset: int | None
     adapter_status: JsonObject
     degraded: list[JsonObject]
+    coverage: JsonObject
 
 
-@dataclass(frozen=True)
+# Not frozen: an exception must allow Python to set ``__traceback__`` as it
+# propagates (a frozen dataclass blocks that and raises FrozenInstanceError when
+# re-raised through a generator-based context manager).
+@dataclass
 class LoomweaveIdentityError(Exception):
     reason: str
     message: str
@@ -102,7 +110,9 @@ class LoomweaveAdapter:
         adapter_status = self._adapter_status(schema)
         degraded = self._schema_degraded(schema)
         if schema["status"] == "unavailable" or not bool(schema["entities_present"]):
-            return LoomweaveCatalogPage([], limit, offset, False, None, adapter_status, degraded)
+            return LoomweaveCatalogPage(
+                [], limit, offset, False, None, adapter_status, degraded, self._coverage_unknown()
+            )
 
         sei_supported = bool(schema["sei_supported"])
         sei_join = (
@@ -110,7 +120,18 @@ class LoomweaveAdapter:
             if sei_supported
             else "(select null as sei, null as current_locator, null as status, null as body_hash)"
         )
+        placeholders = ",".join("?" for _ in PUBLIC_SURFACE_TAGS)
+        public_tags = tuple(sorted(PUBLIC_SURFACE_TAGS))
         with self._connect() as connection:
+            present_tags = {
+                str(row["tag"])
+                for row in connection.execute(
+                    f"select distinct tag from entity_tags where tag in ({placeholders})",
+                    public_tags,
+                )
+            }
+            # Fetch one extra row to detect `has_more` without materialising the
+            # whole catalog (the full-scan-then-slice pattern is replaced here).
             rows = connection.execute(
                 f"""
                 select e.*,
@@ -132,23 +153,55 @@ class LoomweaveAdapter:
                    or exists (
                      select 1 from entity_tags t
                      where t.entity_id = e.id
-                       and t.tag in ({",".join("?" for _ in PUBLIC_SURFACE_TAGS)})
+                       and t.tag in ({placeholders})
                    )
                 order by e.id
+                limit ? offset ?
                 """,
-                tuple(sorted(PUBLIC_SURFACE_TAGS)),
+                (*public_tags, limit + 1, offset),
             ).fetchall()
-        all_items = [self._entity_from_row(row, sei_supported=sei_supported) for row in rows]
-        page = all_items[offset : offset + limit]
-        next_offset = offset + limit if offset + limit < len(all_items) else None
+        has_more = len(rows) > limit
+        page = [self._entity_from_row(row, sei_supported=sei_supported) for row in rows[:limit]]
+        next_offset = offset + limit if has_more else None
+        coverage = self._public_surface_coverage(present_tags)
+        if not coverage["complete"]:
+            degraded = [*degraded, self._public_surface_incomplete_degraded(coverage)]
         return LoomweaveCatalogPage(
             page,
             limit,
             offset,
-            next_offset is not None,
+            has_more,
             next_offset,
             adapter_status,
             degraded,
+            coverage,
+        )
+
+    def _public_surface_coverage(self, present_tags: set[str]) -> JsonObject:
+        absent = sorted(PUBLIC_SURFACE_TAGS - present_tags)
+        return {
+            "public_surface_tags": sorted(PUBLIC_SURFACE_TAGS),
+            "present_tags": sorted(present_tags & PUBLIC_SURFACE_TAGS),
+            "absent_tags": absent,
+            "complete": not absent,
+        }
+
+    def _coverage_unknown(self) -> JsonObject:
+        return {
+            "public_surface_tags": sorted(PUBLIC_SURFACE_TAGS),
+            "present_tags": [],
+            "absent_tags": [],
+            "complete": False,
+        }
+
+    def _public_surface_incomplete_degraded(self, coverage: JsonObject) -> JsonObject:
+        absent = cast(list[str], coverage["absent_tags"])
+        return self._degraded(
+            "public_surface_tags_incomplete",
+            (
+                "Some public-surface tag classes are absent from the local Loomweave catalog, so this "
+                "enumeration may under-report exported entities. Absent tag classes: " + ", ".join(absent)
+            ),
         )
 
     def adapter_capability(self) -> JsonObject:
@@ -161,6 +214,15 @@ class LoomweaveAdapter:
     def resolve_identity(self, value: str) -> LoomweaveCatalogEntity:
         if self.http_url is not None:
             return self._resolve_identity_http(value)
+        return self._resolve_identity_sqlite(value)
+
+    def resolve_identity_local(self, value: str) -> LoomweaveCatalogEntity:
+        """Resolve identity using only the local catalog, never a live peer call.
+
+        Callers that must honour a ``local_only`` / ``live_peer_calls: False``
+        boundary use this instead of :meth:`resolve_identity`, which may route to
+        the HTTP identity endpoint when one is configured.
+        """
         return self._resolve_identity_sqlite(value)
 
     def snapshot_error(self, error: LoomweaveIdentityError) -> JsonObject:
@@ -344,7 +406,11 @@ class LoomweaveAdapter:
     def _entity_from_mapping(self, row: dict[str, object], *, sei_supported: bool) -> LoomweaveCatalogEntity:
         tags = self._split_tags(row.get("tags"))
         public_signal = self._public_signal(str(row["kind"]), tags)
-        degraded = [self._degraded("visibility_unknown", "Loomweave did not report public/internal visibility.")]
+        # `visibility_unknown` is a permanent signal (Loomweave does not expose a
+        # public/internal verdict), not a degradation — keeping it out of `degraded`
+        # means an "is anything degraded?" check is not tripped by every healthy entity.
+        signals = [self._signal("visibility_unknown", "Loomweave did not report public/internal visibility.")]
+        degraded: list[JsonObject] = []
         if not sei_supported:
             degraded.append(self._degraded("sei_support_missing", "Loomweave SEI tables are missing."))
         if sei_supported and not isinstance(row.get("sei"), str):
@@ -380,6 +446,7 @@ class LoomweaveAdapter:
             freshness,
             self._now(),
             degraded,
+            signals,
         )
 
     def _adapter_status(self, schema: dict[str, object]) -> JsonObject:
@@ -476,10 +543,16 @@ class LoomweaveAdapter:
             return None
         return f"http://127.0.0.1:{port}"
 
-    def _connect(self) -> sqlite3.Connection:
-        connection = sqlite3.connect(self.db_path)
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
+        # Open read-only: Plainweave never mutates the Loomweave catalog, and the
+        # connection is closed deterministically rather than left to GC.
+        connection = sqlite3.connect(f"{self.db_path.as_uri()}?mode=ro", uri=True)
         connection.row_factory = sqlite3.Row
-        return connection
+        try:
+            yield connection
+        finally:
+            connection.close()
 
     def _public_signal(self, kind: str, tags: list[str]) -> JsonObject:
         public_tags = sorted(PUBLIC_SURFACE_TAGS.intersection(tags))
@@ -509,6 +582,9 @@ class LoomweaveAdapter:
     def _degraded(self, code: str, message: str) -> JsonObject:
         return {"code": code, "message": message}
 
+    def _signal(self, code: str, message: str) -> JsonObject:
+        return {"code": code, "message": message}
+
     def _required_str(self, data: JsonObject, key: str) -> str:
         value = data.get(key)
         if not isinstance(value, str) or not value:
@@ -523,6 +599,8 @@ class LoomweaveAdapter:
         return value if isinstance(value, str) else None
 
     def _optional_int(self, value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
         return int(value) if isinstance(value, int) else None
 
     def _now(self) -> str:

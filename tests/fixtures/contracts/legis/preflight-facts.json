@@ -10,18 +10,48 @@
     "base": "main",
     "head": "WORKTREE",
     "requirement_ids": [
-      "REQ-AUTH-0001"
+      "REQ-AUTH-0001",
+      "REQ-AUTH-0002"
     ],
     "entity_refs": [
-      "loomweave:eid:auth.validate_token"
+      "loomweave:eid:public00000000000000000000000000",
+      "loomweave:eid:untraced"
     ],
     "baseline_id": "BASELINE-0001"
   },
-  "generated_at": "2026-06-04T10:00:00+10:00",
+  "generated_at": "2026-06-04T10:00:00+00:00",
   "freshness": "partial",
   "facts": [
     {
       "id": "FACT-0001",
+      "kind": "requirement_touched",
+      "severity": "info",
+      "requirement": {
+        "id": "REQ-AUTH-0001",
+        "requirement_id": "req-1",
+        "stable_id": "plainweave:req:AUTH:0001",
+        "version": 2,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement is included in the preflight context.",
+      "evidence_refs": [
+        "REQ-AUTH-0001"
+      ],
+      "source": {
+        "kind": "scope",
+        "id": "REQ-AUTH-0001"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "requirements"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0002",
       "kind": "requirement_verification_stale",
       "severity": "warn",
       "requirement": {
@@ -29,8 +59,8 @@
         "requirement_id": "req-1",
         "stable_id": "plainweave:req:AUTH:0001",
         "version": 2,
-        "criticality": "high",
-        "type": "security"
+        "criticality": "medium",
+        "type": "functional"
       },
       "message": "Scoped requirement has stale verification evidence.",
       "evidence_refs": [
@@ -47,18 +77,219 @@
           "verification_evidence"
         ]
       }
+    },
+    {
+      "id": "FACT-0003",
+      "kind": "trace_gap",
+      "severity": "warn",
+      "requirement": {
+        "id": "REQ-AUTH-0001",
+        "requirement_id": "req-1",
+        "stable_id": "plainweave:req:AUTH:0001",
+        "version": 2,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement has no accepted current code-entity trace.",
+      "evidence_refs": [
+        "LINK-0001"
+      ],
+      "source": {
+        "kind": "trace_links",
+        "id": "REQ-AUTH-0001"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "trace_links"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0004",
+      "kind": "requirement_touched",
+      "severity": "info",
+      "requirement": {
+        "id": "REQ-AUTH-0002",
+        "requirement_id": "req-2",
+        "stable_id": "plainweave:req:AUTH:0002",
+        "version": 1,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement is included in the preflight context.",
+      "evidence_refs": [
+        "REQ-AUTH-0002"
+      ],
+      "source": {
+        "kind": "scope",
+        "id": "REQ-AUTH-0002"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "requirements"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0005",
+      "kind": "requirement_verification_missing",
+      "severity": "warn",
+      "requirement": {
+        "id": "REQ-AUTH-0002",
+        "requirement_id": "req-2",
+        "stable_id": "plainweave:req:AUTH:0002",
+        "version": 1,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement has no current satisfying verification evidence.",
+      "evidence_refs": [],
+      "source": {
+        "kind": "verification_status",
+        "id": "REQ-AUTH-0002"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "verification_methods",
+          "verification_evidence"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0006",
+      "kind": "trace_gap",
+      "severity": "warn",
+      "requirement": {
+        "id": "REQ-AUTH-0002",
+        "requirement_id": "req-2",
+        "stable_id": "plainweave:req:AUTH:0002",
+        "version": 1,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement has no accepted current code-entity trace.",
+      "evidence_refs": [],
+      "source": {
+        "kind": "trace_links",
+        "id": "REQ-AUTH-0002"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "trace_links"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0007",
+      "kind": "baseline_drift",
+      "severity": "warn",
+      "requirement": {
+        "id": "REQ-AUTH-0001",
+        "requirement_id": "req-1",
+        "stable_id": "plainweave:req:AUTH:0001",
+        "version": 2,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement baseline state is superseded_since_baseline.",
+      "evidence_refs": [
+        "BASELINE-0001"
+      ],
+      "source": {
+        "kind": "baseline_diff",
+        "id": "BASELINE-0001"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "baselines",
+          "baseline_members"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0008",
+      "kind": "baseline_drift",
+      "severity": "warn",
+      "requirement": {
+        "id": "REQ-AUTH-0002",
+        "requirement_id": "req-2",
+        "stable_id": "plainweave:req:AUTH:0002",
+        "version": 1,
+        "criticality": "medium",
+        "type": "functional"
+      },
+      "message": "Scoped requirement baseline state is new_since_baseline.",
+      "evidence_refs": [
+        "BASELINE-0001"
+      ],
+      "source": {
+        "kind": "baseline_diff",
+        "id": "BASELINE-0001"
+      },
+      "freshness": "current",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "baselines",
+          "baseline_members"
+        ]
+      }
+    },
+    {
+      "id": "FACT-0009",
+      "kind": "untraced_change",
+      "severity": "critical",
+      "requirement": {
+        "id": null,
+        "requirement_id": null,
+        "stable_id": null,
+        "version": null,
+        "criticality": "unknown",
+        "type": "unknown"
+      },
+      "message": "Scoped entity has no accepted current requirement trace.",
+      "evidence_refs": [
+        "loomweave:eid:untraced"
+      ],
+      "source": {
+        "kind": "entity_ref",
+        "id": "loomweave:eid:untraced"
+      },
+      "freshness": "partial",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": [
+          "trace_links"
+        ]
+      }
     }
   ],
   "summary": {
-    "info": 0,
-    "warn": 1,
-    "block_candidate": 0,
-    "facts": 1,
+    "info": 2,
+    "warn": 6,
+    "critical": 1,
+    "facts": 9,
     "by_kind": {
-      "requirement_verification_stale": 1
+      "baseline_drift": 2,
+      "requirement_touched": 2,
+      "requirement_verification_missing": 1,
+      "requirement_verification_stale": 1,
+      "trace_gap": 2,
+      "untraced_change": 1
     },
     "by_freshness": {
-      "current": 1
+      "current": 8,
+      "partial": 1
     }
   },
   "warnings": [
@@ -71,15 +302,47 @@
         "producer": "plainweave",
         "inputs": []
       }
+    },
+    {
+      "code": "goal_trail_unavailable",
+      "severity": "info",
+      "message": "Strategic goal nodes are not implemented in the local store.",
+      "freshness": "unavailable",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": []
+      }
+    },
+    {
+      "code": "linked_work_facts_unavailable",
+      "severity": "info",
+      "message": "Filigree linked-work facts are not joined by this local-only producer.",
+      "freshness": "unavailable",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": []
+      }
+    },
+    {
+      "code": "finding_facts_unavailable",
+      "severity": "info",
+      "message": "Wardline finding facts are not joined by this local-only producer.",
+      "freshness": "unavailable",
+      "provenance": {
+        "producer": "plainweave",
+        "inputs": []
+      }
     }
   ],
   "provenance": {
     "producer": "plainweave",
     "inputs": [
+      "baseline_members",
+      "baselines",
       "requirements",
-      "verification_status",
       "trace_links",
-      "baselines"
+      "verification_evidence",
+      "verification_methods"
     ]
   },
   "authority_boundary": {

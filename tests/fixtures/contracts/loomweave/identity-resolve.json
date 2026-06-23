@@ -1,0 +1,15 @@
+{
+  "contract": "loomweave.identity.resolve.v1",
+  "request": {
+    "method": "POST",
+    "path": "/api/v1/identity/resolve",
+    "body": {"locator": "python:function:pkg.public_api"}
+  },
+  "response": {
+    "alive": true,
+    "sei": "loomweave:eid:public00000000000000000000000000",
+    "current_locator": "python:function:pkg.public_api",
+    "content_hash": "hash-public-v1",
+    "lineage": []
+  }
+}
