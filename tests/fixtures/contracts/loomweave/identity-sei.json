@@ -1,0 +1,14 @@
+{
+  "contract": "loomweave.identity.sei.v1",
+  "request": {
+    "method": "GET",
+    "path": "/api/v1/identity/sei/loomweave%3Aeid%3Apublic00000000000000000000000000"
+  },
+  "response": {
+    "alive": true,
+    "sei": "loomweave:eid:public00000000000000000000000000",
+    "current_locator": "python:function:pkg.public_api",
+    "content_hash": "hash-public-v1",
+    "lineage": []
+  }
+}

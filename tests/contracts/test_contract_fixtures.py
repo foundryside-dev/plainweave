@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+from tests.preflight_contract import validate_preflight_facts
+
 FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "contracts"
 
 ERROR_CODES = {
@@ -30,21 +32,6 @@ TRACE_AUTHORITIES = {
     "peer_reported",
 }
 TRACE_FRESHNESS = {"current", "stale", "unknown", "orphaned", "not_applicable"}
-PREFLIGHT_FACT_KINDS = {
-    "requirement_touched",
-    "requirement_nearby",
-    "requirement_verification_stale",
-    "requirement_verification_missing",
-    "baseline_drift",
-    "trace_gap",
-    "open_linked_work",
-    "active_finding_linked",
-    "waived_finding_linked",
-    "orphaned_entity_link",
-    "untraced_change",
-}
-PREFLIGHT_SEVERITIES = {"info", "warn", "block_candidate"}
-PREFLIGHT_FRESHNESS = {"current", "stale", "partial", "unavailable"}
 VERIFICATION_METHODS = {"test", "analysis", "inspection", "manual"}
 VERIFICATION_EVIDENCE_STATUSES = {"passing", "failing", "inconclusive", "waived"}
 VERIFICATION_AUTHORITIES = {"test_derived", "human_attested", "agent_reported", "waiver"}
@@ -78,6 +65,8 @@ REQUIRED_FIXTURES = {
     "traces/trace-link-stale.json",
     "traces/trace-link-orphaned.json",
     "legis/preflight-facts.json",
+    "loomweave/identity-resolve.json",
+    "loomweave/identity-sei.json",
     "mcp/side-effect-metadata.json",
     "mcp/tool-inventory.json",
     "mcp/resource-inventory.json",
@@ -388,55 +377,42 @@ def test_mcp_resource_inventory_fixture_contract() -> None:
 def test_preflight_facts_fixture_contract() -> None:
     fixture = load_fixture("legis/preflight-facts.json")
 
-    assert set(fixture) == {
-        "schema",
-        "producer",
-        "scope",
-        "generated_at",
-        "freshness",
-        "facts",
-        "summary",
-        "warnings",
-        "provenance",
-        "authority_boundary",
-    }
     assert fixture["schema"] == "weft.plainweave.preflight_facts.v1"
-    assert set(fixture["producer"]) == {"tool", "version", "project"}
-    assert fixture["producer"]["tool"] == "plainweave"
-    assert set(fixture["scope"]) >= {"kind"}
-    assert fixture["freshness"] in PREFLIGHT_FRESHNESS
-    assert isinstance(fixture["facts"], list)
     assert fixture["facts"]
-    for fact in fixture["facts"]:
-        assert set(fact) == {
-            "id",
-            "kind",
-            "severity",
-            "requirement",
-            "message",
-            "evidence_refs",
-            "source",
-            "freshness",
-            "provenance",
-        }
-        assert fact["id"].startswith("FACT-")
-        assert fact["kind"] in PREFLIGHT_FACT_KINDS
-        assert fact["severity"] in PREFLIGHT_SEVERITIES
-        assert set(fact["requirement"]) == {"id", "requirement_id", "stable_id", "version", "criticality", "type"}
-        assert isinstance(fact["evidence_refs"], list)
-        assert set(fact["source"]) == {"kind", "id"}
-        assert fact["freshness"] in PREFLIGHT_FRESHNESS
-        assert set(fact["provenance"]) == {"producer", "inputs"}
-    assert set(fixture["summary"]) == {"info", "warn", "block_candidate", "facts", "by_kind", "by_freshness"}
-    assert fixture["summary"]["facts"] == len(fixture["facts"])
-    assert isinstance(fixture["warnings"], list)
-    assert set(fixture["authority_boundary"]) == {
-        "local_only",
-        "live_peer_calls",
-        "governance_verdicts",
-        "legis_policy_cells",
-    }
-    assert fixture["authority_boundary"]["governance_verdicts"] is False
+    # Validated through the SAME structural validator as live output, so the golden
+    # fixture and the running tool cannot diverge without one test or the other failing.
+    validate_preflight_facts({key: value for key, value in fixture.items() if key != "schema"})
+
+
+def test_loomweave_identity_resolve_fixture_contract() -> None:
+    fixture = load_fixture("loomweave/identity-resolve.json")
+
+    assert fixture["contract"] == "loomweave.identity.resolve.v1"
+    assert fixture["request"]["method"] == "POST"
+    assert fixture["request"]["path"] == "/api/v1/identity/resolve"
+    assert set(fixture["request"]["body"]) == {"locator"}
+    response = fixture["response"]
+    # These are exactly the fields LoomweaveAdapter._resolve_identity_http reads;
+    # the fixture pins that contract so a server-side shape change is caught here.
+    assert response["alive"] is True
+    assert response["sei"].startswith("loomweave:eid:")
+    assert response["current_locator"]
+    assert isinstance(response["content_hash"], str)
+    assert isinstance(response["lineage"], list)
+
+
+def test_loomweave_identity_sei_fixture_contract() -> None:
+    fixture = load_fixture("loomweave/identity-sei.json")
+
+    assert fixture["contract"] == "loomweave.identity.sei.v1"
+    assert fixture["request"]["method"] == "GET"
+    assert fixture["request"]["path"].startswith("/api/v1/identity/sei/")
+    response = fixture["response"]
+    assert response["alive"] is True
+    assert response["sei"].startswith("loomweave:eid:")
+    assert response["current_locator"]
+    assert isinstance(response["content_hash"], str)
+    assert isinstance(response["lineage"], list)
 
 
 def test_baseline_fixture_contract() -> None:

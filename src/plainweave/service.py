@@ -1092,10 +1092,12 @@ class PlainweaveService:
     def goals_for_requirement(self, requirement_id: str) -> list[tuple[IntentGoal, str]]:
         """Goals that justify a requirement, each paired with its edge freshness.
 
-        Returns every ``justifies`` edge (current and stale) so callers can
-        surface laddering that has drifted. An empty list means the requirement
-        ladders to no strategic goal. Raises ``NOT_FOUND`` when the requirement
-        itself does not resolve.
+        Returns every ``justifies`` edge paired with its recorded ``freshness``.
+        Edge staleness is not yet written by any code path, so today this value is
+        always ``current``; the pairing exists so drifted laddering can surface once
+        an edge-staleness signal lands without changing this contract. An empty list
+        means the requirement ladders to no strategic goal. Raises ``NOT_FOUND`` when
+        the requirement itself does not resolve.
         """
         with connect(self.db_path) as connection:
             requirement = self._requirement_row(connection, requirement_id)
@@ -2422,8 +2424,13 @@ class PlainweaveService:
             if isinstance(item, dict) and isinstance(item.get("message"), str):
                 notes.append(str(item["message"]))
         status = capability["adapter_status"] if isinstance(capability["adapter_status"], dict) else {}
+        if status.get("identity_http") == "configured":
+            # A configured HTTP endpoint is a *capability*, not evidence a live call
+            # was made: the dossier is computed from local state only, so
+            # live_peer_calls stays False and the capability is recorded as a note.
+            notes.append("A Loomweave HTTP identity endpoint is configured but was not called for this dossier.")
         return DossierPeerFacts(
-            status.get("identity_http") == "configured",
+            False,
             ["loomweave"],
             notes,
         )

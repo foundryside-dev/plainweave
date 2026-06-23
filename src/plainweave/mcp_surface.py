@@ -23,7 +23,7 @@ from plainweave.cli_commands import (
 from plainweave.envelopes import error_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.intent_graph import IntentLevel, IntentNode
-from plainweave.loomweave_adapter import LoomweaveAdapter
+from plainweave.loomweave_adapter import LoomweaveAdapter, LoomweaveIdentityError
 from plainweave.models import TraceLink, TraceRef
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
@@ -32,7 +32,11 @@ JsonObject = dict[str, object]
 ENTITY_TRACE_KINDS = {"loomweave_entity", "file_ref"}
 MAX_ENTITY_CONTEXT_REFS = 100
 PREFLIGHT_SCOPE_KINDS = {"pending_diff", "commit_range", "explicit_requirements", "project"}
-PREFLIGHT_SEVERITIES = {"info", "warn", "block_candidate"}
+PREFLIGHT_DIFF_SCOPE_KINDS = {"pending_diff", "commit_range"}
+# Neutral fact severities only. There is deliberately NO enforcement tier (e.g.
+# "block_candidate"): Plainweave emits facts, Legis owns any gate decision.
+PREFLIGHT_SEVERITIES = {"info", "warn", "critical"}
+PREFLIGHT_FRESHNESS_STATES = {"current", "partial", "unavailable"}
 
 MCP_TOOL_METADATA: dict[str, JsonObject] = {
     "plainweave_intent_corpus": {
@@ -216,12 +220,16 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
             "freshness",
             "drift",
         ],
-        "resolution_states": ["resolved", "unresolved"],
+        "resolution_states": ["resolved", "resolved_no_binding", "unresolved"],
+        "local_catalog_states": ["resolved", "unresolved", "unavailable"],
         "peer_resolution_states": ["unavailable"],
-        "orphan_states": ["bound", "stale_binding", "orphaned_trace", "pending_review", "unbound"],
+        "orphan_states": ["bound", "stale_binding", "orphaned_trace", "pending_review", "unbound", "unavailable"],
         "freshness_states": ["current", "stale", "orphaned", "unknown", "unavailable"],
         "drift_states": ["not_detected", "stale", "orphaned", "unknown", "unavailable"],
-        "authority_boundary": "Exact local trace matching only; Loomweave remains the identity authority.",
+        "authority_boundary": (
+            "Input refs are canonicalized against the local Loomweave catalog (no live peer call); "
+            "Loomweave remains the identity authority."
+        ),
     },
     "plainweave://contracts/weft.plainweave.preflight_facts.v1": {
         "contract": "weft.plainweave.preflight_facts.v1",
@@ -250,7 +258,7 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
             "untraced_change",
         ],
         "severities": sorted(PREFLIGHT_SEVERITIES),
-        "freshness_states": ["current", "stale", "partial", "unavailable"],
+        "freshness_states": sorted(PREFLIGHT_FRESHNESS_STATES),
         "authority_boundary": "Plainweave emits facts only; Legis owns policy cells, audit, and enforcement.",
     },
     "plainweave://contracts/weft.plainweave.requirement_verification_status.v1": {
@@ -329,6 +337,7 @@ class PlainweaveMcpSurface:
             "next_offset": page.next_offset,
             "adapter_status": page.adapter_status,
             "degraded": page.degraded,
+            "coverage": page.coverage,
         }
         return success_envelope("weft.plainweave.loomweave_catalog.v1", data, project=self._project_key())
 
@@ -495,7 +504,8 @@ class PlainweaveMcpSurface:
 
         def action(service: PlainweaveService) -> JsonObject:
             scoped_requirement_ids = self._preflight_requirement_ids(service, requirement_ids)
-            scoped_entity_refs = list(entity_refs or [])
+            scoped_entity_refs = self._dedupe(entity_refs)
+            requirement_basis = self._preflight_requirement_basis(scope_kind, requirement_ids)
             facts: list[JsonObject] = []
             warnings = self._preflight_warnings(scope_kind, scoped_requirement_ids)
             scope = self._preflight_scope(
@@ -507,21 +517,45 @@ class PlainweaveMcpSurface:
                 baseline_id,
             )
             for requirement_id in scoped_requirement_ids:
-                self._append_requirement_preflight_facts(service, facts, requirement_id)
+                try:
+                    self._append_requirement_preflight_facts(service, facts, requirement_id, basis=requirement_basis)
+                except PlainweaveError as exc:
+                    # A single unresolvable scoped requirement soft-degrades to a warning
+                    # rather than hard-failing the whole report (consistent with how
+                    # unresolvable entity refs are handled).
+                    if exc.code != ErrorCode.NOT_FOUND:
+                        raise
+                    warnings.append(
+                        self._preflight_warning(
+                            "requirement_unresolved",
+                            f"Scoped requirement could not be resolved and was skipped: {requirement_id}",
+                        )
+                    )
             if baseline_id is not None:
-                self._append_baseline_preflight_facts(service, facts, baseline_id, scoped_requirement_ids)
+                try:
+                    self._append_baseline_preflight_facts(service, facts, baseline_id, scoped_requirement_ids)
+                except PlainweaveError as exc:
+                    if exc.code != ErrorCode.NOT_FOUND:
+                        raise
+                    warnings.append(
+                        self._preflight_warning(
+                            "baseline_unresolved",
+                            f"Scoped baseline could not be resolved and was skipped: {baseline_id}",
+                        )
+                    )
             self._append_entity_preflight_facts(service, facts, scoped_entity_refs)
+            subjects_requested = bool(scoped_requirement_ids or scoped_entity_refs or baseline_id)
             return {
                 "producer": {"tool": "plainweave", "version": __version__, "project": self._project_key()},
                 "scope": scope,
                 "generated_at": datetime.now(UTC).isoformat(),
-                "freshness": self._preflight_freshness(facts, warnings),
+                "freshness": self._preflight_freshness(facts, scope_kind, subjects_requested=subjects_requested),
                 "facts": facts,
                 "summary": self._preflight_summary(facts),
                 "warnings": warnings,
                 "provenance": {
                     "producer": "plainweave",
-                    "inputs": ["requirements", "verification_status", "trace_links", "baselines"],
+                    "inputs": self._preflight_provenance_inputs(facts),
                 },
                 "authority_boundary": {
                     "local_only": True,
@@ -768,8 +802,34 @@ class PlainweaveMcpSurface:
         requirement_ids: Sequence[str] | None,
     ) -> list[str]:
         if requirement_ids is not None:
-            return list(requirement_ids)
+            return self._dedupe(requirement_ids)
         return [record.id for record in service.search_requirements()]
+
+    def _dedupe(self, values: Sequence[str] | None) -> list[str]:
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for value in values or []:
+            if value not in seen:
+                seen.add(value)
+                deduped.append(value)
+        return deduped
+
+    def _preflight_requirement_basis(self, scope_kind: str, requirement_ids: Sequence[str] | None) -> str:
+        if requirement_ids is not None:
+            return "touched"
+        if scope_kind == "project":
+            return "touched"
+        # Diff scope with no explicit ids: the live diff is not resolved locally, so
+        # the corpus-fallback requirements are "nearby", not proven "touched".
+        return "nearby"
+
+    def _preflight_provenance_inputs(self, facts: Sequence[JsonObject]) -> list[str]:
+        inputs: set[str] = set()
+        for fact in facts:
+            provenance = cast(JsonObject, fact["provenance"])
+            for value in cast(Sequence[str], provenance["inputs"]):
+                inputs.add(value)
+        return sorted(inputs)
 
     def _preflight_scope(
         self,
@@ -834,16 +894,28 @@ class PlainweaveMcpSurface:
         service: PlainweaveService,
         facts: list[JsonObject],
         requirement_id: str,
+        *,
+        basis: str = "touched",
     ) -> None:
         requirement = service.requirement_preflight_profile(requirement_id)
         status = service.verification_status(requirement_id)
         dossier = service.requirement_dossier(requirement_id)
+        if basis == "nearby":
+            scope_kind, scope_message = (
+                "requirement_nearby",
+                "Scoped requirement is in the preflight corpus fallback; the live diff was not resolved.",
+            )
+        else:
+            scope_kind, scope_message = (
+                "requirement_touched",
+                "Scoped requirement is included in the preflight context.",
+            )
         self._append_preflight_fact(
             facts,
-            kind="requirement_touched",
+            kind=scope_kind,
             severity="info",
             requirement=requirement,
-            message="Scoped requirement is included in the preflight context.",
+            message=scope_message,
             evidence_refs=[str(requirement["id"])],
             source={"kind": "scope", "id": str(requirement["id"])},
             freshness="current",
@@ -927,7 +999,14 @@ class PlainweaveMcpSurface:
                 continue
             if item.status == "unchanged":
                 continue
-            requirement = service.requirement_preflight_profile(item.requirement_id)
+            try:
+                requirement = service.requirement_preflight_profile(item.requirement_id)
+            except PlainweaveError as exc:
+                # A baseline can outlive a requirement that was since deleted; keep the
+                # drift fact with an unavailable profile rather than aborting the report.
+                if exc.code != ErrorCode.NOT_FOUND:
+                    raise
+                requirement = self._unavailable_requirement_profile()
             self._append_preflight_fact(
                 facts,
                 kind="baseline_drift",
@@ -948,7 +1027,13 @@ class PlainweaveMcpSurface:
     ) -> None:
         traces = service.trace_for()
         for entity_ref in entity_refs:
-            matching = [trace for trace in traces if self._trace_matches_entity_ref(trace, entity_ref)]
+            local = self._local_catalog_resolution(entity_ref)
+            match_refs = {entity_ref}
+            if isinstance(local["sei"], str):
+                match_refs.add(local["sei"])
+            if isinstance(local["locator"], str):
+                match_refs.add(local["locator"])
+            matching = [trace for trace in traces if self._trace_matches_entity_refs(trace, match_refs)]
             accepted_current = [
                 trace for trace in matching if trace.state == "accepted" and trace.freshness == "current"
             ]
@@ -956,7 +1041,7 @@ class PlainweaveMcpSurface:
                 self._append_preflight_fact(
                     facts,
                     kind="untraced_change",
-                    severity="block_candidate",
+                    severity="critical",
                     requirement=self._unavailable_requirement_profile(),
                     message="Scoped entity has no accepted current requirement trace.",
                     evidence_refs=[entity_ref],
@@ -1009,17 +1094,24 @@ class PlainweaveMcpSurface:
             "type": "unknown",
         }
 
-    def _preflight_freshness(self, facts: Sequence[JsonObject], warnings: Sequence[JsonObject]) -> str:
-        if any(fact["freshness"] in {"partial", "unavailable"} for fact in facts):
+    def _preflight_freshness(self, facts: Sequence[JsonObject], scope_kind: str, *, subjects_requested: bool) -> str:
+        # Derived from the facts and the scope, NOT from the always-present
+        # capability-gap warnings (linked-work / finding joins), which described a
+        # permanent out-of-scope join and pinned this field to a constant "partial".
+        if scope_kind in PREFLIGHT_DIFF_SCOPE_KINDS:
+            # The live diff that defines a diff scope is never resolved locally.
             return "partial"
-        if any(warning["freshness"] == "unavailable" for warning in warnings):
+        fact_freshness = {str(fact["freshness"]) for fact in facts}
+        if fact_freshness & {"partial", "unavailable"}:
             return "partial"
-        if any(fact["freshness"] == "stale" for fact in facts):
-            return "stale"
+        if not facts:
+            # Subjects were requested but none resolved -> partial knowledge; nothing
+            # requested at all (e.g. empty project scope) -> genuinely unavailable.
+            return "partial" if subjects_requested else "unavailable"
         return "current"
 
     def _preflight_summary(self, facts: Sequence[JsonObject]) -> JsonObject:
-        severity_counts = {"info": 0, "warn": 0, "block_candidate": 0}
+        severity_counts = {"info": 0, "warn": 0, "critical": 0}
         by_kind: dict[str, int] = {}
         by_freshness: dict[str, int] = {}
         for fact in facts:
@@ -1041,14 +1133,31 @@ class PlainweaveMcpSurface:
         entity_ref: str,
         traces: Sequence[TraceLink],
     ) -> JsonObject:
-        matching_traces = [trace for trace in traces if self._trace_matches_entity_ref(trace, entity_ref)]
+        # Canonicalize the input ref against the local Loomweave catalog first.
+        # loomweave_entity traces are stored under the canonical SEI (writes map
+        # locator -> SEI), so a peer passing the legacy locator form would otherwise
+        # never match a genuinely bound entity. This is a local-only lookup.
+        local = self._local_catalog_resolution(entity_ref)
+        match_refs = {entity_ref}
+        if isinstance(local["sei"], str):
+            match_refs.add(local["sei"])
+        if isinstance(local["locator"], str):
+            match_refs.add(local["locator"])
+        matching_traces = [trace for trace in traces if self._trace_matches_entity_refs(trace, match_refs)]
         binding_pairs = [self._entity_binding_context(service, trace) for trace in matching_traces]
         requirement_ids = self._resolved_requirement_ids(binding_pairs)
+        if matching_traces:
+            resolution_state = "resolved"
+        elif local["state"] == "resolved":
+            resolution_state = "resolved_no_binding"
+        else:
+            resolution_state = "unresolved"
         return {
             "input_ref": entity_ref,
             "resolution": {
-                "state": "resolved" if matching_traces else "unresolved",
-                "matched_refs": self._matched_entity_refs(entity_ref, matching_traces),
+                "state": resolution_state,
+                "matched_refs": self._matched_entity_refs(entity_ref, match_refs, matching_traces),
+                "local_catalog": local,
                 "peer_resolution": self._peer_resolution_unavailable(),
             },
             "bindings": [binding for binding, _requirement_id in binding_pairs],
@@ -1056,10 +1165,20 @@ class PlainweaveMcpSurface:
                 self._requirement_trail_entry(service, requirement_id, binding_pairs)
                 for requirement_id in requirement_ids
             ],
-            "orphan": self._entity_orphan_context(matching_traces),
+            "orphan": self._entity_orphan_context(matching_traces, local_state=str(local["state"])),
             "freshness": self._entity_freshness_context(matching_traces),
             "drift": self._entity_drift_context(matching_traces),
         }
+
+    def _local_catalog_resolution(self, entity_ref: str) -> JsonObject:
+        try:
+            snapshot = self._loomweave_adapter().resolve_identity_local(entity_ref)
+        except LoomweaveIdentityError as exc:
+            # not_found / orphaned -> the catalog answered "no such alive identity";
+            # unreachable / unsupported -> the catalog itself could not be consulted.
+            state = "unavailable" if exc.reason in {"unreachable", "unsupported"} else "unresolved"
+            return {"state": state, "sei": None, "locator": None, "reason": exc.message}
+        return {"state": "resolved", "sei": snapshot.sei, "locator": snapshot.locator, "reason": None}
 
     def _entity_binding_context(
         self,
@@ -1124,16 +1243,15 @@ class PlainweaveMcpSurface:
         requirement_id: str,
         binding_pairs: Sequence[tuple[JsonObject, str | None]],
     ) -> JsonObject:
-        requirement = service.get_requirement(requirement_id)
-        verification = service.verification_status(requirement_id)
+        # Reuse the requirement/verification dicts already computed by
+        # _entity_binding_context rather than re-fetching them from the store.
+        matching = [
+            binding for binding, binding_requirement_id in binding_pairs if binding_requirement_id == requirement_id
+        ]
         return {
-            "requirement": _record_dict(requirement),
-            "via_bindings": [
-                cast(JsonObject, binding["trace"])
-                for binding, binding_requirement_id in binding_pairs
-                if binding_requirement_id == requirement_id
-            ],
-            "verification": _requirement_verification_status_dict(verification),
+            "requirement": cast(JsonObject, matching[0]["requirement"]),
+            "via_bindings": [cast(JsonObject, binding["trace"]) for binding in matching],
+            "verification": cast(JsonObject, matching[0]["verification"]),
             "goal_trail": self._goal_trail(service, requirement_id),
         }
 
@@ -1141,6 +1259,9 @@ class PlainweaveMcpSurface:
         try:
             goals = service.goals_for_requirement(requirement_id)
         except PlainweaveError as exc:
+            # Defensive: callers only reach here with an already-resolved requirement,
+            # so NOT_FOUND is not expected in normal flow — but keep the explicit state
+            # rather than letting an unexpected resolution failure abort the report.
             if exc.code != ErrorCode.NOT_FOUND:
                 raise
             return {
@@ -1161,40 +1282,54 @@ class PlainweaveMcpSurface:
 
     def _entity_intent_summary(self, items: Sequence[JsonObject]) -> JsonObject:
         resolved = 0
+        resolved_no_binding = 0
+        unresolved = 0
         orphaned = 0
         for item in items:
             resolution = cast(JsonObject, item["resolution"])
             orphan = cast(JsonObject, item["orphan"])
-            if resolution["state"] == "resolved":
+            state = resolution["state"]
+            if state == "resolved":
                 resolved += 1
+            elif state == "resolved_no_binding":
+                resolved_no_binding += 1
+            else:
+                unresolved += 1
             if orphan["is_orphan"] is True:
                 orphaned += 1
         return {
             "requested": len(items),
             "resolved": resolved,
-            "unresolved": len(items) - resolved,
+            "resolved_no_binding": resolved_no_binding,
+            "unresolved": unresolved,
             "peer_resolution_unavailable": len(items),
             "orphaned": orphaned,
         }
 
-    def _trace_matches_entity_ref(self, trace: TraceLink, entity_ref: str) -> bool:
-        return self._trace_ref_matches_entity_input(trace.from_ref, entity_ref) or self._trace_ref_matches_entity_input(
+    def _trace_matches_entity_refs(self, trace: TraceLink, refs: set[str]) -> bool:
+        return self._trace_ref_matches_entity_input(trace.from_ref, refs) or self._trace_ref_matches_entity_input(
             trace.to_ref,
-            entity_ref,
+            refs,
         )
 
-    def _trace_ref_matches_entity_input(self, trace_ref: TraceRef, entity_ref: str) -> bool:
-        return trace_ref.kind in ENTITY_TRACE_KINDS and trace_ref.id == entity_ref
+    def _trace_ref_matches_entity_input(self, trace_ref: TraceRef, refs: set[str]) -> bool:
+        return trace_ref.kind in ENTITY_TRACE_KINDS and trace_ref.id in refs
 
-    def _matched_entity_refs(self, entity_ref: str, traces: Sequence[TraceLink]) -> list[JsonObject]:
+    def _matched_entity_refs(
+        self,
+        entity_ref: str,
+        match_refs: set[str],
+        traces: Sequence[TraceLink],
+    ) -> list[JsonObject]:
         matches: list[JsonObject] = []
         seen: set[tuple[str, str]] = set()
         for trace in traces:
             for trace_ref in (trace.from_ref, trace.to_ref):
                 key = (trace_ref.kind, trace_ref.id)
-                if self._trace_ref_matches_entity_input(trace_ref, entity_ref) and key not in seen:
+                if self._trace_ref_matches_entity_input(trace_ref, match_refs) and key not in seen:
                     seen.add(key)
-                    matches.append({"kind": trace_ref.kind, "id": trace_ref.id, "match": "exact_local_trace"})
+                    match_kind = "exact_local_trace" if trace_ref.id == entity_ref else "canonical_identity"
+                    matches.append({"kind": trace_ref.kind, "id": trace_ref.id, "match": match_kind})
         return matches
 
     def _peer_resolution_unavailable(self) -> JsonObject:
@@ -1229,7 +1364,14 @@ class PlainweaveMcpSurface:
     def _trace_ref_dict(self, trace_ref: TraceRef) -> JsonObject:
         return {"kind": trace_ref.kind, "id": trace_ref.id}
 
-    def _entity_orphan_context(self, traces: Sequence[TraceLink]) -> JsonObject:
+    def _entity_orphan_context(self, traces: Sequence[TraceLink], *, local_state: str) -> JsonObject:
+        if not traces:
+            # An entity known to the local catalog but bound to no trace is a genuine
+            # unbound orphan. A ref we could not resolve (unresolved/unavailable) is not
+            # something we can assert orphan-hood for, so it stays out of the count.
+            if local_state == "resolved":
+                return {"state": "unbound", "is_orphan": True, "accepted_bindings": 0, "nonaccepted_bindings": 0}
+            return {"state": "unavailable", "is_orphan": False, "accepted_bindings": 0, "nonaccepted_bindings": 0}
         accepted_bindings = sum(1 for trace in traces if trace.state == "accepted" and trace.freshness == "current")
         nonaccepted_bindings = len(traces) - accepted_bindings
         if accepted_bindings:
