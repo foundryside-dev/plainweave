@@ -584,6 +584,34 @@ def test_mcp_entity_intent_context_distinguishes_resolved_no_binding_from_unreso
     }
 
 
+def test_mcp_entity_intent_context_reports_unresolved_binding_for_vanished_requirement(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    # A proposed trace whose requirement_version target does not (or no longer) resolves
+    # to a requirement: the entity itself is resolved (it has a matching trace), but the
+    # binding's requirement_resolution must report "unresolved" rather than crash or fake
+    # a requirement.
+    service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", "REQ-AUTH-9999@1"),
+        actor="agent:codex",
+        authority="agent_proposed",
+    )
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    context = data(surface.plainweave_entity_intent_context_get(entity_refs=[seed["public_sei"]]))
+
+    item = context["items"][0]
+    assert item["resolution"]["state"] == "resolved"
+    binding = item["bindings"][0]
+    assert binding["requirement_resolution"]["state"] == "unresolved"
+    assert binding["requirement"] is None
+    assert binding["verification"]["state"] == "unavailable"
+    # No requirement resolved, so the trail is empty (nothing to ladder to a goal).
+    assert item["requirement_trail"] == []
+
+
 def test_mcp_entity_intent_context_distinguishes_unavailable_catalog_from_unresolved(tmp_path: Path) -> None:
     # No Loomweave catalog seeded: the local catalog cannot be consulted at all.
     service_for(tmp_path)
