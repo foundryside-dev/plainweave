@@ -1,7 +1,8 @@
 # PDR-006: North-Star Is Coverage-Blocked Pending Catalog Completeness
 
-Date: 2026-06-24   Status: accepted   Author: agent:claude-product-owner   Owner sign-off: n/a (within grant)
+Date: 2026-06-24   Status: superseded by PDR-009   Author: agent:claude-product-owner   Owner sign-off: n/a (within grant)
 Related: metrics.md (north-star, guardrails), tracker plainweave-44be10cc2c, PDR-005
+Superseded: 2026-06-24 by PDR-009 — its reversal trigger fired (plainweave-44be10cc2c closed); the north-star is now self-computable via the intent_coverage primitive, with the qualification discipline carried forward.
 
 ## Context
 
