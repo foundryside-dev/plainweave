@@ -82,6 +82,19 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
         return active_surface.plainweave_intent_corpus(limit=limit, offset=offset)
 
     @mcp.tool()
+    def plainweave_intent_coverage(
+        exclude_namespaces: list[str] | None = None,
+        surface_classes: list[str] | None = None,
+    ) -> dict[str, Any]:
+        """Report the north-star coverage fact: the fraction of in-scope public surfaces that answer
+        'why does this exist?' via SEI->requirement->goal. Advisory and read-only; the ratio is qualified
+        by denominator completeness and is never a pass/fail verdict."""
+        return active_surface.plainweave_intent_coverage(
+            exclude_namespaces=exclude_namespaces,
+            surface_classes=surface_classes,
+        )
+
+    @mcp.tool()
     def plainweave_baseline_list(limit: int = 25, offset: int = 0) -> dict[str, Any]:
         """List local immutable Plainweave baselines. This tool is read-only."""
         return active_surface.plainweave_baseline_list(limit=limit, offset=offset)

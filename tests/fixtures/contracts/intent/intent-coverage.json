@@ -1,0 +1,51 @@
+{
+  "schema": "weft.plainweave.intent_coverage.v1",
+  "north_star": {
+    "numerator": 1,
+    "denominator": 2,
+    "ratio": 0.5
+  },
+  "denominator_complete": false,
+  "coverage": {
+    "public_surface_tags": ["cli-command", "entry-point", "exported-api", "http-route"],
+    "present_tags": ["entry-point", "exported-api"],
+    "absent_tags": ["cli-command", "http-route"],
+    "complete": false
+  },
+  "scoping": {
+    "excluded_namespaces": ["scripts.", "tests."],
+    "excluded_count": 2,
+    "surface_classes": null
+  },
+  "justified": [
+    {
+      "locator": "python:function:plainweave.cli.main",
+      "sei": "loomweave:eid:00000000000000000000000000000001",
+      "surface_classes": ["entry-point"],
+      "goals": ["GOAL-0001"]
+    }
+  ],
+  "unjustified": [
+    {
+      "locator": "python:function:plainweave.mcp_server.main",
+      "sei": "loomweave:eid:00000000000000000000000000000002",
+      "surface_classes": ["exported-api"],
+      "goals": []
+    }
+  ],
+  "adapter": {
+    "adapter_status": {
+      "status": "available",
+      "db_path": "/repo/.weft/loomweave/loomweave.db",
+      "http_url": null,
+      "identity_http": "not_configured",
+      "sei_supported": true
+    },
+    "degraded": [
+      {
+        "code": "public_surface_tags_incomplete",
+        "message": "Some public-surface tag classes are absent from the local Loomweave catalog, so this enumeration may under-report exported entities. Absent tag classes: cli-command, http-route"
+      }
+    ]
+  }
+}

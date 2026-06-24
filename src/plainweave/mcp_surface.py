@@ -12,6 +12,7 @@ from plainweave.cli_commands import (
     _corpus_entry_dict,
     _current_project_key,
     _dossier_dict,
+    _intent_coverage_dict,
     _intent_goal_dict,
     _intent_node_dict,
     _intent_trace_dict,
@@ -23,7 +24,7 @@ from plainweave.cli_commands import (
 from plainweave.envelopes import error_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.intent_graph import IntentLevel, IntentNode
-from plainweave.loomweave_adapter import LoomweaveAdapter, LoomweaveIdentityError
+from plainweave.loomweave_adapter import PUBLIC_SURFACE_TAGS, LoomweaveAdapter, LoomweaveIdentityError
 from plainweave.models import TraceLink, TraceRef
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
@@ -59,6 +60,16 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
         "local_only": True,
         "peer_side_effects": [],
         "authority_boundary": "Returns local code-up/down intent graph neighbors without creating accepted truth.",
+    },
+    "plainweave_intent_coverage": {
+        "name": "plainweave_intent_coverage",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Returns the local north-star coverage fact (% of public surfaces that answer 'why does this "
+            "exist?'), qualified by denominator completeness; it is advisory and makes no pass/fail verdict."
+        ),
     },
     "plainweave_baseline_diff": {
         "name": "plainweave_baseline_diff",
@@ -173,6 +184,7 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.intent_orphans.v1",
     "plainweave://contracts/weft.plainweave.intent_trace.v1",
     "plainweave://contracts/weft.plainweave.intent_corpus.v1",
+    "plainweave://contracts/weft.plainweave.intent_coverage.v1",
 ]
 
 REQUIREMENT_STATUS_FILTERS = {"draft", "approved", "deprecated", "rejected"}
@@ -295,6 +307,23 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
         "contract": "weft.plainweave.intent_corpus.v1",
         "data_shape": {"items": [{"requirement": "IntentNode", "goals": "IntentNode[]", "code": "IntentNode[]"}]},
         "authority_boundary": "Corpus rows support human/agent curation; they are not deduplication verdicts.",
+    },
+    "plainweave://contracts/weft.plainweave.intent_coverage.v1": {
+        "contract": "weft.plainweave.intent_coverage.v1",
+        "required_sections": [
+            "north_star",
+            "denominator_complete",
+            "coverage",
+            "scoping",
+            "justified",
+            "unjustified",
+            "adapter",
+        ],
+        "surface_classes": sorted(PUBLIC_SURFACE_TAGS),
+        "authority_boundary": (
+            "An advisory coverage fact over the explicitly-tagged public surface; the ratio is qualified by "
+            "denominator_complete and is never a pass/fail on the north-star target."
+        ),
     },
 }
 
@@ -442,6 +471,22 @@ class PlainweaveMcpSurface:
                 offset=offset,
             ),
             list_result=True,
+        )
+
+    def plainweave_intent_coverage(
+        self,
+        *,
+        exclude_namespaces: Sequence[str] | None = None,
+        surface_classes: Sequence[str] | None = None,
+    ) -> JsonObject:
+        return self._result(
+            "weft.plainweave.intent_coverage.v1",
+            lambda service: _intent_coverage_dict(
+                service.intent_coverage(
+                    exclude_namespaces=exclude_namespaces,
+                    surface_classes=surface_classes,
+                )
+            ),
         )
 
     def plainweave_baseline_list(self, *, limit: int = 25, offset: int = 0) -> JsonObject:

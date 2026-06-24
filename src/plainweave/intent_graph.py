@@ -73,6 +73,53 @@ class CorpusEntry:
     code: tuple[IntentNode, ...]
 
 
+# Namespace prefixes excluded from the north-star denominator by default. Loomweave
+# tags CI/perf-harness entry-points (``tests.perf.*``, ``scripts.check-*``) as public
+# surfaces; they are legitimate for Loomweave but are not the product's exported API,
+# so a coverage reading scopes them out unless the caller overrides the list.
+DEFAULT_INTENT_COVERAGE_EXCLUDED_NAMESPACES: tuple[str, ...] = ("scripts.", "tests.")
+
+
+@dataclass(frozen=True)
+class IntentCoverageSurface:
+    """One public surface enumerated for the north-star reading.
+
+    ``justified`` is true iff the surface's Loomweave SEI traces up to a goal
+    (``SEI -> requirement -> goal``); ``goals`` are the goal nodes reached (empty
+    when unjustified). ``surface_classes`` are the public-surface tag classes the
+    Loomweave catalog assigned the entity."""
+
+    locator: str
+    sei: str | None
+    surface_classes: tuple[str, ...]
+    justified: bool
+    goals: tuple[IntentNode, ...]
+
+
+@dataclass(frozen=True)
+class IntentCoverage:
+    """The honest north-star reading: what fraction of in-scope public surfaces can
+    answer *"why does this exist?"* via ``SEI -> requirement -> goal`` (design §6).
+
+    The reading is ADVISORY — a fact, never a pass/fail on the 90% target.
+    ``denominator_complete`` mirrors the peer catalog's ``coverage.complete``; the
+    ``ratio`` is always qualified by it, so a degraded denominator is never reported
+    as a complete-surface reading."""
+
+    numerator: int
+    denominator: int
+    ratio: float | None
+    denominator_complete: bool
+    coverage: dict[str, object]
+    justified: tuple[IntentCoverageSurface, ...]
+    unjustified: tuple[IntentCoverageSurface, ...]
+    excluded_namespaces: tuple[str, ...]
+    excluded_count: int
+    surface_classes: tuple[str, ...] | None
+    adapter_status: dict[str, object]
+    adapter_degraded: tuple[dict[str, object], ...]
+
+
 class _OrphansReader(Protocol):
     def __call__(self, level: IntentLevel) -> list[IntentNode]: ...
 

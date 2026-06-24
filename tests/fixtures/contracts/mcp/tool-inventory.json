@@ -37,6 +37,13 @@
       "authority_boundary": "Returns local readable intent corpus rows; no consolidation verdict is made."
     },
     {
+      "name": "plainweave_intent_coverage",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns the local north-star coverage fact (% of public surfaces that answer 'why does this exist?'), qualified by denominator completeness; it is advisory and makes no pass/fail verdict."
+    },
+    {
       "name": "plainweave_intent_orphans",
       "mutates": false,
       "local_only": true,

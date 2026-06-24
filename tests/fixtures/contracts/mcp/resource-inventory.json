@@ -12,6 +12,7 @@
     "plainweave://contracts/weft.plainweave.sei_binding.v1",
     "plainweave://contracts/weft.plainweave.intent_orphans.v1",
     "plainweave://contracts/weft.plainweave.intent_trace.v1",
-    "plainweave://contracts/weft.plainweave.intent_corpus.v1"
+    "plainweave://contracts/weft.plainweave.intent_corpus.v1",
+    "plainweave://contracts/weft.plainweave.intent_coverage.v1"
   ]
 }

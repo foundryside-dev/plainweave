@@ -51,7 +51,7 @@ def test_catalog_lists_modules_and_explicit_public_surfaces(tmp_path: Path) -> N
     # public-surface enumeration is incomplete and must say so rather than masquerade
     # as a clean, complete listing.
     assert page.coverage["complete"] is False
-    assert set(page.coverage["absent_tags"]) == {"http-route", "cli-command"}
+    assert set(cast(list[str], page.coverage["absent_tags"])) == {"http-route", "cli-command"}
     assert any(item["code"] == "public_surface_tags_incomplete" for item in page.degraded)
 
 
@@ -245,8 +245,8 @@ def test_identity_resolution_over_http_matches_the_pinned_contract_fixture(
     seed = seed_loomweave_catalog(tmp_path)
     monkeypatch.setenv("WEFT_LOOMWEAVE_URL", "http://loomweave.test")
     adapter = LoomweaveAdapter(tmp_path)
-    sei_body = _identity_fixture("identity-sei.json")["response"]
-    resolve_body = _identity_fixture("identity-resolve.json")["response"]
+    sei_body = cast("dict[str, object]", _identity_fixture("identity-sei.json")["response"])
+    resolve_body = cast("dict[str, object]", _identity_fixture("identity-resolve.json")["response"])
 
     def fake_http_json(method: str, path: str, payload: object | None = None) -> dict[str, object]:
         return sei_body if path.startswith("/api/v1/identity/sei/") else resolve_body

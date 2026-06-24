@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+from tests.intent_coverage_contract import validate_intent_coverage
 from tests.preflight_contract import validate_preflight_facts
 
 FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "contracts"
@@ -65,6 +66,7 @@ REQUIRED_FIXTURES = {
     "traces/trace-link-stale.json",
     "traces/trace-link-orphaned.json",
     "legis/preflight-facts.json",
+    "intent/intent-coverage.json",
     "loomweave/identity-resolve.json",
     "loomweave/identity-sei.json",
     "mcp/side-effect-metadata.json",
@@ -327,6 +329,7 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
 
     expected_tools = {
         "plainweave_intent_corpus",
+        "plainweave_intent_coverage",
         "plainweave_intent_orphans",
         "plainweave_intent_trace",
         "plainweave_project_context_get",
@@ -371,6 +374,7 @@ def test_mcp_resource_inventory_fixture_contract() -> None:
         "plainweave://contracts/weft.plainweave.intent_orphans.v1",
         "plainweave://contracts/weft.plainweave.intent_trace.v1",
         "plainweave://contracts/weft.plainweave.intent_corpus.v1",
+        "plainweave://contracts/weft.plainweave.intent_coverage.v1",
     ]
 
 
@@ -382,6 +386,15 @@ def test_preflight_facts_fixture_contract() -> None:
     # Validated through the SAME structural validator as live output, so the golden
     # fixture and the running tool cannot diverge without one test or the other failing.
     validate_preflight_facts({key: value for key, value in fixture.items() if key != "schema"})
+
+
+def test_intent_coverage_fixture_contract() -> None:
+    fixture = load_fixture("intent/intent-coverage.json")
+
+    assert fixture["schema"] == "weft.plainweave.intent_coverage.v1"
+    # Validated through the SAME structural validator as live service/CLI/MCP output, so the
+    # golden fixture and the running tool cannot diverge without one test or the other failing.
+    validate_intent_coverage({key: value for key, value in fixture.items() if key != "schema"})
 
 
 def test_loomweave_identity_resolve_fixture_contract() -> None:

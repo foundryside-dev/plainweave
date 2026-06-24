@@ -107,6 +107,7 @@ def assert_no_verdict_keys(value: object) -> None:
 def test_mcp_tool_inventory_is_agent_task_surface() -> None:
     expected_tools = {
         "plainweave_intent_corpus",
+        "plainweave_intent_coverage",
         "plainweave_intent_orphans",
         "plainweave_intent_trace",
         "plainweave_project_context_get",

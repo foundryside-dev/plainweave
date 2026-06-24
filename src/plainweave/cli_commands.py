@@ -8,7 +8,15 @@ from typing import Any
 from plainweave.bindings import SeiBinding
 from plainweave.envelopes import error_envelope, list_envelope, success_envelope
 from plainweave.errors import ErrorCode, PlainweaveError
-from plainweave.intent_graph import CorpusEntry, IntentLevel, IntentNode, Trace
+from plainweave.intent_graph import (
+    CorpusEntry,
+    IntentCoverage,
+    IntentCoverageSurface,
+    IntentLevel,
+    IntentNode,
+    Trace,
+)
+from plainweave.loomweave_adapter import PUBLIC_SURFACE_TAGS
 from plainweave.models import (
     AcceptanceCriterion,
     Actor,
@@ -284,6 +292,25 @@ def _register_intent_commands(
     corpus_parser = subparsers.add_parser("corpus", help="Dump the readable requirement intent corpus.")
     corpus_parser.add_argument("--json", action="store_true")
     corpus_parser.set_defaults(handler=handle_intent_corpus)
+
+    coverage_parser = subparsers.add_parser(
+        "coverage",
+        help="Report the north-star: the fraction of public surfaces that answer 'why does this exist?'.",
+    )
+    coverage_parser.add_argument(
+        "--exclude-namespace",
+        action="append",
+        metavar="PREFIX",
+        help="Namespace prefix to scope out of the denominator (repeatable; default: scripts., tests.).",
+    )
+    coverage_parser.add_argument(
+        "--surface-class",
+        action="append",
+        choices=sorted(PUBLIC_SURFACE_TAGS),
+        help="Restrict the denominator to these public-surface classes (repeatable; default: all).",
+    )
+    coverage_parser.add_argument("--json", action="store_true")
+    coverage_parser.set_defaults(handler=handle_intent_coverage)
 
 
 def _register_baseline_commands(
@@ -653,6 +680,19 @@ def handle_intent_corpus(args: argparse.Namespace) -> int:
         args,
         "weft.plainweave.intent_corpus.v1",
         lambda service: [_corpus_entry_dict(item) for item in service.intent_corpus()],
+    )
+
+
+def handle_intent_coverage(args: argparse.Namespace) -> int:
+    return _handle_service_result(
+        args,
+        "weft.plainweave.intent_coverage.v1",
+        lambda service: _intent_coverage_dict(
+            service.intent_coverage(
+                exclude_namespaces=args.exclude_namespace,
+                surface_classes=args.surface_class,
+            )
+        ),
     )
 
 
@@ -1045,6 +1085,38 @@ def _corpus_entry_dict(entry: CorpusEntry) -> dict[str, object]:
         "requirement": _intent_node_dict(entry.requirement),
         "goals": [_intent_node_dict(node) for node in entry.goals],
         "code": [_intent_node_dict(node) for node in entry.code],
+    }
+
+
+def _intent_coverage_surface_dict(surface: IntentCoverageSurface) -> dict[str, object]:
+    return {
+        "locator": surface.locator,
+        "sei": surface.sei,
+        "surface_classes": list(surface.surface_classes),
+        "goals": [node.node_id for node in surface.goals],
+    }
+
+
+def _intent_coverage_dict(coverage: IntentCoverage) -> dict[str, object]:
+    return {
+        "north_star": {
+            "numerator": coverage.numerator,
+            "denominator": coverage.denominator,
+            "ratio": coverage.ratio,
+        },
+        "denominator_complete": coverage.denominator_complete,
+        "coverage": coverage.coverage,
+        "scoping": {
+            "excluded_namespaces": list(coverage.excluded_namespaces),
+            "excluded_count": coverage.excluded_count,
+            "surface_classes": (list(coverage.surface_classes) if coverage.surface_classes is not None else None),
+        },
+        "justified": [_intent_coverage_surface_dict(surface) for surface in coverage.justified],
+        "unjustified": [_intent_coverage_surface_dict(surface) for surface in coverage.unjustified],
+        "adapter": {
+            "adapter_status": coverage.adapter_status,
+            "degraded": list(coverage.adapter_degraded),
+        },
     }
 
 

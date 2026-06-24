@@ -4,6 +4,7 @@ import hashlib
 import json
 import sqlite3
 import uuid
+from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,8 +12,21 @@ from typing import Any, cast
 
 from plainweave.bindings import SeiBinding
 from plainweave.errors import ErrorCode, PlainweaveError
-from plainweave.intent_graph import CorpusEntry, IntentLevel, IntentNode, Trace
-from plainweave.loomweave_adapter import LoomweaveAdapter, LoomweaveIdentityError
+from plainweave.intent_graph import (
+    DEFAULT_INTENT_COVERAGE_EXCLUDED_NAMESPACES,
+    CorpusEntry,
+    IntentCoverage,
+    IntentCoverageSurface,
+    IntentLevel,
+    IntentNode,
+    Trace,
+)
+from plainweave.loomweave_adapter import (
+    PUBLIC_SURFACE_TAGS,
+    LoomweaveAdapter,
+    LoomweaveCatalogEntity,
+    LoomweaveIdentityError,
+)
 from plainweave.models import (
     AcceptanceCriterion,
     Actor,
@@ -1391,6 +1405,109 @@ class PlainweaveService:
                     )
                 )
             return entries
+
+    def intent_coverage(
+        self,
+        *,
+        exclude_namespaces: Sequence[str] | None = None,
+        surface_classes: Sequence[str] | None = None,
+    ) -> IntentCoverage:
+        """Compute the north-star honestly: the fraction of in-scope public surfaces
+        that answer *"why does this exist?"* via ``SEI -> requirement -> goal``.
+
+        The public-surface denominator is enumerated from the local Loomweave catalog
+        (the ``PUBLIC_SURFACE_TAGS`` entities), scoped by namespace exclusion (default
+        ``scripts.``/``tests.``) and an optional surface-class restriction. A surface is
+        justified iff its SEI traces up to a goal; unrecorded or unbound surfaces are the
+        honest gap. The reading carries the catalog's ``coverage`` block verbatim and a
+        ``denominator_complete`` flag, so a degraded denominator is never presented as a
+        complete-surface reading. Advisory only — it emits a fact, not a verdict."""
+        active_exclusions = (
+            DEFAULT_INTENT_COVERAGE_EXCLUDED_NAMESPACES
+            if exclude_namespaces is None
+            else tuple(sorted({prefix for prefix in exclude_namespaces if prefix}))
+        )
+        active_classes = self._validated_surface_classes(surface_classes)
+
+        adapter = self._loomweave_adapter()
+        items: list[LoomweaveCatalogEntity] = []
+        coverage: dict[str, object] = {}
+        adapter_status: dict[str, object] = {}
+        adapter_degraded: list[dict[str, object]] = []
+        offset = 0
+        page_size = 100
+        while True:
+            page = adapter.list_catalog(limit=page_size, offset=offset)
+            if offset == 0:
+                coverage = dict(page.coverage)
+                adapter_status = dict(page.adapter_status)
+                adapter_degraded = [dict(entry) for entry in page.degraded]
+            items.extend(page.items)
+            if not page.has_more or page.next_offset is None:
+                break
+            offset = page.next_offset
+
+        justified: list[IntentCoverageSurface] = []
+        unjustified: list[IntentCoverageSurface] = []
+        excluded_count = 0
+        for entity in items:
+            entity_classes = tuple(sorted(PUBLIC_SURFACE_TAGS.intersection(entity.tags)))
+            if not entity_classes:
+                # Modules / untagged entities are pulled into the catalog for context but
+                # are not public surfaces; the denominator is the tagged exported API.
+                continue
+            if active_classes is not None and not set(entity_classes).intersection(active_classes):
+                continue
+            namespace = self._surface_namespace(entity.locator)
+            if any(namespace.startswith(prefix) for prefix in active_exclusions):
+                excluded_count += 1
+                continue
+            goals = self._goal_nodes_for_surface(entity.sei)
+            surface = IntentCoverageSurface(entity.locator, entity.sei, entity_classes, bool(goals), goals)
+            (justified if surface.justified else unjustified).append(surface)
+
+        numerator = len(justified)
+        denominator = numerator + len(unjustified)
+        ratio = (numerator / denominator) if denominator else None
+        return IntentCoverage(
+            numerator=numerator,
+            denominator=denominator,
+            ratio=ratio,
+            denominator_complete=bool(coverage.get("complete", False)),
+            coverage=coverage,
+            justified=tuple(justified),
+            unjustified=tuple(unjustified),
+            excluded_namespaces=active_exclusions,
+            excluded_count=excluded_count,
+            surface_classes=active_classes,
+            adapter_status=adapter_status,
+            adapter_degraded=tuple(adapter_degraded),
+        )
+
+    def _validated_surface_classes(self, surface_classes: Sequence[str] | None) -> tuple[str, ...] | None:
+        if surface_classes is None:
+            return None
+        invalid = sorted({cls for cls in surface_classes if cls not in PUBLIC_SURFACE_TAGS})
+        if invalid:
+            raise self._error(
+                ErrorCode.VALIDATION,
+                "surface_classes contains unknown public-surface classes: " + ", ".join(invalid),
+            )
+        return tuple(sorted(set(surface_classes)))
+
+    def _surface_namespace(self, locator: str) -> str:
+        """The qualified-name segment of a ``{plugin}:{kind}:{qualname}`` locator, used
+        for namespace scoping. Operates on the catalog locator, never an opaque SEI."""
+        parts = locator.split(":", 2)
+        return parts[2] if len(parts) == 3 else locator
+
+    def _goal_nodes_for_surface(self, sei: str | None) -> tuple[IntentNode, ...]:
+        """Reuse the intent graph: a surface is justified iff ``trace(code SEI).up``
+        reaches a goal. Returns the goal nodes (empty when unbound or not laddered)."""
+        if sei is None:
+            return ()
+        trace = self.intent_trace(IntentNode(IntentLevel.CODE, sei))
+        return tuple(node for node in trace.up if node.level == IntentLevel.GOAL)
 
     def get_requirement(self, requirement_id: str) -> RequirementRecord:
         with connect(self.db_path) as connection:
