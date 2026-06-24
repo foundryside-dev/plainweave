@@ -6,10 +6,11 @@
 
 ## Now (committed, in-flight)
 
-- **Dogfood against live sibling peers** — prove the code-up graph and the
-  cross-member seam (PDR-004) reproduce on real sibling corpora, not just on
-  Plainweave itself. The Loomweave adapter is live; first peers this session per
-  owner direction. · tracker: plainweave-c2d58800a0 · metric: north-star.
+- **Dogfood against live sibling peers** — Lacuna + Loomweave done (PDR-008): the
+  code-up graph and the cross-member seam (PDR-004) reproduce on real sibling corpora.
+  Remaining: more peers as desired; keep proving the seam holds. · metric: north-star.
+- **Scope "public surface" for the north-star** — exclude test/perf/CI-script
+  namespaces so the denominator is the real exported API. · tracker: plainweave-7be2817d58.
 - **Make the north-star honestly computable** — Plainweave-side: surface
   `coverage.complete` to any north-star computation so a reading is never reported
   complete over a degraded denominator. · tracker: plainweave-44be10cc2c · metric:
@@ -40,3 +41,4 @@
   peer-ready entity-intent-context API.
 - Independent review cycle: 3 findings fixed (F1/F2/F5); 2 perf findings deferred.
 - **Beta-candidate golden-vector gate: PASS on Plainweave self-dogfood** (PDR-005).
+- **Cross-member seam validated on live peers** Lacuna + Loomweave (PDR-008).

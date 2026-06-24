@@ -47,3 +47,18 @@ inspect orphan output for honest gaps.
 Guardrails — all intact: 0 SEIs minted (consumed opaquely); 0 release/allow/block
 verdicts; bindings carry an `agent:` actor (not human-accepted truth); 0 silent-clean
 results — the catalog honestly reported degraded coverage. No reversal trigger fired.
+
+### 2026-06-24 — Live peer dogfood (PDR-008)
+
+Read each peer's own Loomweave catalog (read-only); corpus built in a scratch store
+(peer repos untouched). Demonstrates the cross-member seam (PDR-004) on real peers.
+
+| Peer | Catalog coverage | Public surfaces | Recorded / bound | Honest orphans | North-star | Denominator |
+|------|------------------|-----------------|------------------|----------------|------------|-------------|
+| Lacuna | incomplete (2/4) | 4 | 4 / 3 | 1 | 75% | qualified |
+| Loomweave | **complete (4/4)** | 45 | 45 / 10 | 35 | 22% | **trustworthy** |
+
+Takeaway: the coverage gap (PDR-006 / plainweave-44be10cc2c) is per-repo — on a
+complete-coverage peer the north-star is honestly computable. Secondary finding: the
+public-surface set includes test/perf/CI-script entry-points (plainweave-7be2817d58).
+Guardrails intact on both peers; no reversal trigger fired.
