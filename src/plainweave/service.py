@@ -1502,12 +1502,27 @@ class PlainweaveService:
         return parts[2] if len(parts) == 3 else locator
 
     def _goal_nodes_for_surface(self, sei: str | None) -> tuple[IntentNode, ...]:
-        """Reuse the intent graph: a surface is justified iff ``trace(code SEI).up``
-        reaches a goal. Returns the goal nodes (empty when unbound or not laddered)."""
+        """A surface is justified iff its SEI ladders up to a goal through a *live*
+        requirement (``status in ('draft', 'approved')``) — the same liveness predicate
+        :meth:`intent_corpus` and :meth:`intent_orphans` use. A binding whose only
+        requirement has been deprecated is no longer live justification, so it is not
+        counted; counting a dead obligation would inflate the honest north-star. Returns
+        the goal nodes reached (empty when unbound, deprecated, or not laddered).
+
+        This walks the graph directly rather than reusing :meth:`intent_trace`, which
+        deliberately keeps surfacing deprecated requirements: trace *explains* the
+        neighbourhood, coverage *counts* live justification."""
         if sei is None:
             return ()
-        trace = self.intent_trace(IntentNode(IntentLevel.CODE, sei))
-        return tuple(node for node in trace.up if node.level == IntentLevel.GOAL)
+        with connect(self.db_path) as connection:
+            goal_ids: list[str] = []
+            seen: set[str] = set()
+            for requirement_id in self._live_requirement_ids_for_entity(connection, sei):
+                for goal_id in self._goal_ids_for_requirement(connection, requirement_id):
+                    if goal_id not in seen:
+                        seen.add(goal_id)
+                        goal_ids.append(goal_id)
+        return tuple(IntentNode(IntentLevel.GOAL, goal_id) for goal_id in goal_ids)
 
     def get_requirement(self, requirement_id: str) -> RequirementRecord:
         with connect(self.db_path) as connection:
@@ -2679,6 +2694,22 @@ class PlainweaveService:
             select requirement_id from entity_associations
             where entity_id = ? and relation = ?
             order by requirement_id
+            """,
+            (entity_id, "satisfies"),
+        ).fetchall()
+        return [str(row["requirement_id"]) for row in rows]
+
+    def _live_requirement_ids_for_entity(self, connection: sqlite3.Connection, entity_id: str) -> list[str]:
+        """Requirement ids bound to ``entity_id`` that are still live (``draft``/``approved``).
+        Deprecated requirements are excluded so :meth:`intent_coverage` never counts a dead
+        obligation as live justification."""
+        rows = connection.execute(
+            """
+            select a.requirement_id
+            from entity_associations a
+            join requirements r on r.requirement_id = a.requirement_id
+            where a.entity_id = ? and a.relation = ? and r.status in ('draft', 'approved')
+            order by a.requirement_id
             """,
             (entity_id, "satisfies"),
         ).fetchall()

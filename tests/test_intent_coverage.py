@@ -129,6 +129,35 @@ def test_modules_without_public_tag_are_not_counted(tmp_path: Path) -> None:
     assert [s.locator for s in result.unjustified] == ["python:function:pkg.api"]
 
 
+def test_surface_justified_by_deprecated_requirement_becomes_unjustified(tmp_path: Path) -> None:
+    # A surface counts as justified only while its requirement is *live*. Deprecating
+    # the requirement must drop it from the numerator — counting a dead obligation as
+    # live justification is the exact dishonesty this primitive exists to prevent, and
+    # it would diverge from intent_corpus / intent_orphans, which both treat a
+    # requirement as live iff status in ('draft', 'approved').
+    service = service_for(tmp_path)
+    db = create_loomweave_db(tmp_path)
+    add_surface(db, "python:function:pkg.alpha", tags=["exported-api"], sei="loomweave:eid:alpha")
+    draft = service.create_requirement("Explain alpha", "alpha shall have explicit intent.", "human:john")
+    service.add_acceptance_criterion(draft.id, "Traceable to a goal.", actor="human:john")
+    service.approve_requirement(draft.id, actor="human:john", expected_version=0, idempotency_key="ap-alpha")
+    goal = service.create_goal("Goal alpha", "The surface explains why it exists.", actor="human:john")
+    service.link_goal_to_requirement(goal.id, draft.requirement_id, actor="human:john")
+    service.bind_sei_to_requirement(
+        "loomweave:eid:alpha", draft.requirement_id, actor="agent:codex", content_hash_at_attach="sha256:x"
+    )
+
+    # While live, the surface is justified.
+    assert service.intent_coverage().numerator == 1
+
+    service.deprecate_requirement(draft.id, actor="human:john", expected_version=1, idempotency_key="dep-alpha")
+
+    after = service.intent_coverage()
+    assert after.numerator == 0
+    assert after.denominator == 1
+    assert [s.locator for s in after.unjustified] == ["python:function:pkg.alpha"]
+
+
 # --- Acceptance B: honest denominator ----------------------------------------
 
 
@@ -215,6 +244,35 @@ def test_invalid_surface_class_is_rejected(tmp_path: Path) -> None:
         service.intent_coverage(surface_classes=["not-a-real-class"])
 
     assert excinfo.value.code == ErrorCode.VALIDATION
+
+
+# --- Acceptance E: the multi-page catalog path is aggregated, not truncated ---
+
+
+def test_coverage_aggregates_surfaces_across_catalog_pages(tmp_path: Path) -> None:
+    # intent_coverage pages the Loomweave catalog at 100 rows; seed enough public
+    # surfaces to force a second page and prove every page is folded into the
+    # denominator (a single-page read would stop at 100). The justified surface is
+    # the last by id-sort order, so it lands on page 2 — proving cross-page surfaces
+    # are both counted and correctly laddered to a goal.
+    service = service_for(tmp_path)
+    db = create_loomweave_db(tmp_path)
+    total = 101
+    for index in range(total):
+        add_surface(
+            db,
+            f"python:function:pkg.s{index:03d}",
+            tags=["exported-api"],
+            sei=f"loomweave:eid:s{index:03d}",
+        )
+    justify(service, f"loomweave:eid:s{total - 1:03d}", key=f"s{total - 1:03d}")
+
+    result = service.intent_coverage()
+
+    assert result.denominator == total
+    assert len(result.justified) + len(result.unjustified) == total
+    assert result.numerator == 1
+    assert [s.locator for s in result.justified] == [f"python:function:pkg.s{total - 1:03d}"]
 
 
 # --- Acceptance D: service output serializes to the shared contract -----------

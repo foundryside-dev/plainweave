@@ -25,6 +25,8 @@ COVERAGE_KEYS = {"public_surface_tags", "present_tags", "absent_tags", "complete
 SCOPING_KEYS = {"excluded_namespaces", "excluded_count", "surface_classes"}
 SURFACE_KEYS = {"locator", "sei", "surface_classes", "goals"}
 ADAPTER_KEYS = {"adapter_status", "degraded"}
+ADAPTER_STATUS_KEYS = {"status", "db_path", "http_url", "identity_http", "sei_supported"}
+DEGRADED_ENTRY_KEYS = {"code", "message"}
 
 # Verdict / enforcement vocabulary that must never appear: this is a facts-only,
 # advisory contract (it must not pass/fail the 90% target).
@@ -121,7 +123,15 @@ def validate_intent_coverage(payload: dict[str, Any]) -> None:
 
     adapter = payload["adapter"]
     assert set(adapter) == ADAPTER_KEYS
-    assert isinstance(adapter["adapter_status"], dict)
+    adapter_status = adapter["adapter_status"]
+    assert isinstance(adapter_status, dict)
+    # Pin the adapter_status key-set and per-degraded-entry shape so the adapter block
+    # gets the same fixture-vs-live drift protection as the rest of the payload (a future
+    # rename in LoomweaveAdapter._adapter_status would otherwise slip past this guard).
+    assert set(adapter_status) == ADAPTER_STATUS_KEYS, f"adapter_status key drift: {sorted(adapter_status)}"
     assert isinstance(adapter["degraded"], list)
+    for entry in adapter["degraded"]:
+        assert isinstance(entry, dict)
+        assert set(entry) == DEGRADED_ENTRY_KEYS, f"degraded entry key drift: {sorted(entry)}"
 
     assert_no_coverage_verdicts(payload)
