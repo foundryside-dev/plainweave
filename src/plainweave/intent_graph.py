@@ -104,7 +104,12 @@ class IntentCoverage:
     The reading is ADVISORY — a fact, never a pass/fail on the 90% target.
     ``denominator_complete`` mirrors the peer catalog's ``coverage.complete``; the
     ``ratio`` is always qualified by it, so a degraded denominator is never reported
-    as a complete-surface reading."""
+    as a complete-surface reading.
+
+    ``numerator``/``denominator``/``ratio`` are always the full counts. The ``justified``
+    and ``unjustified`` evidence lists may be bounded by the caller's ``max_surfaces`` to
+    cap the read's size; ``surfaces_truncated`` flags when that bounding dropped rows, so
+    a short evidence list is never mistaken for the full set."""
 
     numerator: int
     denominator: int
@@ -116,6 +121,7 @@ class IntentCoverage:
     excluded_namespaces: tuple[str, ...]
     excluded_count: int
     surface_classes: tuple[str, ...] | None
+    surfaces_truncated: bool
     adapter_status: dict[str, object]
     adapter_degraded: tuple[dict[str, object], ...]
 

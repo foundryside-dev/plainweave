@@ -309,6 +309,12 @@ def _register_intent_commands(
         choices=sorted(PUBLIC_SURFACE_TAGS),
         help="Restrict the denominator to these public-surface classes (repeatable; default: all).",
     )
+    coverage_parser.add_argument(
+        "--max-surfaces",
+        type=int,
+        metavar="N",
+        help="Cap the justified/unjustified evidence lists at N each (counts are never truncated; default: unbounded).",
+    )
     coverage_parser.add_argument("--json", action="store_true")
     coverage_parser.set_defaults(handler=handle_intent_coverage)
 
@@ -691,6 +697,7 @@ def handle_intent_coverage(args: argparse.Namespace) -> int:
             service.intent_coverage(
                 exclude_namespaces=args.exclude_namespace,
                 surface_classes=args.surface_class,
+                max_surfaces=args.max_surfaces,
             )
         ),
     )
@@ -1105,6 +1112,7 @@ def _intent_coverage_dict(coverage: IntentCoverage) -> dict[str, object]:
             "ratio": coverage.ratio,
         },
         "denominator_complete": coverage.denominator_complete,
+        "surfaces_truncated": coverage.surfaces_truncated,
         "coverage": coverage.coverage,
         "scoping": {
             "excluded_namespaces": list(coverage.excluded_namespaces),

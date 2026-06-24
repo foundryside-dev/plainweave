@@ -1411,6 +1411,7 @@ class PlainweaveService:
         *,
         exclude_namespaces: Sequence[str] | None = None,
         surface_classes: Sequence[str] | None = None,
+        max_surfaces: int | None = None,
     ) -> IntentCoverage:
         """Compute the north-star honestly: the fraction of in-scope public surfaces
         that answer *"why does this exist?"* via ``SEI -> requirement -> goal``.
@@ -1421,7 +1422,14 @@ class PlainweaveService:
         justified iff its SEI traces up to a goal; unrecorded or unbound surfaces are the
         honest gap. The reading carries the catalog's ``coverage`` block verbatim and a
         ``denominator_complete`` flag, so a degraded denominator is never presented as a
-        complete-surface reading. Advisory only — it emits a fact, not a verdict."""
+        complete-surface reading. Advisory only — it emits a fact, not a verdict.
+
+        ``max_surfaces`` (>= 0, ``None`` = unbounded) caps each of the ``justified`` and
+        ``unjustified`` evidence lists to keep a read's size bounded on a large catalog;
+        the headline counts (numerator/denominator/ratio) are computed from the full set
+        and never truncated, and ``surfaces_truncated`` flags when bounding dropped rows."""
+        if max_surfaces is not None and max_surfaces < 0:
+            raise self._error(ErrorCode.VALIDATION, "max_surfaces must be a non-negative integer")
         active_exclusions = (
             DEFAULT_INTENT_COVERAGE_EXCLUDED_NAMESPACES
             if exclude_namespaces is None
@@ -1466,9 +1474,16 @@ class PlainweaveService:
             surface = IntentCoverageSurface(entity.locator, entity.sei, entity_classes, bool(goals), goals)
             (justified if surface.justified else unjustified).append(surface)
 
+        # Counts are the full set; only the evidence lists are bounded by max_surfaces.
         numerator = len(justified)
         denominator = numerator + len(unjustified)
         ratio = (numerator / denominator) if denominator else None
+        surfaces_truncated = max_surfaces is not None and (
+            len(justified) > max_surfaces or len(unjustified) > max_surfaces
+        )
+        if max_surfaces is not None:
+            justified = justified[:max_surfaces]
+            unjustified = unjustified[:max_surfaces]
         return IntentCoverage(
             numerator=numerator,
             denominator=denominator,
@@ -1480,6 +1495,7 @@ class PlainweaveService:
             excluded_namespaces=active_exclusions,
             excluded_count=excluded_count,
             surface_classes=active_classes,
+            surfaces_truncated=surfaces_truncated,
             adapter_status=adapter_status,
             adapter_degraded=tuple(adapter_degraded),
         )
@@ -1491,7 +1507,10 @@ class PlainweaveService:
         if invalid:
             raise self._error(
                 ErrorCode.VALIDATION,
-                "surface_classes contains unknown public-surface classes: " + ", ".join(invalid),
+                "surface_classes contains unknown public-surface classes: "
+                + ", ".join(invalid)
+                + ". Valid classes: "
+                + ", ".join(sorted(PUBLIC_SURFACE_TAGS)),
             )
         return tuple(sorted(set(surface_classes)))
 

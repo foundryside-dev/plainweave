@@ -478,6 +478,7 @@ class PlainweaveMcpSurface:
         *,
         exclude_namespaces: Sequence[str] | None = None,
         surface_classes: Sequence[str] | None = None,
+        max_surfaces: int | None = None,
     ) -> JsonObject:
         return self._result(
             "weft.plainweave.intent_coverage.v1",
@@ -485,6 +486,7 @@ class PlainweaveMcpSurface:
                 service.intent_coverage(
                     exclude_namespaces=exclude_namespaces,
                     surface_classes=surface_classes,
+                    max_surfaces=max_surfaces,
                 )
             ),
         )

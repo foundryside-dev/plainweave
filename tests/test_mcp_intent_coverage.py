@@ -65,3 +65,21 @@ def test_mcp_intent_coverage_surface_class_restriction(tmp_path: Path) -> None:
     validate_intent_coverage(payload)
     assert payload["scoping"]["surface_classes"] == ["exported-api"]
     assert [s["locator"] for s in payload["unjustified"]] == ["python:function:pkg.api"]
+
+
+def test_mcp_intent_coverage_rejects_unknown_surface_class(tmp_path: Path) -> None:
+    # The VALIDATION envelope is surfaced at the MCP boundary (not just the service layer),
+    # and its message names the legal classes so an agent reading only the bare list[str]
+    # schema can self-correct.
+    service_for(tmp_path)
+    create_loomweave_db(tmp_path)
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    envelope = surface.plainweave_intent_coverage(surface_classes=["not-a-real-class"])
+
+    assert envelope["ok"] is False
+    error = cast(dict[str, Any], envelope["error"])
+    assert error["code"] == "VALIDATION"
+    message = cast(str, error["message"])
+    for valid_class in ("cli-command", "entry-point", "exported-api", "http-route"):
+        assert valid_class in message

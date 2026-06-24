@@ -14,6 +14,7 @@ from typing import Any
 INTENT_COVERAGE_SECTIONS = {
     "north_star",
     "denominator_complete",
+    "surfaces_truncated",
     "coverage",
     "scoping",
     "justified",
@@ -21,7 +22,7 @@ INTENT_COVERAGE_SECTIONS = {
     "adapter",
 }
 NORTH_STAR_KEYS = {"numerator", "denominator", "ratio"}
-COVERAGE_KEYS = {"public_surface_tags", "present_tags", "absent_tags", "complete"}
+COVERAGE_KEYS = {"public_surface_tags", "present_tags", "absent_tags", "complete", "present_plugins"}
 SCOPING_KEYS = {"excluded_namespaces", "excluded_count", "surface_classes"}
 SURFACE_KEYS = {"locator", "sei", "surface_classes", "goals"}
 ADAPTER_KEYS = {"adapter_status", "degraded"}
@@ -95,13 +96,19 @@ def validate_intent_coverage(payload: dict[str, Any]) -> None:
     coverage = payload["coverage"]
     assert set(coverage) == COVERAGE_KEYS
     assert isinstance(coverage["complete"], bool)
-    for key in ("public_surface_tags", "present_tags", "absent_tags"):
+    for key in ("public_surface_tags", "present_tags", "absent_tags", "present_plugins"):
         assert isinstance(coverage[key], list)
+    # present_plugins exposes which language/plugins the catalog actually spans, so a
+    # complete (tag-class) reading is not misread as whole-product over a language-partial catalog.
+    assert all(isinstance(plugin, str) for plugin in coverage["present_plugins"])
     denominator_complete = payload["denominator_complete"]
     assert isinstance(denominator_complete, bool)
     assert denominator_complete == coverage["complete"]
     if coverage["absent_tags"]:
         assert denominator_complete is False
+
+    surfaces_truncated = payload["surfaces_truncated"]
+    assert isinstance(surfaces_truncated, bool)
 
     scoping = payload["scoping"]
     assert set(scoping) == SCOPING_KEYS
@@ -118,8 +125,12 @@ def validate_intent_coverage(payload: dict[str, Any]) -> None:
         _validate_surface(surface, justified=True)
     for surface in unjustified:
         _validate_surface(surface, justified=False)
-    assert numerator == len(justified), "numerator must equal the justified surface count"
-    assert denominator == len(justified) + len(unjustified), "denominator must equal all in-scope surfaces"
+    # Counts are always the full set; the evidence lists may be bounded by max_surfaces.
+    assert len(justified) <= numerator, "justified evidence cannot exceed the numerator"
+    assert len(unjustified) <= denominator - numerator, "unjustified evidence cannot exceed the gap"
+    if not surfaces_truncated:
+        assert numerator == len(justified), "numerator must equal the justified surface count"
+        assert denominator == len(justified) + len(unjustified), "denominator must equal all in-scope surfaces"
 
     adapter = payload["adapter"]
     assert set(adapter) == ADAPTER_KEYS

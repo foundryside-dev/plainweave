@@ -6,11 +6,13 @@
     "ratio": 0.5
   },
   "denominator_complete": false,
+  "surfaces_truncated": false,
   "coverage": {
     "public_surface_tags": ["cli-command", "entry-point", "exported-api", "http-route"],
     "present_tags": ["entry-point", "exported-api"],
     "absent_tags": ["cli-command", "http-route"],
-    "complete": false
+    "complete": false,
+    "present_plugins": ["python"]
   },
   "scoping": {
     "excluded_namespaces": ["scripts.", "tests."],

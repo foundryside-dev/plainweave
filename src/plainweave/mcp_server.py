@@ -85,13 +85,20 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
     def plainweave_intent_coverage(
         exclude_namespaces: list[str] | None = None,
         surface_classes: list[str] | None = None,
+        max_surfaces: int | None = None,
     ) -> dict[str, Any]:
         """Report the north-star coverage fact: the fraction of in-scope public surfaces that answer
         'why does this exist?' via SEI->requirement->goal. Advisory and read-only; the ratio is qualified
-        by denominator completeness and is never a pass/fail verdict."""
+        by denominator completeness and is never a pass/fail verdict.
+
+        exclude_namespaces: namespace prefixes scoped out of the denominator (default: scripts., tests.).
+        surface_classes: restrict the denominator to a subset of {cli-command, entry-point, exported-api,
+        http-route}; omit for all. max_surfaces: cap the justified/unjustified evidence lists at N each
+        (counts are never truncated; surfaces_truncated flags when capping dropped rows)."""
         return active_surface.plainweave_intent_coverage(
             exclude_namespaces=exclude_namespaces,
             surface_classes=surface_classes,
+            max_surfaces=max_surfaces,
         )
 
     @mcp.tool()

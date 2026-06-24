@@ -246,6 +246,21 @@ def test_invalid_surface_class_is_rejected(tmp_path: Path) -> None:
     assert excinfo.value.code == ErrorCode.VALIDATION
 
 
+def test_invalid_surface_class_error_names_the_allowed_classes(tmp_path: Path) -> None:
+    # The error must be self-correcting: it names the legal classes so an agent (which,
+    # over MCP, cannot read them from the bare list[str] schema) can fix the call without
+    # guessing. The CLI exposes them via choices=; the service error closes the MCP gap.
+    service = service_for(tmp_path)
+    create_loomweave_db(tmp_path)
+
+    with pytest.raises(PlainweaveError) as excinfo:
+        service.intent_coverage(surface_classes=["not-a-real-class"])
+
+    message = excinfo.value.message
+    for valid_class in ("cli-command", "entry-point", "exported-api", "http-route"):
+        assert valid_class in message
+
+
 # --- Acceptance E: the multi-page catalog path is aggregated, not truncated ---
 
 
@@ -289,3 +304,70 @@ def test_service_output_matches_the_shared_contract(tmp_path: Path) -> None:
 
     # Same serializer CLI and MCP use, validated through the same structural validator.
     validate_intent_coverage(payload)
+
+
+# --- P-B: evidence arrays bounded by max_surfaces; counts are never truncated -
+
+
+def test_max_surfaces_caps_evidence_without_truncating_counts(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    db = create_loomweave_db(tmp_path)
+    for index in range(5):
+        add_surface(db, f"python:function:pkg.j{index}", tags=["exported-api"], sei=f"loomweave:eid:j{index}")
+        justify(service, f"loomweave:eid:j{index}", key=f"j{index}")
+    for index in range(4):
+        add_surface(db, f"python:function:pkg.u{index}", tags=["exported-api"], sei=f"loomweave:eid:u{index}")
+
+    full = service.intent_coverage()
+    assert full.surfaces_truncated is False
+    assert len(full.justified) == 5
+    assert len(full.unjustified) == 4
+
+    capped = service.intent_coverage(max_surfaces=2)
+
+    # Counts (the headline fact) are never truncated; only the evidence lists are bounded.
+    assert capped.numerator == 5
+    assert capped.denominator == 9
+    assert capped.ratio == full.ratio
+    assert len(capped.justified) == 2
+    assert len(capped.unjustified) == 2
+    assert capped.surfaces_truncated is True
+
+
+def test_max_surfaces_not_truncated_when_within_cap(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    db = create_loomweave_db(tmp_path)
+    add_surface(db, "python:function:pkg.a", tags=["exported-api"], sei="loomweave:eid:a")
+    add_surface(db, "python:function:pkg.b", tags=["exported-api"], sei="loomweave:eid:b")
+
+    result = service.intent_coverage(max_surfaces=10)
+
+    assert result.surfaces_truncated is False
+    assert len(result.unjustified) == 2
+
+
+def test_negative_max_surfaces_is_rejected(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    create_loomweave_db(tmp_path)
+
+    with pytest.raises(PlainweaveError) as excinfo:
+        service.intent_coverage(max_surfaces=-1)
+
+    assert excinfo.value.code == ErrorCode.VALIDATION
+
+
+# --- P-C: catalog completeness exposes which plugins/languages are present ----
+
+
+def test_coverage_reports_present_plugins(tmp_path: Path) -> None:
+    # denominator_complete reflects tag-class presence, not language coverage; present_plugins
+    # makes the catalog's actual language/plugin span visible so a complete reading is not
+    # misread as whole-product when (e.g.) a peer's Rust surface is untagged.
+    service = service_for(tmp_path)
+    db = create_loomweave_db(tmp_path)
+    add_surface(db, "python:function:pkg.api", tags=["exported-api"], sei="loomweave:eid:py")
+    add_surface(db, "rust:function:krate::api", tags=["exported-api"], sei="loomweave:eid:rs")
+
+    result = service.intent_coverage()
+
+    assert result.coverage["present_plugins"] == ["python", "rust"]

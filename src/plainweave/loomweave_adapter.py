@@ -130,6 +130,12 @@ class LoomweaveAdapter:
                     public_tags,
                 )
             }
+            # Which language/plugins the catalog actually spans — a completeness signal
+            # distinct from tag-class presence (a Python-only catalog reads "complete (4/4)"
+            # even when a peer's Rust surface is untagged and absent here).
+            present_plugins = sorted(
+                str(row["plugin_id"]) for row in connection.execute("select distinct plugin_id from entities")
+            )
             # Fetch one extra row to detect `has_more` without materialising the
             # whole catalog (the full-scan-then-slice pattern is replaced here).
             rows = connection.execute(
@@ -163,7 +169,7 @@ class LoomweaveAdapter:
         has_more = len(rows) > limit
         page = [self._entity_from_row(row, sei_supported=sei_supported) for row in rows[:limit]]
         next_offset = offset + limit if has_more else None
-        coverage = self._public_surface_coverage(present_tags)
+        coverage = self._public_surface_coverage(present_tags, present_plugins)
         if not coverage["complete"]:
             degraded = [*degraded, self._public_surface_incomplete_degraded(coverage)]
         return LoomweaveCatalogPage(
@@ -177,13 +183,14 @@ class LoomweaveAdapter:
             coverage,
         )
 
-    def _public_surface_coverage(self, present_tags: set[str]) -> JsonObject:
+    def _public_surface_coverage(self, present_tags: set[str], present_plugins: list[str]) -> JsonObject:
         absent = sorted(PUBLIC_SURFACE_TAGS - present_tags)
         return {
             "public_surface_tags": sorted(PUBLIC_SURFACE_TAGS),
             "present_tags": sorted(present_tags & PUBLIC_SURFACE_TAGS),
             "absent_tags": absent,
             "complete": not absent,
+            "present_plugins": present_plugins,
         }
 
     def _coverage_unknown(self) -> JsonObject:
@@ -192,6 +199,7 @@ class LoomweaveAdapter:
             "present_tags": [],
             "absent_tags": [],
             "complete": False,
+            "present_plugins": [],
         }
 
     def _public_surface_incomplete_degraded(self, coverage: JsonObject) -> JsonObject:
