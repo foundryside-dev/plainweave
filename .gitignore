@@ -26,3 +26,6 @@ findings.jsonl
 .weft/legis/
 /.weft/legis/operator_session.json
 /.weft/legis/operator.age
+
+# Plainweave — local intent store (regenerable dogfood/proving state; PDR-007)
+.plainweave/
