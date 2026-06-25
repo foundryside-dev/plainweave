@@ -135,3 +135,13 @@ foundation to reshape, not the reframed feature set. See the MODULE MAP for the
 current → target audit. The code-up read primitives (`orphans`/`trace`/`corpus`),
 the SEI-keyed ADR-029 bindings, and the authoring-time write path are **stubbed
 with backlog markers**, not yet implemented.
+
+### Web UI (optional)
+
+Install the extra and launch the operator console:
+
+    pip install 'plainweave[web]'
+    plainweave web --actor human:<you>
+
+Browse the corpus, author requirements, and ratify agent-proposed drafts and
+trace links. Local-first, single-operator; advisory only (no release verdicts).
