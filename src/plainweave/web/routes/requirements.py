@@ -6,10 +6,12 @@ from starlette.responses import Response
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 
+from plainweave.models import RequirementRecord
+from plainweave.service import PlainweaveService
 from plainweave.web import views
 
 
-def _resolve_titles(ctx: object) -> dict[str, str]:
+def _resolve_titles(svc: PlainweaveService, records: list[RequirementRecord]) -> dict[str, str]:
     """Resolve a display title for each requirement.
 
     For approved requirements the approved-version title is used.  For draft-only
@@ -17,10 +19,6 @@ def _resolve_titles(ctx: object) -> dict[str, str]:
     the displayed title matches what the author typed, not just the display-id
     fallback.  Falls back to the display-id when neither exists.
     """
-    from plainweave.service import PlainweaveService  # local import avoids circular dep at module load
-
-    svc: PlainweaveService = ctx.service  # type: ignore[attr-defined]
-    records = svc.search_requirements()
     titles: dict[str, str] = {}
     for rec in records:
         if rec.current_version_record is not None:
@@ -38,8 +36,9 @@ async def corpus(request: Request) -> Response:
     q = request.query_params.get("q", "")
     status = request.query_params.get("status", "")
     orphan = request.query_params.get("orphan", "")
-    titles = _resolve_titles(ctx)
-    rows = views.build_corpus_rows(ctx.service.intent_corpus(), ctx.service.search_requirements(), titles)
+    records = ctx.service.search_requirements()
+    titles = _resolve_titles(ctx.service, records)
+    rows = views.build_corpus_rows(ctx.service.intent_corpus(), records, titles)
     rows = views.filter_rows(rows, q=q, status=status, orphan=orphan)
     template = "_partials/corpus_rows.html" if request.headers.get("HX-Request") else "corpus.html"
     templates: Jinja2Templates = request.app.state.templates

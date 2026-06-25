@@ -66,6 +66,21 @@ def test_corpus_htmx_partial(client: TestClient) -> None:
     assert "<html" not in resp.text
 
 
+def test_corpus_approved_req_shows_version_title(client: TestClient) -> None:
+    """Approved requirements must show the approved version title, not the display-id."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    draft = ctx.service.create_requirement("Approved title", "statement", actor="human:alice")
+    ctx.service.approve_requirement(
+        draft.requirement_id,
+        actor="human:alice",
+        expected_version=0,
+    )
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert "Approved title" in resp.text
+
+
 # --- Unit tests for filter_rows ---
 
 
