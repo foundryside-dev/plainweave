@@ -42,6 +42,7 @@ plainweave-mcp = "plainweave.mcp_server:main"
 Homepage = "https://github.com/foundryside-dev/plainweave"
 Repository = "https://github.com/foundryside-dev/plainweave"
 Issues = "https://github.com/foundryside-dev/plainweave/issues"
+Changelog = "https://github.com/foundryside-dev/plainweave/blob/main/CHANGELOG.md"
 
 [tool.hatch.version]
 path = "src/plainweave/_version.py"
