@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from urllib.parse import parse_qsl
 
 from starlette.applications import Starlette
 from starlette.middleware import Middleware
@@ -42,9 +43,12 @@ def create_app(*, actor: str | None, root: Path | None) -> Starlette:
     async def csrf_mw(request: Request, call_next: RequestResponseEndpoint) -> Response:
         token = request.cookies.get(_CSRF_COOKIE)
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
-            form = await request.form()
-            form_token = str(form.get("_csrf")) if form.get("_csrf") is not None else None
-            if not csrf_ok(token, form_token):
+            # Read via .body() so Starlette's _CachedRequest can replay the raw
+            # bytes to downstream handlers — calling .form() here would consume
+            # the body stream, leaving downstream request.form() empty.
+            body = await request.body()
+            fields = dict(parse_qsl(body.decode("utf-8")))
+            if not csrf_ok(token, fields.get("_csrf")):
                 return PlainTextResponse("CSRF check failed", status_code=403)
         response = await call_next(request)
         if token is None:
