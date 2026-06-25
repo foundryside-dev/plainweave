@@ -79,6 +79,12 @@ agent use, not canned reports):
   the artifact a curator reads to spot *"these three are the same."* Consolidation
   is **agent-driven**; Plainweave serves the substrate, not an automated verdict.
 
+Over these three sits **`coverage()`** — the self-computed *intent-coverage*
+north-star: the fraction of public surfaces that answer *"why does this exist?"*
+It is honestly qualified in-band (namespace scoping, `denominator_complete`,
+`present_plugins`, bounded evidence) and never reports a silent clean when the
+denominator is partial.
+
 **Boundary** — coverage facts ride out at the git/CI boundary through Legis
 (*"this change adds N public entities bound to no requirement"*). **Advisory by
 default;** any repo wanting teeth dials it up through Legis's policy cells.
@@ -110,11 +116,40 @@ blast-radius map + dated counterpart tickets.
 
 ## Documentation
 
-- [`docs/design/`](docs/design/) — the canonical design ("permission for code to
-  exist"). **Start here.**
+- [`docs/design/2026-06-18-plainweave-permission-to-exist.md`](docs/design/2026-06-18-plainweave-permission-to-exist.md)
+  — the canonical design ("permission for code to exist"). **Start here.**
 - [`docs/MODULE-MAP.md`](docs/MODULE-MAP.md) — what the precursor core carries
   forward vs. what the reframe reshapes.
 - [`docs/README.md`](docs/README.md) — index of canon vs. precursor-era docs.
+
+## Installation
+
+```bash
+pip install plainweave
+```
+
+Or with [uv](https://docs.astral.sh/uv/):
+
+```bash
+uv pip install plainweave   # add to an environment
+uvx plainweave --help       # or run it without installing
+```
+
+Plainweave requires Python ≥ 3.12. Installing exposes two console commands:
+
+- `plainweave` — the CLI: `init`, `intent` (`coverage` / `orphans` / `trace` /
+  `corpus`), `req`, `goal`, `bind`, `catalog`, `criterion`, `verify`, `status`,
+  `dossier`, `baseline`, `actor`, and `doctor`.
+- `plainweave-mcp` — the read-only MCP server that mirrors the intent reads for
+  agents (`mutates:false`, `local_only:true`).
+
+Quick start:
+
+```bash
+plainweave init             # create a local store under .plainweave/
+plainweave intent coverage  # the north-star: how much public surface is justified
+plainweave doctor           # check store, Loomweave binding, and MCP surface
+```
 
 ## Development
 
@@ -128,10 +163,30 @@ make ci          # lint + typecheck + test (coverage-gated)
 
 The runtime package depends on the official Python MCP SDK for `plainweave-mcp`.
 
-### What works today (carried forward from the precursor)
+### Web UI (optional)
 
-The precursor's local requirements/verification core is intact and green — a
-foundation to reshape, not the reframed feature set. See the MODULE MAP for the
-current → target audit. The code-up read primitives (`orphans`/`trace`/`corpus`),
-the SEI-keyed ADR-029 bindings, and the authoring-time write path are **stubbed
-with backlog markers**, not yet implemented.
+Install the extra and launch the operator console:
+
+    pip install 'plainweave[web]'
+    plainweave web --actor human:<you>
+
+Browse the corpus, author requirements, and ratify agent-proposed drafts and
+trace links. Local-first, single-operator; advisory only (no release verdicts).
+
+#### Accessibility (AT gate — manual)
+
+Before shipping the review surface, run an NVDA (Windows) or VoiceOver (macOS)
+pass over the `/review` queue. Each approve / accept / reject action must:
+
+1. **Announce the outcome** via the `#sr-status` live region
+   (`role="status" aria-live="polite"`), e.g. "Approved: Requirement title".
+2. **Move focus** to the next action button in the queue (or to the "All caught
+   up" heading when the queue empties).
+3. **On the last item**, announce "Queue is now empty" and place focus on the
+   "All caught up" heading.
+
+Structural contracts (live region presence, skip-link, labelled search input,
+per-item `aria-label` on Approve buttons) are locked by
+`tests/web/test_a11y_contracts.py`. The focus-management and announcement
+behaviour above require a live AT session and cannot be automated in the
+current test harness.

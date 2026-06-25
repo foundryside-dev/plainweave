@@ -1,8 +1,12 @@
 # Contributing to Plainweave
 
-Plainweave is a local-first requirements and verification authority for the Weft
-suite. It is early-stage; keep changes small, tested, and aligned with the
-authority boundary in `docs/concept.md`.
+Plainweave is the Weft federation member that holds the team's code-grounded
+intent — the local-first traceability graph binding code entities (Loomweave
+SEIs) to requirements and strategic goals. As of 1.0.0 it is stable
+(Production/Stable on PyPI, versioned JSON envelopes, a green CI gate). Keep
+changes small, tested, and aligned with the authority boundary in the canonical
+design,
+[`docs/design/2026-06-18-plainweave-permission-to-exist.md`](docs/design/2026-06-18-plainweave-permission-to-exist.md).
 
 ## Development setup
 
@@ -22,8 +26,9 @@ This installs Plainweave in a uv-managed virtual environment with `ruff`, `mypy`
 - Linter and formatter: `ruff` with line length 120.
 - Type checker: `mypy` in strict mode.
 - Tests: `pytest`.
-- Runtime base: keep required dependencies empty unless the approved design says
-  otherwise.
+- Runtime base: the only approved runtime dependency is `mcp>=1.2.0` (needed by
+  `plainweave-mcp`). Do not add further runtime dependencies without an explicit
+  design decision.
 
 Before committing:
 

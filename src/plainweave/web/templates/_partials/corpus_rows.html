@@ -1,0 +1,11 @@
+{% for row in rows %}
+<tr class="corpus-row" hx-get="/req/{{ row.req_id }}/inline" hx-target="#req-detail-{{ row.req_id }}" hx-swap="innerHTML" style="cursor:pointer">
+  <td>{{ row.title }} <span class="muted">{{ row.display_id }}</span></td>
+  <td>{{ row.status }}</td>
+  <td>{% if row.goal_count %}{{ row.goal_count }}{% else %}<span class="warn">none</span>{% endif %}</td>
+  <td>{% if row.code_count %}{{ row.code_count }}{% else %}<span class="warn">none</span>{% endif %}</td>
+</tr>
+<tr class="corpus-row-detail"><td colspan="4"><div id="req-detail-{{ row.req_id }}"></div></td></tr>
+{% else %}
+<tr><td colspan="4">No requirements match the current filters.</td></tr>
+{% endfor %}

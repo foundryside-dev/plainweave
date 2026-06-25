@@ -2,7 +2,7 @@
   "schema": "weft.plainweave.preflight_facts.v1",
   "producer": {
     "tool": "plainweave",
-    "version": "0.0.1",
+    "version": "1.0.0",
     "project": "AUTH"
   },
   "scope": {

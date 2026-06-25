@@ -1,0 +1,10 @@
+{# Primary target (the acted card) is replaced by NOTHING via outerHTML → card removed. #}
+<div hx-swap-oob="innerHTML:#sr-status">
+  {{ action_label }}: {{ item_desc }}.
+  {% if remaining_count > 0 %}{{ remaining_count }} item{{ 's' if remaining_count != 1 }} remaining in queue.
+  {% else %}Queue is now empty.{% endif %}
+</div>
+<span hx-swap-oob="innerHTML:#review-badge">{% if remaining_count > 0 %}{{ remaining_count }}{% endif %}</span>
+{% if remaining_count == 0 %}
+<div hx-swap-oob="innerHTML:#queue-list">{% include "_partials/queue_empty.html" %}</div>
+{% endif %}

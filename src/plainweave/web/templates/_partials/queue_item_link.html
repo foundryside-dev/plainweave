@@ -1,0 +1,22 @@
+<article id="queue-item-{{ item.link_id }}" class="queue-item queue-item--link{% if item.drifted %} queue-item--drifted{% endif %}" aria-labelledby="qi-title-{{ item.link_id }}">
+  {% if item.drifted %}<span class="drift-badge" aria-hidden="true">CODE DRIFTED</span>
+  <p id="drift-{{ item.link_id }}" class="drift-notice" role="note">Code changed since this link was proposed — verify before accepting.</p>{% endif %}
+  <header><span class="type-badge" aria-label="Item type: Link">LINK</span>
+    <h2 id="qi-title-{{ item.link_id }}"><code>{{ item.from_label }}</code> <span aria-label="{{ item.relation }}">—{{ item.relation }}→</span> <em>{{ item.to_label }}</em></h2></header>
+  <p class="muted">{{ item.proposing_actor }}{% if item.confidence is not none %} · conf {{ item.confidence }}{% endif %}</p>
+  <div class="qi-actions">
+    {% if item.drifted %}
+    <button type="button" class="queue-action-primary" hx-get="/trace/{{ item.link_id }}/accept-drifted-confirm"
+            hx-target="#queue-item-{{ item.link_id }}" hx-swap="outerHTML"
+            aria-label="Accept link: {{ item.from_label }} {{ item.relation }} {{ item.to_label }}"
+            aria-describedby="drift-{{ item.link_id }}">Accept…</button>
+    {% else %}
+    <form hx-post="/trace/{{ item.link_id }}/accept" hx-target="#queue-item-{{ item.link_id }}" hx-swap="outerHTML">
+      {% include "_partials/csrf.html" %}
+      <button type="submit" class="queue-action-primary" aria-label="Accept link: {{ item.from_label }} {{ item.relation }} {{ item.to_label }}">Accept</button>
+    </form>
+    {% endif %}
+    <button type="button" hx-get="/trace/{{ item.link_id }}/reject-form" hx-target="#queue-item-{{ item.link_id }}" hx-swap="outerHTML"
+            aria-label="Reject link: {{ item.from_label }} {{ item.relation }} {{ item.to_label }}">Reject</button>
+  </div>
+</article>

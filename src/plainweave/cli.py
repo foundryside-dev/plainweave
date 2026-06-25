@@ -16,6 +16,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--version", action="store_true", help="Print the Plainweave version and exit.")
     subparsers = parser.add_subparsers(dest="command")
     register_commands(subparsers)
+    from plainweave.web.server import add_web_subcommand  # local import keeps web optional
+
+    add_web_subcommand(subparsers)
     return parser
 
 

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% set active_page = "review" %}
+{% block title %}Review · Plainweave{% endblock %}
+{% block main %}
+<h1 id="review-page-heading">Review queue</h1>
+<div id="queue-list">
+  {% if items %}
+    {% for item in items %}
+      {% if item.kind == 'draft' %}{% include "_partials/queue_item_draft.html" %}
+      {% else %}{% include "_partials/queue_item_link.html" %}{% endif %}
+    {% endfor %}
+  {% else %}{% include "_partials/queue_empty.html" %}{% endif %}
+</div>
+<script>
+(function () {
+  document.body.addEventListener('htmx:afterSettle', function (evt) {
+    var elt = evt.detail.requestConfig && evt.detail.requestConfig.elt;
+    if (!elt || !elt.closest('.qi-actions')) return;
+    var list = document.getElementById('queue-list');
+    if (!list) return;
+    var next = list.querySelector('.queue-action-primary');
+    if (next) { next.focus(); return; }
+    var empty = document.getElementById('empty-queue-heading');
+    if (empty) empty.focus();
+  });
+}());
+</script>
+{% endblock %}

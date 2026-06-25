@@ -253,7 +253,39 @@ class LoomweaveAdapter:
         code = code_by_reason.get(error.reason, "identity_degraded")
         return {"code": code, "message": error.message}
 
+    def _probe_sei_capability(self) -> None:
+        """Probe the remote Loomweave's ``GET /api/v1/_capabilities`` and gate the
+        HTTP identity resolve on ``sei.supported``.
+
+        Loomweave is the SEI authority; a consumer learns whether an instance serves
+        SEI from the wire capability, NOT from the local SQLite schema. Without this
+        probe the adapter would POST ``/api/v1/identity/resolve`` against a pre-SEI
+        Loomweave and surface the response (or its connection error) as
+        ``not_found`` / ``unreachable`` — conflating "this instance has no SEI
+        capability" with "this instance is down". That fails §8 ``capability_absent``,
+        which requires an HONEST degrade.
+
+        Two outcomes are kept ORTHOGONAL, mirroring the existing reason vocabulary:
+          * ``_http_json`` raises (connection refused / timeout / non-object body) →
+            the error propagates with ``reason="unreachable"`` — the remote is down,
+            unchanged from before.
+          * ``_http_json`` returns a 2xx body whose ``sei.supported`` is not exactly
+            ``True`` (absent / false / malformed) → raise ``reason="unsupported"`` —
+            the remote is reachable but serves no SEI. This is the ONLY new behaviour;
+            it is the honest "identity unavailable" the conformance oracle demands.
+        """
+        body = self._http_json("GET", "/api/v1/_capabilities")
+        sei = body.get("sei")
+        supported = isinstance(sei, dict) and sei.get("supported") is True
+        if not supported:
+            raise LoomweaveIdentityError(
+                "unsupported",
+                "Loomweave instance does not advertise SEI support (/api/v1/_capabilities).",
+                [self._degraded("sei_support_missing", "Loomweave SEI capability is absent on the remote.")],
+            )
+
     def _resolve_identity_http(self, value: str) -> LoomweaveCatalogEntity:
+        self._probe_sei_capability()
         if value.startswith(LOOMWEAVE_SEI_PREFIX):
             quoted = urllib.parse.quote(value, safe="")
             body = self._http_json("GET", f"/api/v1/identity/sei/{quoted}")

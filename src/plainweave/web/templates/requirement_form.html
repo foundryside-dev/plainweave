@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% set active_page = "corpus" %}
+{% block main %}
+<h1>{% if req_id %}Edit draft{% else %}New requirement{% endif %}</h1>
+<form method="post" action="{% if req_id %}/req/{{ req_id }}/edit{% else %}/req/new{% endif %}">
+  {% include "_partials/csrf.html" %}
+  {% if expected_draft_revision is not none %}<input type="hidden" name="expected_draft_revision" value="{{ expected_draft_revision }}">{% endif %}
+  <label>Title<input type="text" name="title" value="{{ title or '' }}" required></label>
+  <label>Statement<textarea name="statement" rows="6" required>{{ statement or '' }}</textarea></label>
+  <button type="submit">Save</button>
+</form>
+{% endblock %}

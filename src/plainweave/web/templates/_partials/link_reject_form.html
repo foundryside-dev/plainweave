@@ -1,0 +1,10 @@
+<article id="queue-item-{{ link_id }}" class="queue-item queue-item--link">
+  <form hx-post="/trace/{{ link_id }}/reject" hx-target="#queue-item-{{ link_id }}" hx-swap="outerHTML">
+    {% include "_partials/csrf.html" %}
+    <label for="reason-{{ link_id }}">Reason for rejection</label>
+    <textarea id="reason-{{ link_id }}" name="reason" rows="3" required>{{ submitted_reason or "" }}</textarea>
+    {% if error %}<p class="banner banner--warn" role="alert">{{ error }}</p>{% endif %}
+    <button type="submit">Confirm reject</button>
+    <button type="button" hx-get="/trace/{{ link_id }}/card" hx-target="#queue-item-{{ link_id }}" hx-swap="outerHTML">Cancel</button>
+  </form>
+</article>

@@ -1,0 +1,39 @@
+{# src/plainweave/web/templates/requirement_detail.html #}
+{% extends "base.html" %}
+{% set active_page = "corpus" %}
+{% set section = dossier.requirement %}
+{% block title %}{{ section.record.id }} · Plainweave{% endblock %}
+{% block main %}
+<h1>{% if section.current_version %}{{ section.current_version.title }}{% elif section.active_draft %}{{ section.active_draft.title }}{% endif %}
+  <span class="muted">{{ section.record.id }} · {{ section.record.status }}</span></h1>
+
+{% if section.current_version %}
+<section><h2>Current approved — v{{ section.current_version.version }}</h2>
+  <p>{{ section.current_version.statement }}</p></section>
+{% endif %}
+{% if section.active_draft %}
+<section class="draft"><h2>Draft{% if section.current_version %} (proposed changes){% else %} (new — no approved version yet){% endif %}</h2>
+  <p>{{ section.active_draft.statement }}</p>
+  <p><a href="/req/{{ req_id }}/edit">Edit draft</a></p>
+  <div id="dossier-approve-slot">
+    <button type="button" hx-get="/req/{{ req_id }}/approve-confirm" hx-target="#dossier-approve-slot" hx-swap="innerHTML">Approve this draft</button>
+  </div>
+</section>
+{% endif %}
+{% if goals %}
+<section>
+  <h2>Ladder to a goal</h2>
+  <form method="post" action="/req/{{ req_id }}/ladder">
+    {% include "_partials/csrf.html" %}
+    <label>Goal
+      <select name="goal_id">
+        {% for g in goals %}
+          <option value="{{ g.goal_id }}">{{ g.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Ladder</button>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

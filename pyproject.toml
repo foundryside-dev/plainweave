@@ -28,6 +28,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "coverage[toml]>=7.0",
+    "jinja2>=3.1.6",
     "mypy>=1.13.0",
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -42,12 +43,24 @@ plainweave-mcp = "plainweave.mcp_server:main"
 Homepage = "https://github.com/foundryside-dev/plainweave"
 Repository = "https://github.com/foundryside-dev/plainweave"
 Issues = "https://github.com/foundryside-dev/plainweave/issues"
+Changelog = "https://github.com/foundryside-dev/plainweave/blob/main/CHANGELOG.md"
+
+[project.optional-dependencies]
+web = [
+    "starlette>=0.37",
+    "uvicorn>=0.30",
+    "jinja2>=3.1",
+]
 
 [tool.hatch.version]
 path = "src/plainweave/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/plainweave"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/plainweave/web/templates" = "plainweave/web/templates"
+"src/plainweave/web/static" = "plainweave/web/static"
 
 [tool.ruff]
 line-length = 120
@@ -67,6 +80,21 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+filterwarnings = [
+    # Starlette TestClient emits a StarletteDeprecationWarning (a subclass of
+    # DeprecationWarning) at import time when the legacy httpx package is installed
+    # instead of httpx2.  This is a third-party warning outside our control; suppress
+    # it until we can upgrade to httpx2.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated.*",
+    # pytest-cov's coverage tracer triggers Python's ResourceWarning for SQLite
+    # connections that are closed lazily by the GC rather than explicitly.  These
+    # are pre-existing store-layer connections surfaced only under --cov; they do
+    # not indicate a real data-loss risk.  Track the underlying leak separately.
+    "ignore:unclosed database.*:ResourceWarning",
+]
+markers = [
+    "sei_drift: opt-in release-gate recheck that the vendored SEI conformance oracle has not drifted from the upstream Loomweave checkout (run with -m sei_drift)",
+]
 
 [tool.coverage.run]
 source = ["plainweave"]

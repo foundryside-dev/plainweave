@@ -1051,6 +1051,11 @@ class PlainweaveService:
             connection.commit()
             return IntentGoal(goal_id, display_id, stable_id, title, statement, "active", actor, now)
 
+    def list_goals(self) -> list[IntentGoal]:
+        with connect(self.db_path) as connection:
+            rows = connection.execute("select * from intent_goals order by display_id").fetchall()
+            return [self._goal_from_row(row) for row in rows]
+
     def link_goal_to_requirement(self, goal_id: str, requirement_id: str, *, actor: str) -> IntentEdge:
         self._require_actor(actor)
         now = self._now()
