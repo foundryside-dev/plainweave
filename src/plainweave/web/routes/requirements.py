@@ -76,7 +76,20 @@ async def req_inline_collapsed(request: Request) -> Response:
     return HTMLResponse("")
 
 
+async def req_detail(request: Request) -> Response:
+    ctx = request.app.state.ctx_factory()
+    req_id = request.path_params["req_id"]
+    dossier = ctx.service.requirement_dossier(req_id)
+    templates: Jinja2Templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "requirement_detail.html",
+        {"dossier": dossier, "req_id": req_id, "operator": ctx.operator, "active_page": "corpus"},
+    )
+
+
 def register(app: Starlette) -> None:
     app.router.routes.append(Route("/", corpus, name="corpus"))
+    app.router.routes.append(Route("/req/{req_id}", req_detail, name="req_detail"))
     app.router.routes.append(Route("/req/{req_id}/inline", req_inline, name="req_inline"))
     app.router.routes.append(Route("/req/{req_id}/inline/collapsed", req_inline_collapsed, name="req_inline_collapsed"))

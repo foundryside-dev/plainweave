@@ -244,3 +244,11 @@ def test_build_corpus_rows_approved_uses_version_title() -> None:
     assert rows[0].title == "Approved Title"
     assert rows[0].goal_count == 1
     assert rows[0].code_count == 2
+
+
+def test_requirement_detail_renders_statement(client: TestClient) -> None:
+    r = _mint(client, "Detail req", "the full detail statement")
+    resp = client.get(f"/req/{r.requirement_id}")
+    assert resp.status_code == 200
+    assert "Detail req" in resp.text
+    assert "the full detail statement" in resp.text
