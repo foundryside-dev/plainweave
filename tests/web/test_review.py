@@ -127,6 +127,30 @@ def test_accept_link(client: TestClient) -> None:
     assert not ctx.service.trace_for(state="proposed")  # no longer pending
 
 
+def test_reject_link(client: TestClient) -> None:
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    link = _propose(ctx)
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    resp = client.post(f"/trace/{link.id}/reject", data={"reason": "stale evidence", "_csrf": token})
+    assert resp.status_code == 200
+    assert 'hx-swap-oob="innerHTML:#sr-status"' in resp.text
+    assert "Rejected" in resp.text
+    assert not ctx.service.trace_for(state="proposed")  # actually rejected
+
+
+def test_link_card_restore(client: TestClient) -> None:
+    """GET /trace/{id}/card renders the original queue card (Cancel restore)."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    link = _propose(ctx)
+    resp = client.get(f"/trace/{link.id}/card")
+    assert resp.status_code == 200
+    assert "queue-item" in resp.text
+    assert "VERM-0001" in resp.text
+
+
 def test_drift_card_branch_renders(project_root: Path) -> None:
     """Unit test: LinkItem(drifted=True) renders CODE DRIFTED + aria-describedby.
 
