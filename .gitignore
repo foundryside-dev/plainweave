@@ -29,3 +29,6 @@ findings.jsonl
 
 # Plainweave — local intent store (regenerable dogfood/proving state; PDR-007)
 .plainweave/
+
+# Superpowers brainstorming scratch (visual-companion mockups)
+.superpowers/
