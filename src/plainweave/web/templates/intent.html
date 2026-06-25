@@ -1,0 +1,17 @@
+{# src/plainweave/web/templates/intent.html #}
+{% extends "base.html" %}
+{% set active_page = "intent" %}
+{% block title %}Intent · Plainweave{% endblock %}
+{% block main %}
+<h1>Intent coverage</h1>
+{% if banner %}<p class="banner banner--warn" role="status">{{ banner }}</p>{% endif %}
+<p class="big-number">
+  {% if cov.ratio is not none %}{{ "%.0f%%"|format(cov.ratio * 100) }}{% else %}—{% endif %}
+  <span class="muted">{{ cov.numerator }}/{{ cov.denominator }} public surfaces answer "why does this exist?"</span>
+</p>
+{% for level, nodes in orphans.items() %}
+<section><h2>Orphans — {{ level }} ({{ nodes|length }})</h2>
+  <ul>{% for n in nodes %}<li>{{ n.node_id }}</li>{% endfor %}</ul>
+</section>
+{% endfor %}
+{% endblock %}

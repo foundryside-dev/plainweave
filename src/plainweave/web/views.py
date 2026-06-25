@@ -47,6 +47,12 @@ def build_corpus_rows(
     return rows
 
 
+def coverage_banner(cov: object) -> str | None:
+    if getattr(cov, "denominator_complete", True) and not getattr(cov, "adapter_degraded", ()):
+        return None
+    return "Coverage denominator is incomplete — the Loomweave catalog is absent or stale. This number is partial."
+
+
 def filter_rows(rows: list[CorpusRow], *, q: str, status: str, orphan: str) -> list[CorpusRow]:
     out = rows
     if q:
