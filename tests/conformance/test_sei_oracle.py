@@ -330,9 +330,7 @@ def test_capability_absent_degrades_honestly(
     assert calls == [CAPABILITIES_PATH]
 
 
-def test_capability_absent_distinguished_from_unreachable(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_capability_absent_distinguished_from_unreachable(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """The split that makes capability_absent honest: a DOWN remote (the probe itself
     raises) still surfaces ``unreachable``, while a REACHABLE pre-SEI remote surfaces
     ``unsupported``. Conflating the two is exactly the §8 capability_absent failure."""
