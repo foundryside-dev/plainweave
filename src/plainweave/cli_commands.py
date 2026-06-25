@@ -16,7 +16,7 @@ from plainweave.intent_graph import (
     IntentNode,
     Trace,
 )
-from plainweave.loomweave_adapter import PUBLIC_SURFACE_TAGS
+from plainweave.loomweave_adapter import PUBLIC_SURFACE_TAGS, LoomweaveAdapter
 from plainweave.models import (
     AcceptanceCriterion,
     Actor,
@@ -49,7 +49,7 @@ from plainweave.models import (
 )
 from plainweave.paths import default_project_key, plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
-from plainweave.store import connect, migrate, read_schema_meta
+from plainweave.store import SCHEMA_VERSION, connect, migrate, read_schema_meta
 
 
 def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -58,7 +58,16 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     init_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
     init_parser.set_defaults(handler=handle_init)
 
-    doctor_parser = subparsers.add_parser("doctor", help="Report local Plainweave project health.")
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Check the project is configured properly (store, Loomweave catalog binding, MCP surface); --fix repairs.",
+    )
+    doctor_parser.add_argument("--root", default=None, help="Project root to inspect (default: cwd).")
+    doctor_parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Apply safe in-place repairs (init/migrate the store), then re-check. Idempotent.",
+    )
     doctor_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
     doctor_parser.set_defaults(handler=handle_doctor)
 
@@ -416,16 +425,201 @@ def handle_init(args: argparse.Namespace) -> int:
     return 0
 
 
+def _doctor_store_check(root: Path, fix: bool) -> tuple[dict[str, object], bool]:
+    """Store health: initialized + schema at the current version. --fix inits or migrates."""
+    info = inspect_project(root)
+    if not info["initialized"]:
+        if fix:
+            initialize_project(root, default_project_key(root))
+            info = inspect_project(root)
+            return (
+                {
+                    "id": "store",
+                    "status": "ok",
+                    "detail": f"store initialized (schema v{info['schema_version']}) at {info['db_path']}",
+                    "fixable": True,
+                    "fixed": True,
+                    "next_action": None,
+                },
+                True,
+            )
+        return (
+            {
+                "id": "store",
+                "status": "error",
+                "detail": f"no Plainweave store at {info['db_path']}",
+                "fixable": True,
+                "fixed": False,
+                "next_action": "plainweave init  (or: plainweave doctor --fix)",
+            },
+            False,
+        )
+    version = info["schema_version"]
+    if version == SCHEMA_VERSION:
+        return (
+            {
+                "id": "store",
+                "status": "ok",
+                "detail": f"store schema v{version} is current",
+                "fixable": False,
+                "fixed": False,
+                "next_action": None,
+            },
+            False,
+        )
+    if isinstance(version, int) and version < SCHEMA_VERSION:
+        if fix:
+            initialize_project(root, str(info["project_key"]))
+            after = inspect_project(root)
+            return (
+                {
+                    "id": "store",
+                    "status": "ok",
+                    "detail": f"store migrated v{version} -> v{after['schema_version']}",
+                    "fixable": True,
+                    "fixed": True,
+                    "next_action": None,
+                },
+                True,
+            )
+        return (
+            {
+                "id": "store",
+                "status": "error",
+                "detail": f"store schema v{version} is behind current v{SCHEMA_VERSION}",
+                "fixable": True,
+                "fixed": False,
+                "next_action": "plainweave doctor --fix  (migrates in place)",
+            },
+            False,
+        )
+    return (
+        {
+            "id": "store",
+            "status": "error",
+            "detail": f"store schema v{version} is newer than this plainweave (v{SCHEMA_VERSION})",
+            "fixable": False,
+            "fixed": False,
+            "next_action": "upgrade plainweave to match the store schema",
+        },
+        False,
+    )
+
+
+def _doctor_catalog_check(root: Path) -> dict[str, object]:
+    """Loomweave catalog binding: the sibling-owned catalog the intent graph consumes.
+    Not auto-fixable (consumer boundary) — reported with a next-action."""
+    try:
+        health = LoomweaveAdapter(root).health()
+    except Exception as exc:  # never let a sibling probe crash doctor
+        return {
+            "id": "loomweave_catalog",
+            "status": "warn",
+            "detail": f"could not probe the Loomweave catalog ({type(exc).__name__})",
+            "fixable": False,
+            "fixed": False,
+            "next_action": f"loomweave analyze {root}",
+        }
+    raw_status = health.get("adapter_status")
+    status = raw_status if isinstance(raw_status, dict) else {}
+    if status.get("status") != "available":
+        return {
+            "id": "loomweave_catalog",
+            "status": "warn",
+            "detail": f"Loomweave catalog not available at {status.get('db_path')}",
+            "fixable": False,
+            "fixed": False,
+            "next_action": f"loomweave analyze {root}  (Plainweave consumes its catalog; the sibling owns it)",
+        }
+    if not status.get("sei_supported"):
+        return {
+            "id": "loomweave_catalog",
+            "status": "warn",
+            "detail": (
+                "Loomweave catalog present but SEI bindings are unsupported/absent — the intent graph cannot anchor"
+            ),
+            "fixable": False,
+            "fixed": False,
+            "next_action": f"re-run loomweave analyze {root} so SEI bindings are extracted",
+        }
+    degraded = health.get("degraded") or []
+    detail = "Loomweave catalog available; SEI bindings supported"
+    if isinstance(degraded, list) and degraded:
+        detail += f" ({len(degraded)} degradation note(s) — see `plainweave intent coverage`)"
+    return {
+        "id": "loomweave_catalog",
+        "status": "ok",
+        "detail": detail,
+        "fixable": False,
+        "fixed": False,
+        "next_action": None,
+    }
+
+
+def _doctor_mcp_check() -> dict[str, object]:
+    """MCP/agent surface: the plainweave-mcp server entry point resolves."""
+    import importlib.util
+
+    if importlib.util.find_spec("plainweave.mcp_server") is not None:
+        return {
+            "id": "mcp_surface",
+            "status": "ok",
+            "detail": "plainweave-mcp server entry point is importable",
+            "fixable": False,
+            "fixed": False,
+            "next_action": None,
+        }
+    return {
+        "id": "mcp_surface",
+        "status": "error",
+        "detail": "plainweave MCP server (plainweave.mcp_server) is not importable",
+        "fixable": False,
+        "fixed": False,
+        "next_action": "reinstall plainweave (uv tool install <path> / pip install -e .)",
+    }
+
+
+def run_doctor(root: Path, *, fix: bool = False) -> dict[str, Any]:
+    """Federation-standard health report: verify the store, the Loomweave catalog
+    binding, and the MCP surface. With ``fix=True`` apply safe in-place repairs
+    (init/migrate the store) before reporting. Idempotent. Overall ``ok`` is true
+    when no check is in error (warnings are advisory, e.g. a sibling catalog the
+    consumer boundary forbids us to build)."""
+    store_check, fixed = _doctor_store_check(root, fix)
+    checks = [store_check, _doctor_catalog_check(root), _doctor_mcp_check()]
+    summary = {state: sum(1 for c in checks if c["status"] == state) for state in ("ok", "warn", "error")}
+    info = inspect_project(root)
+    return {
+        "ok": summary["error"] == 0,
+        "root": str(root),
+        "fix_applied": fixed,
+        "checks": checks,
+        "summary": summary,
+        # continuity fields (surfaced by the v1 doctor):
+        "initialized": info["initialized"],
+        "project_key": info["project_key"],
+        "schema_version": info["schema_version"],
+        "db_path": info["db_path"],
+    }
+
+
 def handle_doctor(args: argparse.Namespace) -> int:
-    root = project_root()
-    result = inspect_project(root)
-    project = result["project_key"] if isinstance(result["project_key"], str) else None
+    root = project_root(Path(args.root)) if getattr(args, "root", None) else project_root()
+    report = run_doctor(root, fix=bool(getattr(args, "fix", False)))
+    project = report["project_key"] if isinstance(report["project_key"], str) else None
     if bool(args.json):
-        print(json.dumps(success_envelope("weft.plainweave.doctor.v1", result, project=project)))
+        print(json.dumps(success_envelope("weft.plainweave.doctor.v2", report, project=project)))
     else:
-        status = "initialized" if result["initialized"] else "not initialized"
-        print(f"Plainweave project {status}: {result['db_path']}")
-    return 0
+        marks = {"ok": "OK", "warn": "WARN", "error": "FAIL"}
+        for check in report["checks"]:
+            line = f"[{marks[str(check['status'])]}] {check['id']}: {check['detail']}"
+            if check["status"] != "ok" and check["next_action"]:
+                line += f"\n        -> {check['next_action']}"
+            print(line)
+        summary = report["summary"]
+        tail = " (repairs applied)" if report["fix_applied"] else ""
+        print(f"doctor: {summary['ok']} ok, {summary['warn']} warn, {summary['error']} error{tail}")
+    return 0 if report["ok"] else 1
 
 
 def handle_req_add(args: argparse.Namespace) -> int:

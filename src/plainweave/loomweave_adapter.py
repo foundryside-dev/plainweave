@@ -105,6 +105,16 @@ class LoomweaveAdapter:
         self.db_path = self.loomweave_dir / "loomweave.db"
         self.http_url = self._resolve_http_url()
 
+    def health(self) -> dict[str, object]:
+        """Adapter-binding health for ``plainweave doctor`` — the adapter status
+        (availability, SEI support, db_path) plus any degradation notes, without
+        scanning the catalog."""
+        schema = self._schema_state()
+        return {
+            "adapter_status": self._adapter_status(schema),
+            "degraded": self._schema_degraded(schema),
+        }
+
     def list_catalog(self, *, limit: int, offset: int) -> LoomweaveCatalogPage:
         schema = self._schema_state()
         adapter_status = self._adapter_status(schema)
