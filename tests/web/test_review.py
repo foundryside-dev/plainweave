@@ -40,6 +40,57 @@ def test_queue_shows_pending_draft_and_proposed_link(client: TestClient) -> None
     assert "agent:claude" in resp.text  # proposing agent shown
 
 
+def test_approve_two_step(client: TestClient) -> None:
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    req = ctx.service.create_requirement("To approve", "body", actor="human:alice")
+    confirm = client.get(f"/req/{req.requirement_id}/approve-confirm")
+    assert confirm.status_code == 200
+    assert "version 1" in confirm.text.lower() or "approves version 1" in confirm.text.lower()
+    # Cookie is set on the first request; subsequent responses won't repeat Set-Cookie.
+    # Use client.cookies (the jar) rather than a specific response's cookies.
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    done = client.post(
+        f"/req/{req.requirement_id}/approve",
+        data={"expected_version": "0", "_csrf": token},
+    )
+    assert done.status_code == 200
+    assert 'hx-swap-oob="innerHTML:#sr-status"' in done.text  # announces outcome
+    # the requirement is now approved
+    assert ctx.service.get_requirement(req.requirement_id).status == "approved"
+
+
+def test_approve_conflict_returns_confirm_with_error(client: TestClient) -> None:
+    """Stale expected_version → 200 + confirm partial with error banner."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    req = ctx.service.create_requirement("Conflict req", "body", actor="human:alice")
+    # Ensure CSRF cookie is set in the jar before posting.
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    # Send wrong expected_version (e.g. 999) → CONFLICT from service
+    done = client.post(
+        f"/req/{req.requirement_id}/approve",
+        data={"expected_version": "999", "_csrf": token},
+    )
+    assert done.status_code == 200
+    # Should re-render confirm partial with error, not OOB result
+    assert 'hx-swap-oob="innerHTML:#sr-status"' not in done.text
+    assert "queue-item" in done.text  # confirm card was rendered
+
+
+def test_draft_card_restore(client: TestClient) -> None:
+    """GET /req/{id}/draft-card renders the original queue card (Cancel restore)."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    req = ctx.service.create_requirement("Restore me", "body", actor="human:alice")
+    resp = client.get(f"/req/{req.requirement_id}/draft-card")
+    assert resp.status_code == 200
+    assert "Restore me" in resp.text
+    assert "queue-item" in resp.text
+
+
 def test_drift_card_branch_renders(project_root: Path) -> None:
     """Unit test: LinkItem(drifted=True) renders CODE DRIFTED + aria-describedby.
 

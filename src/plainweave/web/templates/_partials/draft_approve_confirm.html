@@ -1,0 +1,10 @@
+<article id="queue-item-{{ req_id }}" class="queue-item queue-item--draft">
+  {% if error %}<p class="banner banner--warn" role="alert">{{ error }}</p>{% endif %}
+  <p>Approve <strong>{{ title }}</strong> as <strong>version {{ next_version }}</strong>? This cannot be undone — there is no un-approve.</p>
+  <form hx-post="/req/{{ req_id }}/approve" hx-target="#queue-item-{{ req_id }}" hx-swap="outerHTML">
+    {% include "_partials/csrf.html" %}
+    <input type="hidden" name="expected_version" value="{{ current_version }}">
+    <button type="submit" class="queue-action-primary">Confirm — approve v{{ next_version }}</button>
+    <button type="button" hx-get="/req/{{ req_id }}/draft-card" hx-target="#queue-item-{{ req_id }}" hx-swap="outerHTML">Cancel</button>
+  </form>
+</article>
