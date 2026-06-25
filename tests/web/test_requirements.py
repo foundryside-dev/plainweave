@@ -252,3 +252,29 @@ def test_requirement_detail_renders_statement(client: TestClient) -> None:
     assert resp.status_code == 200
     assert "Detail req" in resp.text
     assert "the full detail statement" in resp.text
+
+
+def test_requirement_detail_approved_version_block(client: TestClient) -> None:
+    """Approved requirement: current-version block present, draft block absent."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    draft = ctx.service.create_requirement(
+        "Approved version title",
+        "approved version statement",
+        actor="human:alice",
+    )
+    req_id = draft.requirement_id
+    ctx.service.approve_requirement(req_id, actor="human:alice", expected_version=0)
+    resp = client.get(f"/req/{req_id}")
+    assert resp.status_code == 200
+    # Approved block heading present (template: "Current approved — v1")
+    assert "Current approved" in resp.text
+    # Approved statement carried through
+    assert "approved version statement" in resp.text
+    # Draft block absent (class="draft" is the discriminator for that section)
+    # Note: the both-blocks case (approved + active draft simultaneously) is not
+    # reachable via the public PlainweaveService API.  approve_requirement sets
+    # active_draft_id=null, and supersede_requirement likewise creates a new
+    # approved version directly without a draft step — there is no verb that opens
+    # a fresh draft on a requirement that already has a current_version.
+    assert 'class="draft"' not in resp.text
