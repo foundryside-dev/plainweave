@@ -6,8 +6,9 @@ import pytest
 from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
-from plainweave.models import TraceRef
+from plainweave.models import TraceLink, TraceRef
 from plainweave.web.app import create_app
+from plainweave.web.context import RequestContext
 from plainweave.web.views import LinkItem
 
 
@@ -89,6 +90,41 @@ def test_draft_card_restore(client: TestClient) -> None:
     assert resp.status_code == 200
     assert "Restore me" in resp.text
     assert "queue-item" in resp.text
+
+
+def _propose(ctx: RequestContext) -> TraceLink:
+    return ctx.service.propose_trace_link(
+        TraceRef("test_selector", "tests/test_auth.py::test_expired"),
+        "provides_evidence_for",
+        TraceRef("verification_method", "VERM-0001"),
+        actor="agent:claude",
+        confidence=0.7,
+    )
+
+
+def test_reject_requires_reason(client: TestClient) -> None:
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    link = _propose(ctx)
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    # empty reason → 200 with inline error, link NOT rejected
+    resp = client.post(f"/trace/{link.id}/reject", data={"reason": "", "_csrf": token})
+    assert resp.status_code == 200
+    assert "reason is required" in resp.text.lower()
+    assert ctx.service.trace_for(state="proposed")  # still proposed
+
+
+def test_accept_link(client: TestClient) -> None:
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    link = _propose(ctx)
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    resp = client.post(f"/trace/{link.id}/accept", data={"_csrf": token})
+    assert resp.status_code == 200
+    assert 'hx-swap-oob="innerHTML:#sr-status"' in resp.text
+    assert not ctx.service.trace_for(state="proposed")  # no longer pending
 
 
 def test_drift_card_branch_renders(project_root: Path) -> None:
