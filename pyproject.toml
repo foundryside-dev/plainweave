@@ -67,6 +67,9 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+markers = [
+    "sei_drift: opt-in release-gate recheck that the vendored SEI conformance oracle has not drifted from the upstream Loomweave checkout (run with -m sei_drift)",
+]
 
 [tool.coverage.run]
 source = ["plainweave"]
