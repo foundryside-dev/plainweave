@@ -91,6 +91,9 @@ filterwarnings = [
     # not indicate a real data-loss risk.  Track the underlying leak separately.
     "ignore:unclosed database.*:ResourceWarning",
 ]
+markers = [
+    "sei_drift: opt-in release-gate recheck that the vendored SEI conformance oracle has not drifted from the upstream Loomweave checkout (run with -m sei_drift)",
+]
 
 [tool.coverage.run]
 source = ["plainweave"]

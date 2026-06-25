@@ -224,6 +224,8 @@ def test_identity_resolution_over_http_returns_alive_snapshot(
     }
 
     def fake_http_json(method: str, path: str, payload: object | None = None) -> dict[str, object]:
+        if path == "/api/v1/_capabilities":
+            return {"sei": {"supported": True, "version": 1}}
         return alive_body
 
     monkeypatch.setattr(adapter, "_http_json", fake_http_json)
@@ -249,6 +251,8 @@ def test_identity_resolution_over_http_matches_the_pinned_contract_fixture(
     resolve_body = cast("dict[str, object]", _identity_fixture("identity-resolve.json")["response"])
 
     def fake_http_json(method: str, path: str, payload: object | None = None) -> dict[str, object]:
+        if path == "/api/v1/_capabilities":
+            return {"sei": {"supported": True, "version": 1}}
         return sei_body if path.startswith("/api/v1/identity/sei/") else resolve_body
 
     monkeypatch.setattr(adapter, "_http_json", fake_http_json)
@@ -272,6 +276,8 @@ def test_identity_resolution_over_http_reports_orphaned_when_not_alive(
     adapter = LoomweaveAdapter(tmp_path)
 
     def fake_http_json(method: str, path: str, payload: object | None = None) -> dict[str, object]:
+        if path == "/api/v1/_capabilities":
+            return {"sei": {"supported": True, "version": 1}}
         return {"alive": False, "lineage": [{"event": "renamed"}]}
 
     monkeypatch.setattr(adapter, "_http_json", fake_http_json)
