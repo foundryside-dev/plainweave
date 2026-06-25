@@ -145,3 +145,21 @@ Install the extra and launch the operator console:
 
 Browse the corpus, author requirements, and ratify agent-proposed drafts and
 trace links. Local-first, single-operator; advisory only (no release verdicts).
+
+#### Accessibility (AT gate — manual)
+
+Before shipping the review surface, run an NVDA (Windows) or VoiceOver (macOS)
+pass over the `/review` queue. Each approve / accept / reject action must:
+
+1. **Announce the outcome** via the `#sr-status` live region
+   (`role="status" aria-live="polite"`), e.g. "Approved: Requirement title".
+2. **Move focus** to the next action button in the queue (or to the "All caught
+   up" heading when the queue empties).
+3. **On the last item**, announce "Queue is now empty" and place focus on the
+   "All caught up" heading.
+
+Structural contracts (live region presence, skip-link, labelled search input,
+per-item `aria-label` on Approve buttons) are locked by
+`tests/web/test_a11y_contracts.py`. The focus-management and announcement
+behaviour above require a live AT session and cannot be automated in the
+current test harness.
