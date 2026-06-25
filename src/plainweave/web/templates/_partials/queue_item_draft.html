@@ -1,0 +1,11 @@
+<article id="queue-item-{{ item.req_id }}" class="queue-item queue-item--draft" aria-labelledby="qi-title-{{ item.req_id }}">
+  <header><span class="type-badge" aria-label="Item type: Draft">DRAFT</span>
+    <h2 id="qi-title-{{ item.req_id }}">{{ item.title }} <span class="muted">{{ item.display_id }}</span></h2></header>
+  <p>{{ item.statement | truncate(200) }}</p>
+  <div class="qi-actions">
+    <a href="/req/{{ item.req_id }}">View full draft →</a>
+    <button type="button" class="queue-action-primary" hx-get="/req/{{ item.req_id }}/approve-confirm"
+            hx-target="#queue-item-{{ item.req_id }}" hx-swap="outerHTML"
+            aria-label="Approve draft: {{ item.title }}">Approve</button>
+  </div>
+</article>

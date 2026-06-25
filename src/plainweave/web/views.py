@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from plainweave.intent_graph import CorpusEntry
 from plainweave.models import RequirementRecord
+
+if TYPE_CHECKING:
+    from plainweave.service import PlainweaveService
 
 
 @dataclass(frozen=True)
@@ -51,6 +55,63 @@ def coverage_banner(cov: object) -> str | None:
     if getattr(cov, "denominator_complete", True) and not getattr(cov, "adapter_degraded", ()):
         return None
     return "Coverage denominator is incomplete — the Loomweave catalog is absent or stale. This number is partial."
+
+
+@dataclass(frozen=True)
+class DraftItem:
+    kind: str  # "draft"
+    req_id: str
+    display_id: str
+    title: str
+    statement: str
+    current_version: int
+
+
+@dataclass(frozen=True)
+class LinkItem:
+    kind: str  # "link"
+    link_id: str
+    from_label: str
+    relation: str
+    to_label: str
+    proposing_actor: str
+    confidence: float | None
+    drifted: bool
+
+
+def pending_items(service: PlainweaveService) -> list[DraftItem | LinkItem]:
+    """Return unified review queue: pending drafts + proposed trace links."""
+    items: list[DraftItem | LinkItem] = []
+    for rec in service.search_requirements():
+        if rec.active_draft_id is None:
+            continue
+        d = service.requirement_dossier(rec.requirement_id).requirement.active_draft
+        if d is None:
+            continue
+        items.append(
+            DraftItem(
+                kind="draft",
+                req_id=rec.requirement_id,
+                display_id=rec.id,
+                title=d.title,
+                statement=d.statement,
+                current_version=rec.current_version,
+            )
+        )
+    for link in service.trace_for(state="proposed"):
+        items.append(
+            LinkItem(
+                kind="link",
+                link_id=link.id,
+                from_label=link.from_ref.id,
+                relation=link.relation,
+                to_label=link.to_ref.id,
+                proposing_actor=link.created_by,
+                confidence=link.confidence,
+                drifted=link.freshness != "current",
+            )
+        )
+    return items
 
 
 def filter_rows(rows: list[CorpusRow], *, q: str, status: str, orphan: str) -> list[CorpusRow]:
