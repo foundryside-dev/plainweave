@@ -1,4 +1,4 @@
-# Plainweave Roadmap            Updated: 2026-06-24 (PDR-009)
+# Plainweave Roadmap            Updated: 2026-06-25 (PDR-010, PDR-011)
 
 > Sequencing, WSJF / cost-of-delay, and dated forecasts are produced by
 > /axiom-program-management. This file records bets as INTENT, not a delivery
@@ -9,9 +9,6 @@
 - **Dogfood against live sibling peers** — Lacuna + Loomweave done (PDR-008): the
   code-up graph and the cross-member seam (PDR-004) reproduce on real sibling corpora.
   Remaining: more peers as desired; keep proving the seam holds. · metric: north-star.
-- **Lacuna demonstration mix** — keep a deliberate covered + uncovered specimen so the
-  intent reads (coverage/orphans/trace) show a real *partial* reading, not a clean
-  100%/0%. Owner notes this work is being driven via Plainweave. · metric: north-star (demo).
 
 ## Next (shaped, decreasing certainty)
 
@@ -30,14 +27,28 @@
   public surfaces are `python:`. Plainweave already surfaces the gap (`present_plugins`);
   **closing it upstream is owner-gated** (sibling obligation — do not file a Loomweave
   ticket unilaterally). Owner-raised this session as the most pressing remaining gap.
+- **Federation operability parity** — `doctor` + `--fix` shipped (PDR-011: store/schema +
+  Loomweave catalog binding + MCP surface, `--root`, non-zero-exit gate). The remaining
+  agent-orientation install surfaces the sibling doctors manage — a `plainweave-workflow`
+  skill pack, a SessionStart hook, `.mcp.json` self-registration, an `install` command — are
+  a future onboarding bet (Option 2 deferred in PDR-011), not yet committed.
 - Optional Loomweave semantic-similarity hint over requirement text — DEFERRED by
   PDR-003; advisory only, never a dedup verdict. · tracker: plainweave-02376962ab.
 - Corpus-curation workflows for duplicate or overlapping requirements.
 - Formal suite membership package — **owner-gated** (PDR-002).
 - Public release and packaging (final name, PyPI, hub roster) — **owner-gated** (PDR-002).
 
-## Done since last checkpoint (2026-06-21 → 06-24)
+## Done since last checkpoint (2026-06-24 → 06-25)
 
+- **Lacuna intent regression-harness** (PDR-010): Plainweave added as Lacuna's 6th tour
+  member — a self-seeding leg + 4 catalogued `pw-*` capability demos over a deterministic
+  2-covered:2-uncovered mix (oracle 2/4 default, 2/3 scoped). Banked as a demonstrator +
+  regression-harness for the liveness/deprecation numerator semantics, **not** north-star
+  movement (the seam was already proven read-only, PDR-008). Merged to Lacuna's local `main`
+  (unpushed); recorded Lacuna-side in Lacuna PDR-0005; 2 plan rounds + a code review (2 HIGH fixed).
+- **Doctor → federation parity** (PDR-011): `plainweave doctor` + `--fix`/`--root`/non-zero-exit,
+  checking store/schema, the Loomweave catalog binding (report-only, consumer boundary), and the
+  MCP surface; envelope v1→v2. `make ci` green (mypy strict, 235 tests, 90.11% cov); wardline clean.
 - **`intent_coverage` read primitive shipped to `main`** (PDR-009): the product
   self-computes the north-star honestly — scoped denominator (excl. `tests.`/`scripts.`),
   `denominator_complete`, `present_plugins`, bounded evidence (`max_surfaces`) — advisory,

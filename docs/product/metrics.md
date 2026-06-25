@@ -89,3 +89,24 @@ Guardrails — all intact: advisory only, verdict vocabulary machine-rejected by
 validator; SEIs consumed opaquely; no silent-clean (degraded tag-classes AND language-partial spans
 both flagged in-band). The release review fixed a real honesty defect (surfaces bound to *deprecated*
 requirements were inflating the numerator). No NEW reversal trigger fired.
+
+### 2026-06-25 — Lacuna intent regression-harness oracle (PDR-010)
+
+A **controlled fixture** reading, NOT a real-surface north-star reading. The harness seeds a
+deterministic 2-covered:2-uncovered corpus over the Lacuna specimen; `intent coverage` reads
+**2/4 default, 2/3 scoped** (excl. `tour.`), with `denominator_complete=false` and
+`absent_tags=[exported-api, http-route]` carried in-band; `intent orphans`/`trace`/`corpus`
+all populated. Deterministic across repeated `make verify` runs (the value is regression
+protection of the liveness/deprecation numerator semantics, not the headline number).
+
+PDR-009 reversal-trigger check: the reading was only ever presented WITH its scoping +
+`denominator_complete` qualifiers, so the vanity-metric/silent-clean trigger did NOT fire.
+Guardrails intact (advisory; consumed SEIs opaquely; no specimen/sibling-repo mutation).
+
+### 2026-06-25 — Operability guardrail added (PDR-011)
+
+New, separate from the north-star: `plainweave doctor` self-verifies configuration
+(store/schema + Loomweave catalog binding + MCP surface) and exits non-zero on any ERROR —
+config health is now CI-gateable. Against the Plainweave repo it reads **3 ok / 0 warn /
+0 error**. The Loomweave catalog gap stays an advisory WARN with a `loomweave analyze`
+next-action (never auto-fixed — consumer boundary).
