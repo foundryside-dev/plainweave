@@ -19,6 +19,8 @@ coverage *completeness* remains a documented roadmap item, not a 1.0 gate.)
   bounded evidence), `intent orphans`, `intent trace`, `intent corpus`.
 - **Authoring surface** — `goal`, `req` (draft/approve/supersede/deprecate),
   `bind sei`, `catalog record`, `trace`, `criterion`, `verify`, `baseline`, `actor`.
+- **Local store & verification reads** — `init` (create a `.plainweave/` store),
+  `status` (requirement verification status), `dossier` (per-requirement dossier).
 - **Cross-member seams** — Loomweave catalog adapter (consumes SEIs opaquely,
   never mints), Legis preflight advisory cell, peer-ready entity-intent-context API.
 - **MCP server** (`plainweave-mcp`) — read-only mirror of the intent reads;
