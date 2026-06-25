@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Plainweave{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <nav aria-label="Main navigation" class="topnav">
+    <a href="/" {% if active_page == 'corpus' %}aria-current="page"{% endif %}>Corpus</a>
+    <a href="/review" {% if active_page == 'review' %}aria-current="page"{% endif %}>
+      Review
+      <span id="review-badge" class="nav-badge">{% if pending_count %}{{ pending_count }}{% endif %}</span>
+    </a>
+    <a href="/intent" {% if active_page == 'intent' %}aria-current="page"{% endif %}>Intent</a>
+    <a href="/goals" {% if active_page == 'goals' %}aria-current="page"{% endif %}>Goals</a>
+    <span class="operator">operator: {{ operator.display_name }} · {{ operator.kind }}</span>
+  </nav>
+
+  {# Permanent SR status live region — NEVER replaced via outerHTML; innerHTML-OOB only. #}
+  <div id="sr-status" role="status" aria-live="polite" aria-atomic="true" class="visually-hidden"></div>
+  {# Decorative global loader; status comes from #sr-status, so this is aria-hidden. #}
+  <div id="global-loader" class="htmx-indicator" aria-hidden="true"><span class="loader-spinner"></span></div>
+
+  <main id="main-content">
+    {% block main %}{% endblock %}
+  </main>
+</body>
+</html>

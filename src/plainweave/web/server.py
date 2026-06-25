@@ -42,7 +42,7 @@ def _serve(  # pragma: no cover
     # Lazy import: only touches starlette/uvicorn when the extra is installed.
     import uvicorn  # noqa: PLC0415, I001
 
-    from plainweave.web.app import create_app  # type: ignore[import-untyped]  # noqa: PLC0415, I001  # remove when web/app.py lands (Task 3)
+    from plainweave.web.app import create_app  # noqa: PLC0415, I001
 
     app = create_app(actor=actor, root=root)
     if open_browser:
