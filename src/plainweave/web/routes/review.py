@@ -214,6 +214,16 @@ async def link_card(request: Request) -> Response:
     )
 
 
+async def accept_drifted_confirm(request: Request) -> Response:
+    link_id: str = request.path_params["link_id"]
+    templates: Jinja2Templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "_partials/link_accept_drifted_confirm.html",
+        {"link_id": link_id},
+    )
+
+
 def register(app: Starlette) -> None:
     app.router.routes.append(Route("/review", review, name="review"))
     app.router.routes.append(Route("/req/{req_id}/approve-confirm", approve_confirm))
@@ -223,3 +233,4 @@ def register(app: Starlette) -> None:
     app.router.routes.append(Route("/trace/{link_id}/reject-form", reject_form))
     app.router.routes.append(Route("/trace/{link_id}/reject", reject_post, methods=["POST"]))
     app.router.routes.append(Route("/trace/{link_id}/card", link_card))
+    app.router.routes.append(Route("/trace/{link_id}/accept-drifted-confirm", accept_drifted_confirm))

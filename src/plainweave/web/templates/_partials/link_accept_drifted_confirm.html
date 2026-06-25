@@ -1,0 +1,10 @@
+<article id="queue-item-{{ link_id }}" class="queue-item queue-item--link queue-item--drifted">
+  <span class="drift-badge" aria-hidden="true">CODE DRIFTED</span>
+  <p class="banner banner--warn" role="alert">Accept anyway? This ratifies the link in its current <strong>drifted</strong> state — the code changed since it was proposed.</p>
+  <form hx-post="/trace/{{ link_id }}/accept" hx-target="#queue-item-{{ link_id }}" hx-swap="outerHTML">
+    {% include "_partials/csrf.html" %}
+    <input type="hidden" name="drift_acknowledged" value="1">
+    <button type="submit" class="queue-action-primary">Accept drifted link</button>
+    <button type="button" hx-get="/trace/{{ link_id }}/card" hx-target="#queue-item-{{ link_id }}" hx-swap="outerHTML">Cancel</button>
+  </form>
+</article>

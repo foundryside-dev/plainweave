@@ -151,6 +151,17 @@ def test_link_card_restore(client: TestClient) -> None:
     assert "VERM-0001" in resp.text
 
 
+def test_drifted_link_renders_warning_and_requires_extra_confirm(client: TestClient) -> None:
+    """GET /trace/{lid}/accept-drifted-confirm returns 200 with drift warning and hidden field."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    link = _propose(ctx)
+    confirm = client.get(f"/trace/{link.id}/accept-drifted-confirm")
+    assert confirm.status_code == 200
+    assert "drifted" in confirm.text.lower()
+    assert 'name="drift_acknowledged"' in confirm.text
+
+
 def test_drift_card_branch_renders(project_root: Path) -> None:
     """Unit test: LinkItem(drifted=True) renders CODE DRIFTED + aria-describedby.
 
