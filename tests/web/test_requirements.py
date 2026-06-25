@@ -310,7 +310,7 @@ def test_edit_form_renders(client: TestClient) -> None:
 
 
 def test_edit_success_redirects(client: TestClient) -> None:
-    """POST /req/{req_id}/edit with correct revision redirects to detail page."""
+    """POST /req/{req_id}/edit with correct revision redirects and update is persisted."""
     r = _mint(client, "Success Req", "original body")
     token = client.get("/").cookies.get("pw_csrf")
     resp = client.post(
@@ -323,6 +323,8 @@ def test_edit_success_redirects(client: TestClient) -> None:
         },
     )
     assert resp.status_code in (200, 303)
+    # Verify the update was persisted (TestClient follows redirects by default)
+    assert "updated body" in resp.text
 
 
 def test_edit_conflict_preserves_text(client: TestClient) -> None:
