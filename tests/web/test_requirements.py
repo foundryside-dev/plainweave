@@ -168,6 +168,21 @@ def test_filter_rows_combined() -> None:
     assert result[0].status == "draft"
 
 
+def test_inline_expand_independent_targets(client: TestClient) -> None:
+    a = _mint(client, "Alpha req", "alpha statement body")
+    b = _mint(client, "Beta req", "beta statement body")
+    ra = client.get(f"/req/{a.requirement_id}/inline")
+    assert ra.status_code == 200
+    assert "alpha statement body" in ra.text
+    assert f'id="req-detail-{a.requirement_id}"' not in ra.text  # partial targets the existing row div, not nested
+    rb = client.get(f"/req/{b.requirement_id}/inline")
+    assert "beta statement body" in rb.text
+    # collapse returns empty
+    rc = client.get(f"/req/{a.requirement_id}/inline/collapsed")
+    assert rc.status_code == 200
+    assert rc.text.strip() == ""
+
+
 # --- Unit tests for build_corpus_rows ---
 
 

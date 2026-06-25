@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import Response
+from starlette.responses import HTMLResponse, Response
 from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 
@@ -54,5 +54,29 @@ async def corpus(request: Request) -> Response:
     )
 
 
+async def req_inline(request: Request) -> Response:
+    ctx = request.app.state.ctx_factory()
+    req_id = request.path_params["req_id"]
+    dossier = ctx.service.requirement_dossier(req_id)
+    section = dossier.requirement
+    statement = (
+        section.active_draft.statement
+        if section.active_draft
+        else (section.current_version.statement if section.current_version else "")
+    )
+    templates: Jinja2Templates = request.app.state.templates
+    return templates.TemplateResponse(
+        request,
+        "_partials/req_inline.html",
+        {"req_id": req_id, "statement": statement, "status": dossier.requirement.record.status},
+    )
+
+
+async def req_inline_collapsed(request: Request) -> Response:
+    return HTMLResponse("")
+
+
 def register(app: Starlette) -> None:
     app.router.routes.append(Route("/", corpus, name="corpus"))
+    app.router.routes.append(Route("/req/{req_id}/inline", req_inline, name="req_inline"))
+    app.router.routes.append(Route("/req/{req_id}/inline/collapsed", req_inline_collapsed, name="req_inline_collapsed"))
