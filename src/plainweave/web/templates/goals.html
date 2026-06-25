@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% set active_page = "goals" %}
+{% block title %}Goals · Plainweave{% endblock %}
+{% block main %}
+<h1>Goals</h1>
+<ul>
+{% for g in goals %}
+  <li>{{ g.title }} <span class="muted">{{ g.id }}</span>{% if g.goal_id in orphan_goal_ids %} <span class="warn">— no requirements ladder here</span>{% endif %}</li>
+{% else %}
+  <li>No goals yet.</li>
+{% endfor %}
+</ul>
+{% endblock %}
