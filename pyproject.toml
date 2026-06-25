@@ -79,6 +79,18 @@ explicit_package_bases = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra -q"
+filterwarnings = [
+    # Starlette TestClient emits a StarletteDeprecationWarning (a subclass of
+    # DeprecationWarning) at import time when the legacy httpx package is installed
+    # instead of httpx2.  This is a third-party warning outside our control; suppress
+    # it until we can upgrade to httpx2.
+    "ignore:Using `httpx` with `starlette.testclient` is deprecated.*",
+    # pytest-cov's coverage tracer triggers Python's ResourceWarning for SQLite
+    # connections that are closed lazily by the GC rather than explicitly.  These
+    # are pre-existing store-layer connections surfaced only under --cov; they do
+    # not indicate a real data-loss risk.  Track the underlying leak separately.
+    "ignore:unclosed database.*:ResourceWarning",
+]
 
 [tool.coverage.run]
 source = ["plainweave"]

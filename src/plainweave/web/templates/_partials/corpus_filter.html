@@ -8,7 +8,7 @@
 
     <fieldset class="filter-toggles">
       <legend>Status</legend>
-      {% for value, label in [("", "All"), ("approved", "Approved"), ("draft", "Draft"), ("deprecated", "Deprecated")] %}
+      {% for value, label in [("", "All"), ("approved", "Approved"), ("draft", "Draft")] %}
       <label class="toggle-btn{% if filters.status == value %} toggle-btn--active{% endif %}">
         <input class="visually-hidden" type="radio" name="status" value="{{ value }}" {% if filters.status == value %}checked{% endif %}>{{ label }}
       </label>

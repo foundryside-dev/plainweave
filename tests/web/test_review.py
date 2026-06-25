@@ -41,6 +41,20 @@ def test_queue_shows_pending_draft_and_proposed_link(client: TestClient) -> None
     assert "agent:claude" in resp.text  # proposing agent shown
 
 
+def test_approve_non_integer_expected_version_returns_400(client: TestClient) -> None:
+    """POST /req/{id}/approve with a non-integer expected_version must return 400, not 500."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    req = ctx.service.create_requirement("Bad int req", "body", actor="human:alice")
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    resp = client.post(
+        f"/req/{req.requirement_id}/approve",
+        data={"expected_version": "not-a-number", "_csrf": token},
+    )
+    assert resp.status_code == 400, f"expected 400 for non-integer expected_version, got {resp.status_code}"
+
+
 def test_approve_two_step(client: TestClient) -> None:
     app: Starlette = client.app  # type: ignore[assignment]
     ctx = app.state.ctx_factory()
@@ -169,6 +183,55 @@ def test_drifted_link_renders_warning_and_requires_extra_confirm(client: TestCli
     assert f'hx-get="/trace/{link.id}/card"' in confirm.text
     # 5. CSRF hidden input
     assert 'name="_csrf"' in confirm.text
+
+
+def test_approve_attributes_operator_as_approver(client: TestClient) -> None:
+    """Human authority claim: approving via the UI route records the operator as approver.
+
+    This is the product's core invariant — a human operator's identity must appear
+    in the approved version record, not an agent or anonymous actor.
+    """
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    req = ctx.service.create_requirement("Authority req", "body", actor="human:alice")
+
+    # Warm the cookie jar, then get a fresh CSRF token.
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+
+    resp = client.post(
+        f"/req/{req.requirement_id}/approve",
+        data={"expected_version": "0", "_csrf": token},
+    )
+    assert resp.status_code == 200
+
+    # The approved version record must attribute the human operator, not an agent.
+    version_rec = ctx.service.get_requirement(req.requirement_id).current_version_record
+    assert version_rec is not None, "requirement has no approved version record after approve"
+    assert version_rec.approved_by == "human:alice", (
+        f"approved_by is {version_rec.approved_by!r}, expected 'human:alice' — human authority attribution is broken"
+    )
+
+
+def test_accept_link_attributes_operator(client: TestClient) -> None:
+    """Human authority claim: accepting a trace link via the UI records the operator as acceptor."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx: RequestContext = app.state.ctx_factory()
+    link = _propose(ctx)
+
+    client.get("/review")
+    token = client.cookies.get("pw_csrf")
+    resp = client.post(f"/trace/{link.id}/accept", data={"_csrf": token})
+    assert resp.status_code == 200
+
+    # Accepted link must carry the human operator's id.
+    accepted_links = ctx.service.trace_for(state="accepted")
+    assert accepted_links, "no accepted links found after accept"
+    accepted = accepted_links[0]
+    assert accepted.accepted_by == "human:alice", (
+        f"accepted_by is {accepted.accepted_by!r}, expected 'human:alice' — "
+        "human authority attribution is broken for trace-link accept"
+    )
 
 
 def test_drift_card_branch_renders(project_root: Path) -> None:

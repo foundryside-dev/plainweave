@@ -301,8 +301,9 @@ def test_create_requirement(client: TestClient) -> None:
 def test_edit_form_renders(client: TestClient) -> None:
     """GET /req/{req_id}/edit must render the form pre-populated with the current draft."""
     r = _mint(client, "Editable Req", "initial body")
-    token = client.get("/").cookies.get("pw_csrf")
-    resp = client.get(f"/req/{r.requirement_id}/edit", cookies={"pw_csrf": token or ""})
+    # Warm the cookie jar (cookie is already persisted on the client after _mint's GET).
+    client.get("/")
+    resp = client.get(f"/req/{r.requirement_id}/edit")
     assert resp.status_code == 200
     assert "Editable Req" in resp.text
     assert "initial body" in resp.text

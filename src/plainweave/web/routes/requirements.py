@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from starlette.applications import Starlette
+from starlette.datastructures import FormData
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 from starlette.routing import Route
@@ -10,6 +11,35 @@ from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.models import RequirementRecord
 from plainweave.service import PlainweaveService
 from plainweave.web import views
+
+
+def _require_str(form: FormData, field: str) -> str:
+    """Return form[field] as a non-empty str, or raise a 400-mapped PlainweaveError."""
+    raw = form.get(field)
+    if raw is None:
+        raise PlainweaveError(
+            ErrorCode.VALIDATION,
+            f"missing required field: {field!r}",
+            recoverable=True,
+            hint=f"provide a value for {field!r}",
+        )
+    return str(raw)
+
+
+def _optional_int(form: FormData, field: str, default: int = 0) -> int:
+    """Return form[field] as int (default if absent), or raise a 400-mapped PlainweaveError."""
+    raw = form.get(field)
+    if raw is None:
+        return default
+    try:
+        return int(str(raw))
+    except ValueError as exc:
+        raise PlainweaveError(
+            ErrorCode.VALIDATION,
+            f"field {field!r} must be an integer, got {raw!r}",
+            recoverable=True,
+            hint=f"provide a valid integer value for {field!r}",
+        ) from exc
 
 
 def _resolve_titles(svc: PlainweaveService, records: list[RequirementRecord]) -> dict[str, str]:
@@ -110,7 +140,9 @@ async def req_new_get(request: Request) -> Response:
 async def req_new_post(request: Request) -> Response:
     ctx = request.app.state.ctx_factory()
     form = await request.form()
-    ctx.service.create_requirement(str(form["title"]), str(form["statement"]), actor=ctx.operator.actor_id)
+    title = _require_str(form, "title")
+    statement = _require_str(form, "statement")
+    ctx.service.create_requirement(title, statement, actor=ctx.operator.actor_id)
     return RedirectResponse("/", status_code=303)
 
 
@@ -137,8 +169,9 @@ async def req_edit_post(request: Request) -> Response:
     ctx = request.app.state.ctx_factory()
     req_id = request.path_params["req_id"]
     form = await request.form()
-    title, statement = str(form["title"]), str(form["statement"])
-    expected = int(str(form.get("expected_draft_revision", "0")))
+    title = _require_str(form, "title")
+    statement = _require_str(form, "statement")
+    expected = _optional_int(form, "expected_draft_revision", default=0)
     try:
         ctx.service.update_draft(
             req_id,

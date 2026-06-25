@@ -66,13 +66,12 @@ def test_csrf_passes_mutation_with_valid_token(project_root: Path) -> None:
     app = create_app(actor="human:alice", root=project_root)
     client = TestClient(app, raise_server_exceptions=False)
     token = new_csrf_token()
+    # Set the cookie on the client instance (not per-request) to avoid the
+    # Starlette per-request cookies deprecation warning.
+    client.cookies.set("pw_csrf", token)
     # POST /healthz is not a defined route so it will 405; but the CSRF check
     # must pass first (status != 403 means gate was not tripped).
-    resp = client.post(
-        "/healthz",
-        data={"_csrf": token},
-        cookies={"pw_csrf": token},
-    )
+    resp = client.post("/healthz", data={"_csrf": token})
     assert resp.status_code != 403
 
 
