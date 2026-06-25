@@ -6,12 +6,14 @@ import sys
 
 import pytest
 
+from plainweave import __version__
+
 
 def test_cli_main_version_outputs_package_version(capsys: pytest.CaptureFixture[str]) -> None:
     from plainweave.cli import main
 
     assert main(["--version"]) == 0
-    assert capsys.readouterr().out.strip() == "plainweave 0.0.1"
+    assert capsys.readouterr().out.strip() == f"plainweave {__version__}"
 
 
 def test_cli_main_help_mentions_local_core_commands(capsys: pytest.CaptureFixture[str]) -> None:
@@ -52,7 +54,7 @@ def test_module_version_outputs_package_version() -> None:
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "plainweave 0.0.1"
+    assert result.stdout.strip() == f"plainweave {__version__}"
 
 
 def test_console_script_version_outputs_package_version() -> None:
@@ -64,4 +66,4 @@ def test_console_script_version_outputs_package_version() -> None:
     )
 
     assert result.returncode == 0
-    assert result.stdout.strip() == "plainweave 0.0.1"
+    assert result.stdout.strip() == f"plainweave {__version__}"

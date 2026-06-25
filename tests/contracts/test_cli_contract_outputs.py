@@ -36,8 +36,14 @@ def assert_matches_fixture(actual: dict[str, Any], fixture: dict[str, Any]) -> N
         assert_value_matches(actual[key], expected, key)
 
 
-def assert_value_matches(actual: Any, expected: Any, field_name: str) -> None:
-    if field_name in {"generated_at", "approved_at", "created_at", "recorded_at"}:
+def assert_value_matches(actual: Any, expected: Any, field_name: str, parent: str = "") -> None:
+    # Volatile metadata: matched by presence + type, never pinned to a value, so neither a
+    # per-run timestamp nor a per-release version bump churns the fixtures. generated_at and
+    # friends change every run; meta.producer.version changes every release.
+    volatile = field_name in {"generated_at", "approved_at", "created_at", "recorded_at"} or (
+        parent == "producer" and field_name == "version"
+    )
+    if volatile:
         assert isinstance(actual, str)
         assert actual
         return
@@ -45,13 +51,13 @@ def assert_value_matches(actual: Any, expected: Any, field_name: str) -> None:
         assert isinstance(actual, dict)
         assert set(actual) == set(expected)
         for key, nested_expected in expected.items():
-            assert_value_matches(actual[key], nested_expected, key)
+            assert_value_matches(actual[key], nested_expected, key, field_name)
         return
     if isinstance(expected, list):
         assert isinstance(actual, list)
         assert len(actual) == len(expected)
         for actual_item, expected_item in zip(actual, expected, strict=True):
-            assert_value_matches(actual_item, expected_item, field_name)
+            assert_value_matches(actual_item, expected_item, field_name, parent)
         return
     assert actual == expected
 
