@@ -19,14 +19,14 @@ refactor lever up the Meadows leverage hierarchy**: from the lowest altitude
 (rename this function, extract that class) to a high one (*why does this
 submodule exist; does it still serve a goal we hold?*).
 
-> **Status — gap-named, pre-build.** Plainweave is seated by *gap-naming* (the
-> same admission move as Tabard): the *position* — "the permission-for-code-to-exist /
-> code-grounded-intent coordinate" — and the *name* are recognized; the build
-> follows. It is **not** part of the five-member launch cutover, and it has not
-> been granted formal membership — that is owner-gated, pending a PDR. This repo
-> is the **initiated foundation**, reframed and renamed from the `~/charter`
-> precursor. The feature build comes from a separate implementation plan; the
-> current backlog lives in this repo's `.filigree` tracker.
+> **Status — 1.0.** The build is complete and stable: the intent graph, the read
+> primitives, the authoring surface, the cross-member seams, and `doctor` ship with
+> versioned JSON envelopes, strict typing, and a green gate (lint, mypy strict, tests
+> at ≥90% coverage). This is stable *behaviour and contracts* — cross-language coverage
+> *completeness* (e.g. Rust public-surface tagging upstream) is a documented roadmap
+> item, not a 1.0 gate. Formal Weft suite membership / launch-cutover inclusion remains
+> **owner-gated**. Reframed and renamed from the `~/charter` precursor; the backlog
+> lives in this repo's `.filigree` tracker.
 
 ## The model — a traceability graph of intent
 

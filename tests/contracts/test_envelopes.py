@@ -4,6 +4,7 @@ from typing import Any, cast
 
 import pytest
 
+from plainweave import __version__
 from plainweave.envelopes import batch_envelope, error_envelope, list_envelope, success_envelope
 from plainweave.errors import ErrorCode
 
@@ -24,7 +25,7 @@ def test_success_envelope_has_standard_shape() -> None:
         "data": {"id": "REQ-AUTH-001"},
         "warnings": [],
         "meta": {
-            "producer": {"tool": "plainweave", "version": "0.0.1"},
+            "producer": {"tool": "plainweave", "version": __version__},
             "generated_at": GENERATED_AT,
             "project": "AUTH",
         },
@@ -54,7 +55,7 @@ def test_error_envelope_has_recovery_fields_and_closed_code() -> None:
         },
         "warnings": [],
         "meta": {
-            "producer": {"tool": "plainweave", "version": "0.0.1"},
+            "producer": {"tool": "plainweave", "version": __version__},
             "generated_at": GENERATED_AT,
             "project": "AUTH",
         },

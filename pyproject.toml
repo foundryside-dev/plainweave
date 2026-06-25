@@ -12,7 +12,7 @@ dynamic = ["version"]
 authors = [{ name = "John Morrissey" }]
 keywords = ["requirements", "verification", "traceability", "intent", "mcp", "agent", "weft"]
 classifiers = [
-    "Development Status :: 2 - Pre-Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",

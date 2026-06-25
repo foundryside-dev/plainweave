@@ -1,0 +1,44 @@
+name: Release
+
+# Builds and (gated) publishes to PyPI when a v* tag is pushed. Publishing uses
+# PyPI Trusted Publishing (OIDC) — no token in the repo. It only succeeds once the
+# owner has configured Trusted Publishing for `plainweave` against this workflow
+# and approved the `pypi` environment; until then the build runs and publish gates.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Gate before release
+        run: make ci
+      - name: Build sdist + wheel
+        run: uv build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi            # owner-approvable gate
+    permissions:
+      id-token: write            # PyPI Trusted Publishing (OIDC)
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
