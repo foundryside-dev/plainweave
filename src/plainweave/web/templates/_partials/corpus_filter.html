@@ -1,0 +1,27 @@
+<search aria-label="Corpus requirements">
+  <form hx-get="/" hx-target="#corpus-rows" hx-swap="innerHTML"
+        hx-indicator="#global-loader"
+        hx-trigger="change, input changed delay:300ms from:#req-search">
+    <label for="req-search">Search requirements</label>
+    <input id="req-search" type="search" name="q" value="{{ filters.q }}"
+           placeholder="keyword or ID" autocomplete="off">
+
+    <fieldset class="filter-toggles">
+      <legend>Status</legend>
+      {% for value, label in [("", "All"), ("approved", "Approved"), ("draft", "Draft"), ("deprecated", "Deprecated")] %}
+      <label class="toggle-btn{% if filters.status == value %} toggle-btn--active{% endif %}">
+        <input class="visually-hidden" type="radio" name="status" value="{{ value }}" {% if filters.status == value %}checked{% endif %}>{{ label }}
+      </label>
+      {% endfor %}
+    </fieldset>
+
+    <fieldset class="filter-toggles">
+      <legend>Orphans</legend>
+      {% for value, label in [("", "Any"), ("no-goal", "No goal"), ("no-code", "No code"), ("both", "Both")] %}
+      <label class="toggle-btn{% if filters.orphan == value %} toggle-btn--active{% endif %}">
+        <input class="visually-hidden" type="radio" name="orphan" value="{{ value }}" {% if filters.orphan == value %}checked{% endif %}>{{ label }}
+      </label>
+      {% endfor %}
+    </fieldset>
+  </form>
+</search>
