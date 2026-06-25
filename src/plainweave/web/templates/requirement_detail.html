@@ -20,4 +20,20 @@
   </div>
 </section>
 {% endif %}
+{% if goals %}
+<section>
+  <h2>Ladder to a goal</h2>
+  <form method="post" action="/req/{{ req_id }}/ladder">
+    {% include "_partials/csrf.html" %}
+    <label>Goal
+      <select name="goal_id">
+        {% for g in goals %}
+          <option value="{{ g.goal_id }}">{{ g.title }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Ladder</button>
+  </form>
+</section>
+{% endif %}
 {% endblock %}

@@ -81,11 +81,12 @@ async def req_detail(request: Request) -> Response:
     ctx = request.app.state.ctx_factory()
     req_id = request.path_params["req_id"]
     dossier = ctx.service.requirement_dossier(req_id)
+    goals = ctx.service.list_goals()
     templates: Jinja2Templates = request.app.state.templates
     return templates.TemplateResponse(
         request,
         "requirement_detail.html",
-        {"dossier": dossier, "req_id": req_id, "operator": ctx.operator, "active_page": "corpus"},
+        {"dossier": dossier, "req_id": req_id, "operator": ctx.operator, "active_page": "corpus", "goals": goals},
     )
 
 

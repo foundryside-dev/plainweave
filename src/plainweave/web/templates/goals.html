@@ -3,6 +3,12 @@
 {% block title %}Goals · Plainweave{% endblock %}
 {% block main %}
 <h1>Goals</h1>
+<form method="post" action="/goals/new">
+  {% include "_partials/csrf.html" %}
+  <label>Goal title<input name="title" required></label>
+  <label>Statement<input name="statement" required></label>
+  <button type="submit">Create goal</button>
+</form>
 <ul>
 {% for g in goals %}
   <li>{{ g.title }} <span class="muted">{{ g.id }}</span>{% if g.goal_id in orphan_goal_ids %} <span class="warn">— no requirements ladder here</span>{% endif %}</li>
