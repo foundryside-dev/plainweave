@@ -152,14 +152,23 @@ def test_link_card_restore(client: TestClient) -> None:
 
 
 def test_drifted_link_renders_warning_and_requires_extra_confirm(client: TestClient) -> None:
-    """GET /trace/{lid}/accept-drifted-confirm returns 200 with drift warning and hidden field."""
+    """GET /trace/{lid}/accept-drifted-confirm returns 200 with all five required confirm elements."""
     app: Starlette = client.app  # type: ignore[assignment]
     ctx: RequestContext = app.state.ctx_factory()
     link = _propose(ctx)
     confirm = client.get(f"/trace/{link.id}/accept-drifted-confirm")
     assert confirm.status_code == 200
-    assert "drifted" in confirm.text.lower()
+    # 1. Real drift warning text — badge and alert paragraph (not just the CSS class)
+    assert "CODE DRIFTED" in confirm.text
+    assert "the code changed since it was proposed" in confirm.text
+    # 2. Hidden acknowledgement field
     assert 'name="drift_acknowledged"' in confirm.text
+    # 3. Accept POST target (hx-post ends in /accept)
+    assert f'hx-post="/trace/{link.id}/accept"' in confirm.text
+    # 4. Cancel / card-restore target
+    assert f'hx-get="/trace/{link.id}/card"' in confirm.text
+    # 5. CSRF hidden input
+    assert 'name="_csrf"' in confirm.text
 
 
 def test_drift_card_branch_renders(project_root: Path) -> None:
