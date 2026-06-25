@@ -41,18 +41,23 @@ def create_app(*, actor: str | None, root: Path | None) -> Starlette:
         raise exc
 
     async def csrf_mw(request: Request, call_next: RequestResponseEndpoint) -> Response:
-        token = request.cookies.get(_CSRF_COOKIE)
+        cookie_token = request.cookies.get(_CSRF_COOKIE)
         if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
             # Read via .body() so Starlette's _CachedRequest can replay the raw
             # bytes to downstream handlers — calling .form() here would consume
             # the body stream, leaving downstream request.form() empty.
             body = await request.body()
             fields = dict(parse_qsl(body.decode("utf-8")))
-            if not csrf_ok(token, fields.get("_csrf")):
+            if not csrf_ok(cookie_token, fields.get("_csrf")):
                 return PlainTextResponse("CSRF check failed", status_code=403)
+        # Mint the token for THIS render before calling the handler so the template
+        # can embed a real token even on the very first (cold) request, when there
+        # is no cookie yet.  scope["state"] is shared into the handler via
+        # BaseHTTPMiddleware, making request.state.csrf_token visible there.
+        token = cookie_token or new_csrf_token()
+        request.state.csrf_token = token
         response = await call_next(request)
-        if token is None:
-            token = new_csrf_token()
+        if cookie_token is None:
             response.set_cookie(_CSRF_COOKIE, token, httponly=True, samesite="strict")
         return response
 
