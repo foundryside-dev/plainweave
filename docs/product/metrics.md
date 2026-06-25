@@ -110,3 +110,14 @@ New, separate from the north-star: `plainweave doctor` self-verifies configurati
 config health is now CI-gateable. Against the Plainweave repo it reads **3 ok / 0 warn /
 0 error**. The Loomweave catalog gap stays an advisory WARN with a `loomweave analyze`
 next-action (never auto-fixed — consumer boundary).
+
+### 2026-06-25 — Plainweave 1.0.0 released to PyPI (PDR-012)
+
+Delivery milestone, NOT a north-star reading. `plainweave 1.0.0` is live on PyPI (wheel +
+sdist + Trusted-Publishing attestations); `pip install plainweave` resolves it. The north-star
+(coverage **completeness**) is unchanged — 1.0 ships stable behaviour/contracts, not complete
+cross-language coverage.
+
+PDR-009 reversal-trigger check: the release artifacts (README / CHANGELOG) did NOT publish a
+headline north-star number — they state completeness is a roadmap item — so the
+vanity-metric / silent-clean trigger did NOT fire. Guardrails intact (advisory, no verdict).

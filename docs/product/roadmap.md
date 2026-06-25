@@ -1,4 +1,4 @@
-# Plainweave Roadmap            Updated: 2026-06-25 (PDR-010, PDR-011)
+# Plainweave Roadmap            Updated: 2026-06-25 (PDR-012)
 
 > Sequencing, WSJF / cost-of-delay, and dated forecasts are produced by
 > /axiom-program-management. This file records bets as INTENT, not a delivery
@@ -35,11 +35,20 @@
 - Optional Loomweave semantic-similarity hint over requirement text — DEFERRED by
   PDR-003; advisory only, never a dedup verdict. · tracker: plainweave-02376962ab.
 - Corpus-curation workflows for duplicate or overlapping requirements.
-- Formal suite membership package — **owner-gated** (PDR-002).
-- Public release and packaging (final name, PyPI, hub roster) — **owner-gated** (PDR-002).
+- Formal suite membership / hub-roster admission — **owner-gated** (PDR-002). The 1.0.0
+  packaging + PyPI release shipped (PDR-012); formal suite admission is a separate owner step.
+- **Operator web UI** (`plainweave[web]`, thin Starlette+HTMX over PlainweaveService) — a
+  design brainstorm landed on `main` from a concurrent session; **owner-gated at the vision
+  level** (a new human-facing direction), NOT approved and NOT part of 1.0. Reopens only on
+  owner decision.
 
 ## Done since last checkpoint (2026-06-24 → 06-25)
 
+- **Plainweave 1.0.0 RELEASED to PyPI** (PDR-012, owner-directed): public repo
+  `foundryside-dev/plainweave` + CI/CD (Trusted Publishing, `main` branch protection);
+  `pip install plainweave` → 1.0.0 (wheel + sdist + attestations). Stable behaviour/contracts;
+  completeness a documented roadmap item. Accepted as-shipped despite a docs-only concurrent
+  commit swept into the tag (wheel is code-identical).
 - **Lacuna intent regression-harness** (PDR-010): Plainweave added as Lacuna's 6th tour
   member — a self-seeding leg + 4 catalogued `pw-*` capability demos over a deterministic
   2-covered:2-uncovered mix (oracle 2/4 default, 2/3 scoped). Banked as a demonstrator +
