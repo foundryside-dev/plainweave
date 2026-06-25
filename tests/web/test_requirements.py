@@ -278,3 +278,61 @@ def test_requirement_detail_approved_version_block(client: TestClient) -> None:
     # approved version directly without a draft step — there is no verb that opens
     # a fresh draft on a requirement that already has a current_version.
     assert 'class="draft"' not in resp.text
+
+
+# --- New/Edit requirement routes ---
+
+
+def test_new_req_form_renders(client: TestClient) -> None:
+    """GET /req/new must return 200 with the form — not 404 from req_detail collision."""
+    resp = client.get("/req/new")
+    assert resp.status_code == 200
+    assert 'name="title"' in resp.text
+    assert "New requirement" in resp.text
+
+
+def test_create_requirement(client: TestClient) -> None:
+    token = client.get("/").cookies.get("pw_csrf")  # ensure cookie set
+    resp = client.post("/req/new", data={"title": "Newborn", "statement": "fresh shell", "_csrf": token})
+    assert resp.status_code in (200, 303)
+    assert "Newborn" in client.get("/").text
+
+
+def test_edit_form_renders(client: TestClient) -> None:
+    """GET /req/{req_id}/edit must render the form pre-populated with the current draft."""
+    r = _mint(client, "Editable Req", "initial body")
+    token = client.get("/").cookies.get("pw_csrf")
+    resp = client.get(f"/req/{r.requirement_id}/edit", cookies={"pw_csrf": token or ""})
+    assert resp.status_code == 200
+    assert "Editable Req" in resp.text
+    assert "initial body" in resp.text
+    assert "Edit draft" in resp.text
+
+
+def test_edit_success_redirects(client: TestClient) -> None:
+    """POST /req/{req_id}/edit with correct revision redirects to detail page."""
+    r = _mint(client, "Success Req", "original body")
+    token = client.get("/").cookies.get("pw_csrf")
+    resp = client.post(
+        f"/req/{r.requirement_id}/edit",
+        data={
+            "title": "Success Req",
+            "statement": "updated body",
+            "expected_draft_revision": "1",
+            "_csrf": token,
+        },
+    )
+    assert resp.status_code in (200, 303)
+
+
+def test_edit_conflict_preserves_text(client: TestClient) -> None:
+    r = _mint(client, "Editable", "v1 body")
+    token = client.get("/").cookies.get("pw_csrf")
+    # submit a stale revision (0 when the real draft_revision is 1)
+    resp = client.post(
+        f"/req/{r.requirement_id}/edit",
+        data={"title": "Editable", "statement": "MY UNSAVED EDIT", "expected_draft_revision": "0", "_csrf": token},
+    )
+    assert resp.status_code == 200  # NOT 409 — HTMX must be able to swap
+    assert "MY UNSAVED EDIT" in resp.text  # operator's text echoed back
+    assert "v1 body" in resp.text  # current draft shown alongside

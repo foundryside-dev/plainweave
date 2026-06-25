@@ -1,0 +1,15 @@
+<div id="edit-form-{{ req_id }}" class="conflict-panel">
+  <p class="banner banner--warn" role="alert">Draft modified while you were editing. Your text is on the left — not discarded.</p>
+  <div class="conflict-columns">
+    <form hx-post="/req/{{ req_id }}/edit" hx-target="#edit-form-{{ req_id }}" hx-swap="outerHTML">
+      {% include "_partials/csrf.html" %}
+      <input type="hidden" name="expected_draft_revision" value="{{ fresh_revision }}">
+      <h3>Your edits (not saved)</h3>
+      <label>Title<input type="text" name="title" value="{{ submitted_title }}"></label>
+      <label>Statement<textarea name="statement" rows="6">{{ submitted_statement }}</textarea></label>
+      <button type="submit">Save my edits</button>
+    </form>
+    <div><h3>Current draft</h3><p><strong>{{ current_title }}</strong></p><p>{{ current_statement }}</p>
+      <a href="/req/{{ req_id }}/edit">Discard mine — start from current</a></div>
+  </div>
+</div>
