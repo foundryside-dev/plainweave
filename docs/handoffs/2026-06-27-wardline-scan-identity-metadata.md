@@ -3,6 +3,11 @@
 **To:** the Wardline maintainer / implementing agent.
 **From:** Plainweave (sibling handoff, 2026-06-27).
 **Priority:** enabling — unblocks honest cross-snapshot consumption; not a gate.
+**Status:** COORDINATED PARALLEL WORKSTREAM — the Plainweave owner is implementing this
+concurrently for integration testing. The `scan_manifest` shape below is the **agreed
+contract**: Plainweave's Wardline adapter consumes it as its primary scope source
+(`scope.covered_paths`, `scan_id`, `ruleset_id`, `commit`) and falls back to a path-set
+heuristic only when it is absent. Build to this shape so the two sides integrate.
 
 ## Context
 

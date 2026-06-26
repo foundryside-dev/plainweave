@@ -91,42 +91,48 @@ suggestion`), `location {path, line_start, line_end, col_start, col_end}`,
 ### 5.3 Resolved/unseen — the no-silent-clean algorithm
 
 A finding is `resolved/unseen` when its `fingerprint` was in an earlier snapshot but
-is gone from the latest — BUT only if the latest scan actually re-covered its
-surface. The JSONL carries **no scan-scope manifest** (verified: keys are
-findings-only; the engine-metrics record holds only perf counters). So the scanned
-surface is approximated by the **set of `location.path` values present in the latest
-snapshot** (`latest_paths`).
+is gone from the latest — BUT only if the latest scan actually re-covered its surface.
+"Re-covered" must be determined from the **actual scanned scope**, not guessed.
+
+**Primary path — scan-identity manifest (the agreed contract).** Wardline emits a
+`scan_manifest` record per snapshot (shape in prompt §7.2; being implemented in
+parallel by the owner for integration testing): `scan_id`, `ruleset_id`, `commit`, and
+`scope.covered_paths`. When both snapshots carry it, scope is exact:
 
 ```
-latest, prior = two most-recent snapshots (by timestamp in filename)
-latest_fps  = { r.fingerprint for r in latest }
-latest_paths = { r.location.path for r in latest
-                 if path not in (None, "<engine>") }
-
+covered = latest.scan_manifest.scope.covered_paths
 for each prior record p with p.fingerprint not in latest_fps:
-    if p.location.path in latest_paths:
-        -> resolved_or_unseen      # path re-scanned, finding gone: honest resolved
-    else:
-        -> indeterminate           # path NOT re-scanned: cannot say resolved
-                                    # counted under degraded[], reported unavailable
+    if p.location.path in covered:  -> resolved_or_unseen   # re-scanned, gone: honest
+    else:                           -> indeterminate         # not re-scanned: unavailable
+if latest.ruleset_id != prior.ruleset_id:                    # different rules -> less trust
+    degraded[] += wardline_ruleset_mismatch                  # resolved/unseen stays advisory
 ```
 
-Degrade rules (all in-band, never silent):
+**Fallback path — manifest absent.** Today's `.wardline/` files carry no manifest
+(verified: keys are findings-only; the engine-metrics record holds only perf
+counters). When the manifest is missing on either snapshot, approximate the scanned
+surface by the latest snapshot's `location.path` set and **flag the approximation**:
+
+```
+covered ≈ latest_paths = { r.location.path for r in latest if path not in (None, "<engine>") }
+... same resolved/indeterminate split as above ...
+degraded[] += wardline_scan_identity_absent   # heuristic in use; says so in-band
+```
+
+Degrade rules (all in-band, never silent — applies to both paths):
 
 - **< 2 snapshots** → resolved/unseen = `unavailable`; `degraded[]` carries
   `wardline_single_snapshot`.
-- **Any prior fingerprint whose path is not in `latest_paths`** → that count is
-  reported as `indeterminate` (not resolved); `degraded[]` carries
-  `wardline_scope_mismatch` with the jaccard overlap of the two path-sets, so a thin
-  comparison looks thin.
+- **Any prior fingerprint whose path is outside `covered`** → counted as
+  `indeterminate` (not resolved); `degraded[]` carries `wardline_scope_mismatch` with
+  the jaccard overlap of the two scopes, so a thin comparison looks thin.
 - **No `.wardline/` directory / no findings file** → `freshness: unavailable`,
-  `degraded[]` carries `wardline_findings_absent`; the result is explicitly empty-as-
-  unavailable, never empty-as-clean.
+  `degraded[]` carries `wardline_findings_absent`; explicitly empty-as-unavailable,
+  never empty-as-clean.
 
-Unobservable caveat (documented, not maskable): without a scan manifest we cannot
-confirm the two snapshots used the same ruleset/config; this is stated in-band in the
-envelope `notes`. The Wardline peer prompt (§7) asks upstream to emit scan-identity
-metadata so this heuristic can be replaced by an exact scope check.
+The adapter prefers the manifest whenever present and degrades to the heuristic only
+when it is absent — so it is correct on today's data and becomes exact the moment the
+parallel Wardline work lands.
 
 ### 5.4 Envelope `weft.plainweave.wardline_peer_facts.v1`
 
@@ -248,11 +254,14 @@ shapes, acceptance criteria, no-silent-clean invariants):
    `unavailable` when Plainweave is down — proven by a contract test against the
    frozen Plainweave golden.
 2. **`2026-06-27-wardline-scan-identity-metadata.md`** — for the Wardline team/agent.
-   Emit scan-identity/scope metadata (covered path-set / scope selector, ruleset id,
-   commit) in the findings JSONL (a manifest record or per-run header) so consumers
-   compute resolved/unseen by exact scope rather than the latest-path-set heuristic.
-   Acceptance: two snapshots are comparable by an explicit scope key; consumers can
-   distinguish "resolved" from "not re-scanned" without guessing.
+   **Coordinated parallel workstream** (owner is implementing this concurrently for
+   integration testing — it is the agreed `scan_manifest` contract, not a deferred
+   ask). Emit scan-identity/scope metadata (`scan_id`, `ruleset_id`, `commit`,
+   `scope.covered_paths`) in the findings JSONL so consumers compute resolved/unseen by
+   exact scope. Plainweave consumes it as the **primary** scope source (§5.3) and falls
+   back to the path-set heuristic only when it is absent. Acceptance: two snapshots are
+   comparable by an explicit scope key; consumers distinguish "resolved" from "not
+   re-scanned" without guessing.
 3. **`2026-06-27-warpline-interface-lock-item-schema.md`** — for the Warpline
    interface-lock owner. Ratify (or amend) the proposed item-level schema (§6.3) for
    the reserved `enrichment.requirements` slot, so Plainweave can byte-pin the
@@ -305,8 +314,10 @@ blocker; these fixtures are mandatory.
 
 ## 11. Open caveats (carried in-band, not masked)
 
-- Wardline scan-identity is unobservable until the §7.2 prompt lands; resolved/unseen
-  is path-set-bounded and says so in `notes`.
+- Wardline scan-identity metadata is being implemented in parallel (owner). The
+  adapter consumes it as the primary scope source and degrades to the path-set
+  heuristic (flagged `wardline_scan_identity_absent`) only when a snapshot lacks it —
+  correct on today's data, exact once the parallel work lands.
 - The Warpline item schema is *proposed* until the §7.3 ratification; the producer
   wire-golden is frozen only after agreement (until then the test pins structure, not
   bytes, to avoid an expensive re-freeze).
