@@ -1,0 +1,578 @@
+---
+// ============================================================
+// plainweave.foundryside.dev — the Plainweave member spoke site.
+//
+// The member-page template (IA §5.1), filled with Plainweave's own
+// facts and driven by the shared @weft/site-kit data so this site
+// and the hub cannot drift (IA §1.3, §3). Block order (§4.2):
+//   Hero → What it is → Key capabilities → Usage snapshot →
+//   How it composes (pairings) → Status & honest limits →
+//   Links/pointers → CTA.
+//
+// Plainweave is the reframed, renamed successor to Charter: Charter
+// was requirements-DOWN (a PM overlay); Plainweave inverts it to
+// code-UP legitimacy — "permission for code to exist." The
+// roster/matrix/cross-links come from the KIT DATA (ROSTER / MATRIX
+// / pairingsFor), never hardcoded. Advisory-only, renders NO release
+// verdict; consumes SEI, never mints — stated in the open. Light
+// theme only; no emoji; machine facts in mono.
+// ============================================================
+import Layout from '@weft/site-kit/layouts/Layout.astro';
+import { Button, Badge, Tag, Banner, MemberMark, SeiTag, EnrichmentChip, FreshnessMeter } from '@weft/site-kit/components';
+import {
+  SEI_SPINE,
+  getMember,
+  pairingsFor,
+  partnerOf,
+  memberUrl,
+  repoUrl,
+} from '@weft/site-kit/data';
+
+const SELF = 'plainweave';
+const me = getMember(SELF);
+
+// This member's slice of the combination matrix (IA §2.2) — the sanctioned
+// cross-link channel. Each card links cross-subdomain to the partner.
+const pairings = pairingsFor(SELF);
+
+const REPO_URL = repoUrl(SELF);
+const HUB = 'https://weft.foundryside.dev/';
+const SPINE_ANCHOR = SEI_SPINE.hubAnchor; // weft.foundryside.dev/#spine
+const LACUNA_URL = memberUrl('lacuna');
+
+// Map a matrix pairing status to a Badge tone — honest, never rounded up
+// ('partial'/'planned' are NEVER styled as 'live'; IA §2.2, §3.2).
+const statusTone = (s) => (s === 'live' ? 'ok' : s === 'partial' ? 'warn' : 'neutral');
+
+// version snapshot — sourced from the plainweave repo. v1.0.0 is the tagged
+// stable release; 1.1.0 (optional web UI + SEI conformance, additive) is
+// released on main (CHANGELOG 1.1.0) but NOT yet tagged. A snapshot with a repo
+// pointer, never a bare restated number (IA §5.1).
+const VERSION = '1.0.0';
+
+// The eight capabilities — sourced from the plainweave repo (README + docs
+// design canon). Surface facts are the repo's; this is a curated snapshot.
+const CAPS = [
+  {
+    name: 'The intent graph (SEI → requirement → goal)',
+    what: 'A local traceability graph of intent. Leaves are code SEIs; interior nodes are requirements and strategic goals; edges mean "justified by / satisfies." A node with no upward edge is the reviewable question: a public capability with no requirement asks "why does this code exist?"; a requirement with no goal asks "what am I doing here?"',
+    primitive: 'plainweave init  ·  goal · req · bind · trace · catalog record',
+    note: 'Default trace altitude is modules + public/exported surfaces; private internals inherit their container\'s justification.',
+  },
+  {
+    name: 'Intent coverage (the north-star)',
+    what: 'A self-computed fact: the fraction of in-scope public surfaces that answer "why does this exist?" via SEI → requirement → goal. Honestly qualified in-band — namespace scoping, surface-class filter, denominator_complete, present_plugins, bounded evidence. Never a pass/fail verdict, and never a silent clean when the denominator is partial.',
+    primitive: 'plainweave intent coverage [--exclude-namespace PREFIX] [--surface-class …] [--json]  ·  MCP: plainweave_intent_coverage',
+    note: 'Coverage *completeness* is a documented roadmap item, not a 1.0 gate — the denominator is per-repo and language-partial.',
+  },
+  {
+    name: 'Orphans · trace · corpus (three composable graph reads)',
+    what: 'General graph queries built for unanticipated agent use, not canned reports. orphans(level) lists unlinked nodes at the code / requirement / goal altitude. trace(node) walks up to goals and down to code. corpus() is the readable dump of requirements with their links — the artifact a curator reads to spot "these three are the same."',
+    primitive: 'plainweave intent orphans <level> | trace <level> <node> | corpus  ·  MCP: plainweave_intent_orphans / _trace / _corpus',
+    note: 'Consolidation is agent-driven — Plainweave serves the readable substrate, not an automated dedup verdict.',
+  },
+  {
+    name: 'Authoring-time binding (speak-SEI-at-entry)',
+    what: 'When an agent creates or commits a module or public entity, Plainweave offers an inline bind: link this SEI to a requirement (existing or a freshly minted shell) and optionally ladder that requirement to a goal. Cheap, inline, attributed (who bound it, when). Code that skips the bind is exactly what surfaces as an orphan.',
+    primitive: 'plainweave bind sei  ·  req (draft / approve / supersede / deprecate) · goal · trace · actor',
+    note: 'Reuses the ADR-029 entity-association contract (SEI-keyed, content_hash_at_attach drift detection) — the same pattern Filigree uses to bind issues to code. No new link store.',
+  },
+  {
+    name: 'Verification status, dossiers, and baselines',
+    what: 'Derived verification status with reason codes and evidence freshness; a per-requirement dossier; immutable baselines and baseline-drift facts. The read path that lets a curator see what is satisfied, by what evidence, and how stale it is.',
+    primitive: 'plainweave status · dossier · verify · criterion · baseline  ·  MCP: plainweave_verification_status_get/list · _requirement_dossier_get · _baseline_list/get/diff',
+    note: 'Attributes, never gates: Plainweave does not decide a requirement is satisfied merely because work closed, and does not treat agent-authored bindings as accepted human truth.',
+  },
+  {
+    name: 'Read-only MCP surface for agents',
+    what: 'plainweave-mcp mirrors the intent reads for agents over MCP: project context, requirement search/get, trace links, orphans/trace/corpus, coverage, baselines, verification status, entity-intent-context for peer planning, and scoped preflight-facts for Legis. mutates:false, local_only:true, no peer side effects.',
+    primitive: 'plainweave-mcp (console entry point) — 18 read tools incl. plainweave_entity_intent_context_get, plainweave_preflight_facts_get',
+    note: 'preflight-facts returns scoped facts for Legis preflight and NO governance verdict; entity-intent-context degrades to a local view when live Loomweave resolution is unavailable.',
+  },
+  {
+    name: 'doctor + --fix (federation-parity health check)',
+    what: 'Checks the project is configured properly — the local store/schema, the Loomweave catalog binding, and the MCP surface — with --root, --json, and a non-zero exit on unresolved problems. --fix applies idempotent in-place store repairs (init/migrate) then re-checks.',
+    primitive: 'plainweave doctor [--root ROOT] [--fix] [--json]',
+    note: 'Diagnostic only; --fix repairs the local store, it touches no sibling.',
+  },
+  {
+    name: 'Optional operator web UI',
+    what: 'A read-and-author mirror of the intent graph for non-CLI operators: an intent dashboard (coverage, orphans, and an in-band no-silent-clean banner), corpus browse with filters, requirement detail + authoring with current-vs-draft side-by-side and two-step draft approval, goals, and a unified review queue for drafts + proposed trace links with a required-reason accept/reject. Local-first, single-operator, advisory — no release verdicts.',
+    primitive: "pip install 'plainweave[web]'  ·  plainweave web --actor human:<you>",
+    note: 'Optional extra; ships in 1.1.0 (released on main, tag pending). Structural a11y contracts are tested, but screen-reader focus-management requires a manual AT pass.',
+  },
+];
+
+// Honest limits — MANDATORY and non-empty (IA §5.1). Sourced from the brief
+// (deconfliction-not-security invariant, never rounded up). *…* → <em>.
+const LIMITS = [
+  'Advisory only — Plainweave renders NO release verdict. Zero allow/block decisions, zero governance verdicts. It surfaces facts; any teeth live in Legis, dialed up per repo through policy cells. This is machine-enforced: the shared contract validator rejects verdict vocabulary.',
+  'Coverage completeness is a roadmap item, not a 1.0 gate. The public-surface denominator is per-repo and language-partial — only languages whose Loomweave plugin tags public surface are counted (Rust is untagged upstream). When the denominator is degraded, coverage flags it in-band (`denominator_complete=false`, `present_plugins`) and never reports a silent clean — the ratio is an honest *floor*, not a complete score.',
+  'Agent-authored bindings are not accepted human truth. Plainweave attributes and surfaces; it does not ratify. It does not decide a requirement is satisfied merely because work closed. Human ratification is a separate, explicit step (the web review queue\'s required-reason two-step).',
+  'Federation adapters are maturing and non-gating. Plainweave is admitted (PDR-0030, 2026-06-24) but is NOT in the five-member launch cutover. The cross-member seams are additive, hub-blessed, and prove-the-need — validated on two live peers (Lacuna, Loomweave) so far; the federation map still reads *folding-in* pending a propagation pass.',
+  'The semantic-similarity hint is deferred, not shipped (PDR-003). Consolidation is agent-driven over the readable corpus; Plainweave ships no dedup/clustering engine and emits no consolidation verdict. Do not read similarity de-duplication as a current capability.',
+  'Publishing a headline coverage number is owner-gated; the real-API denominator on a live peer is currently small. Treat any single coverage figure as a per-repo *snapshot*, not a suite-wide KPI.',
+  'Public remote / PyPI publish and the final name remain owner-reserved. Version is a snapshot — `v1.0.0` is the tagged stable release; `1.1.0` (optional web UI + SEI conformance, additive) is released on main but not yet tagged. Point at the repo for the live version.',
+  'Web UI accessibility: the structural a11y contracts (live region, skip-link, labelled search, per-item aria-labels) are locked by tests, but screen-reader focus-management and outcome announcements require a manual NVDA/VoiceOver pass — not automated in the current harness.',
+];
+---
+
+<Layout
+  title="Plainweave — permission for code to exist (code-grounded intent)"
+  description="Plainweave is the Weft federation's code-grounded-intent authority: a code-UP traceability graph (SEI → requirement → goal) where a node with no upward edge is a reviewable question. Advisory only — it renders no release verdict; it consumes the Loomweave SEI and never mints identity."
+  member={SELF}
+  breadcrumb
+  repo={REPO_URL}
+>
+  {/* ---------------------------------------------------------------- */}
+  {/* 1 · Hero — tagline + member dossier terminal (the honesty beat)  */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="hero" style={`--thread: ${me.thread};`}>
+    <div class="wrap">
+      <p class="weft-eyebrow">Weft suite · code-grounded intent · Python</p>
+      <h1 class="hero__title">Permission for code to exist.</h1>
+      <p class="hero__sub">
+        Code-UP traceability: every public surface earns its existence by laddering
+        to a requirement, and every requirement to a goal. A node with no upward
+        edge — at any level — is a <em>reviewable question</em>, not an error.
+        <strong>Advisory by default; it renders no release verdict.</strong>
+      </p>
+      <p class="hero__job">
+        Plainweave holds the team's code-grounded intent — the graph that answers
+        <em>"why does this code exist?"</em> — and accretes a readable requirements
+        corpus a human or agent can reason over and consolidate. The reframed,
+        renamed successor to Charter: Charter was requirements-<em>down</em>;
+        Plainweave inverts it to code-<em>up</em> legitimacy.
+      </p>
+      <div class="hero__meta">
+        <Tag client:visible>{me.lang}</Tag>
+        <span class="hero__ver">v{VERSION}</span>
+        <span class="hero__vernote">snapshot — 1.1.0 (web UI) untagged; see <a href={REPO_URL} rel="noopener">the repo</a></span>
+      </div>
+      <div class="hero__cta">
+        <Button client:idle as="a" href="#capabilities">See what it gives you →</Button>
+        <Button client:idle as="a" variant="secondary" href={REPO_URL} rel="noopener">Read the repo →</Button>
+      </div>
+
+      {/* member dossier terminal — one orphan query, typed facts. The brand
+          refuses an all-green dossier — and for a non-cutover member whose seams
+          are all maturing, NONE is live: Loomweave is partial (adapter maturing),
+          Legis unavailable (preflight consumer maturing), Filigree absent (kinship
+          only — shares the ADR-029 pattern, contributes no fact to this read).
+          (IA §3.4, §5.1.) */}
+      <div class="terminal">
+        <div class="terminal__lines">
+          <div><span class="terminal__prompt">$</span> plainweave <span class="terminal__arg">intent orphans code</span></div>
+          <div class="terminal__dim">walking the intent graph → public surfaces with no upward edge…</div>
+          <div><span class="terminal__hl">loomweave:eid:py:exported-api:billing.export_ledger</span> → no requirement <span class="terminal__dim">("why does this exist?")</span></div>
+        </div>
+        <div class="terminal__chips">
+          <SeiTag client:visible value={SEI_SPINE.sampleSei} copyable />
+          <EnrichmentChip client:visible state="partial" peer="loomweave" />
+          <EnrichmentChip client:visible state="unavailable" peer="legis" />
+          <EnrichmentChip client:visible state="absent" peer="filigree" />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 2 · What it is — the first-principles job                        */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="band">
+    <div class="wrap">
+      <p class="weft-eyebrow">What it is</p>
+      <h2 class="h2">Binding code to requirements accretes a living, readable corpus.</h2>
+      <p class="lede">
+        Plainweave owns a directed traceability graph: the leaves are code entities
+        (Loomweave <code>SEI</code>s — modules and public surfaces), the interior
+        nodes are typed intent nodes (requirements, strategic goals), and every edge
+        means <em>"justified by / satisfies."</em> Bindings key on the
+        <code>SEI</code>, so they survive rename and move. The foundational value is
+        not catching orphan code — that is one query — it is that the corpus becomes
+        readable: a reader can ask <em>"why do we have three near-identical reporting
+        requirements?"</em> and consolidate. Requirements are trivially mintable
+        (shells welcome); the corpus tolerates mess by design, because the value is
+        the mess being visible and queryable, then curated.
+      </p>
+      <p class="lede">
+        Plainweave is a deliberately <strong>thin</strong> member: it owns the intent
+        graph and the reasoning reads, and delegates everything else — Loomweave owns
+        code identity, the rename feed, and semantics; Legis owns the git/CI boundary,
+        all graded enforcement, and the audit trail. The shipped core is a stable 1.0
+        (green gate: lint, mypy strict, tests at ≥ 90% coverage; versioned JSON
+        envelopes); the cross-member adapters are maturing.
+      </p>
+      <Banner client:visible tone="info" title="Advisory only — it renders no release verdict.">
+        Plainweave <strong>attributes</strong>; it never gates. A node with no upward
+        edge is a reviewable question, not a block. Closed work does NOT mean a
+        requirement is satisfied, and an agent-authored binding is not accepted human
+        truth. This is deconfliction tooling, not security — re-derive any
+        "compliance" shimmer as advisory intent-coverage, not authorization. Any teeth
+        live in <strong>Legis</strong>, dialed up per repo.
+      </Banner>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 3 · Key capabilities — incl. the intent-coverage honesty beat    */}
+  {/* ---------------------------------------------------------------- */}
+  <section id="capabilities" class="section">
+    <div class="wrap">
+      <p class="weft-eyebrow">Key capabilities</p>
+      <h2 class="h2">Intent-coverage and the graph reads — reported as honestly as they are computed.</h2>
+
+      {/* the signature honesty beat: coverage is a FLOOR, not a verdict — the
+          FreshnessMeter makes a degraded denominator look degraded. */}
+      <div class="cap-feature card">
+        <div class="cap-feature__copy">
+          <h3 class="cap__title">Intent coverage is a floor, never a verdict</h3>
+          <p class="cap__body">
+            Coverage is the fraction of in-scope public surfaces that answer
+            <em>"why does this exist?"</em> When the denominator is degraded or
+            language-partial it is flagged <code>in-band</code>
+            (<code>denominator_complete=false</code>, <code>present_plugins</code>) —
+            never a silent clean. The meter is the point: a partial answer looks
+            partial.
+          </p>
+          <div class="cap-feature__chips">
+            <EnrichmentChip client:visible state="partial" peer="loomweave" />
+            <EnrichmentChip client:visible state="unavailable" peer="legis" />
+          </div>
+        </div>
+        <div class="cap-feature__demo">
+          <FreshnessMeter client:visible completeness={0.71} staleness="denominator_complete = false · python only" label="intent-coverage · FLOOR" />
+        </div>
+      </div>
+
+      <div class="grid grid--2">
+        {CAPS.map((c) => (
+          <article class="card cap">
+            <h3 class="cap__title">{c.name}</h3>
+            <p class="cap__body">{c.what}</p>
+            <code class="cap__prim">{c.primitive}</code>
+            <p class="cap__note">{c.note}</p>
+          </article>
+        ))}
+      </div>
+
+      <p class="cap__more"><a href={SPINE_ANCHOR} rel="noopener">Read the SEI spine on the hub — the identity Plainweave consumes, never mints →</a></p>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 4 · Usage snapshot — curated quick-start, NOT the reference      */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="band">
+    <div class="wrap">
+      <p class="weft-eyebrow">Usage snapshot</p>
+      <h2 class="h2">Init, cover, find the orphan, bind it.</h2>
+      <p class="lede">
+        A curated quick-start — the full CLI and MCP reference lives under this
+        subdomain's own paths and in <a href={REPO_URL} rel="noopener">the repo</a>.
+        Plainweave is local-first; none of these need a sibling installed (solo mode
+        degrades to file/symbol refs). This snapshot deliberately shows a
+        <strong> degraded</strong> state — the no-silent-clean denominator banner.
+      </p>
+
+      <div class="terminal terminal--block">
+        <div class="terminal__lines">
+          <div><span class="terminal__prompt">$</span> pip install plainweave        <span class="terminal__dim"># or: uvx plainweave --help  (Python ≥ 3.12)</span></div>
+          <div><span class="terminal__prompt">$</span> plainweave init               <span class="terminal__dim"># creates a local .plainweave/ store</span></div>
+          <div class="terminal__gap"></div>
+          <div><span class="terminal__prompt">$</span> plainweave <span class="terminal__arg">intent coverage</span></div>
+          <div>intent-coverage: <span class="terminal__hl">0.71</span>  (32/45 in-scope public surfaces justified)</div>
+          <div class="terminal__dim">scope: exported-api, cli-command, entry-point, http-route · excluded: scripts., tests.</div>
+          <div class="terminal__warn">[WARN]  DENOMINATOR DEGRADED — not a clean: denominator_complete = false</div>
+          <div class="terminal__warn">   present_plugins: [python]   (Rust public surface untagged upstream)</div>
+          <div class="terminal__warn">   The ratio is an honest FLOOR, not a complete score. Advisory, not a verdict.</div>
+          <div class="terminal__gap"></div>
+          <div><span class="terminal__prompt">$</span> plainweave <span class="terminal__arg">intent orphans code</span></div>
+          <div><span class="terminal__hl">loomweave:eid:py:exported-api:billing.export_ledger</span> → no requirement <span class="terminal__dim">("why does this exist?")</span></div>
+          <div class="terminal__gap"></div>
+          <div><span class="terminal__prompt">$</span> plainweave <span class="terminal__arg">bind sei</span> loomweave:eid:py:exported-api:billing.export_ledger --req REQ-204</div>
+          <div>bound  <span class="terminal__dim">(actor: agent:opus · content_hash_at_attach captured · ADR-029)</span></div>
+          <div class="terminal__gap"></div>
+          <div><span class="terminal__prompt">$</span> plainweave <span class="terminal__arg">doctor</span></div>
+          <div>store: ok · loomweave catalog binding: ok · mcp surface: ok   <span class="terminal__ok">exit 0</span></div>
+          <div class="terminal__dim"># Agents: read-only MCP server → plainweave-mcp  (mutates:false, local_only:true)</div>
+        </div>
+      </div>
+
+      <p class="note">
+        The coverage number is a per-repo <em>snapshot</em>, not a published suite
+        KPI — keep a "see repo" pointer next to any figure rather than restating it
+        as a fact. The same reads run over the <code>plainweave-mcp</code> stdio
+        server (18 read tools, <code>mutates:false</code>).
+      </p>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 5 · How it composes — this member's matrix slice (KIT DATA)      */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="section">
+    <div class="wrap">
+      <p class="weft-eyebrow">How it composes · this member's pairings</p>
+      <h2 class="h2">Each pairing is honest on its face.</h2>
+      <p class="lede">
+        Plainweave composes pairwise and enrich-only — never load-bearing for anyone,
+        and no one load-bearing for it. Status is intrinsic to each row; a
+        <code>partial</code> or <code>planned</code> pair is never rendered as
+        <code>live</code>. Actor attribution — the "who" on a binding — is a reserved
+        future coordinate, not yet a live seam; today attribution uses Plainweave's own
+        local actor registry.
+      </p>
+
+      <Banner client:visible tone="info" title="Consumes SEI; never an authority.">
+        Plainweave keys its code-entity bindings on the Loomweave <code>SEI</code>,
+        treats it as opaque, and never mints it; it falls back to file/symbol refs
+        when Loomweave is absent. When a sibling is absent that slot reads
+        <code>absent</code> — explicitly, never an implied clean state.
+      </Banner>
+
+      <div class="grid grid--2">
+        {pairings.map((p) => {
+          const partner = partnerOf(p, SELF);
+          const partnerUrl = memberUrl(partner);
+          return (
+            <article class="card card--pair">
+              <div class="pair__head">
+                <span class="pair__mark"><MemberMark client:visible member={SELF} /></span>
+                <span class="pair__plus" aria-hidden="true">+</span>
+                {/* the partner MemberMark links cross-subdomain — the matrix IS
+                    the sanctioned cross-link channel (IA §2.2, §2.3). */}
+                <a class="pair__mark" href={partnerUrl}><MemberMark client:visible member={partner} /></a>
+                <span class="pair__status">
+                  <Badge client:visible tone={statusTone(p.status)} dot>{p.status}</Badge>
+                </span>
+              </div>
+              <p class="pair__cap">{p.capability}</p>
+              {p.note && <p class="pair__note">{p.note}</p>}
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 6 · Status & honest limits — MANDATORY, non-empty (IA §5.1)      */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="band">
+    <div class="wrap">
+      <p class="weft-eyebrow">Status &amp; honest limits</p>
+      <h2 class="h2">What Plainweave is, and what it is NOT.</h2>
+
+      {/* the non-negotiable not-for-X disclaimer — mirrors filigree's danger
+          Banner, swapped to Plainweave + the compliance/authorization invariant. */}
+      <Banner client:visible tone="danger" title="Not a compliance or sign-off system.">
+        Plainweave is NOT a compliance, sign-off, or authorization system. It renders
+        no release allow/block decision and issues no governance verdict. It surfaces
+        facts — "this public surface answers no requirement"; "this requirement ladders
+        to no goal" — for a human or agent to reason over and consolidate. It is
+        deconfliction-first, not security. Any teeth live in <strong>Legis</strong>,
+        dialed up per repo. This is machine-enforced: the shared contract validator
+        rejects verdict vocabulary, Plainweave mints zero <code>SEI</code>s (sibling
+        identities are consumed opaquely), and a degraded coverage denominator is
+        never reported as a silent clean.
+      </Banner>
+
+      <Banner client:visible tone="warn" title="Admitted (PDR-0030) but pre-publish — the seams that have not shipped are not presented as working.">
+        Plainweave is an admitted member (2026-06-24) but is NOT in the five-member
+        launch cutover and is non-gating; its launch-grade build and live integration
+        adapters are still maturing. Public remote / PyPI publish and the final name
+        remain owner-reserved. Read these before you wire it in.
+      </Banner>
+
+      <ul class="limits">
+        {LIMITS.map((l) => <li set:html={l.replace(/\*([^*]+)\*/g, '<em>$1</em>').replace(/`([^`]+)`/g, '<code>$1</code>')}></li>)}
+      </ul>
+
+      <p class="posture">
+        Read-only · advisory · enrich-only — Plainweave absent, your peers and your
+        code are unaffected (solo mode degrades to manual file/symbol refs).
+        <strong> Deconfliction-first, not a security or compliance product.</strong>
+      </p>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 7 · Links / pointers                                             */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="section">
+    <div class="wrap">
+      <p class="weft-eyebrow">Links · pointers</p>
+      <h2 class="h2">Where the authoritative facts live.</h2>
+      <ul class="links">
+        <li><a href={REPO_URL} rel="noopener">Repository — github.com/foundryside-dev/plainweave</a><span class="links__note"> · README, CHANGELOG, pyproject (the surface facts that move)</span></li>
+        <li><a href={`${REPO_URL}/blob/main/docs/design/2026-06-18-plainweave-permission-to-exist.md`} rel="noopener">Canonical design — "Permission for code to exist"</a><span class="links__note"> · start here</span></li>
+        <li><a href={`${REPO_URL}/blob/main/docs/MODULE-MAP.md`} rel="noopener">Module map — precursor carry-forward vs. reframe</a></li>
+        <li><a href={`${REPO_URL}/blob/main/docs/README.md`} rel="noopener">Docs index — canon vs. precursor-era</a></li>
+        <li><a href={LACUNA_URL} rel="noopener">See it on the specimen — Lacuna intent-coverage tour</a></li>
+        <li><a href={SPINE_ANCHOR} rel="noopener">The SEI standard — the Loomweave identity scheme Plainweave consumes (never mints)</a></li>
+        <li><a href={HUB} rel="noopener">The Weft hub — roster, doctrine, the full matrix</a></li>
+      </ul>
+    </div>
+  </section>
+
+  {/* ---------------------------------------------------------------- */}
+  {/* 8 · CTA — see it on the specimen + read the doctrine             */}
+  {/* ---------------------------------------------------------------- */}
+  <section class="cta" style={`--thread: ${me.thread};`}>
+    <div class="wrap cta__inner">
+      <span class="cta__dot" style={`background:${me.thread}`}></span>
+      <div class="cta__copy">
+        <p class="cta__lead">Want to see it actually run?</p>
+        <p class="cta__sub">
+          <strong>Lacuna</strong> runs Plainweave against a catalogued codebase as a
+          deterministic intent-coverage tour (PDR-010 cross-member regression harness)
+          — orphans, trace, and the no-silent-clean denominator, end to end.
+        </p>
+      </div>
+      <span class="cta__buttons">
+        <Button client:idle as="a" href={LACUNA_URL}>See it on the specimen →</Button>
+        <Button client:idle as="a" variant="secondary" href={`${HUB}#doctrine`} rel="noopener">Read the doctrine →</Button>
+      </span>
+    </div>
+  </section>
+</Layout>
+
+<style>
+  /* Page-local layout. Brand atoms (colors, type, motifs) come ONLY from the
+     site-kit token layer — no new colors, no dark mode (light theme only). The
+     woad thread is read from the kit as var(--thread) (set per section). */
+  .wrap { max-width: var(--width-content); margin: 0 auto; padding: 0 36px; }
+  .weft-eyebrow { margin: 0 0 14px; }
+  .h2 { font: var(--type-h1); color: var(--text-strong); margin: 0 0 16px; max-width: 32ch; }
+  .lede { font: var(--type-body); color: var(--text-body); max-width: 66ch; margin: 0 0 26px; }
+  .lede code, .cap__body code, .pair__cap code, .note code, .cap__title code, .hero__job code {
+    font-family: var(--font-mono); font-size: 0.92em; color: var(--text-strong);
+  }
+
+  .section { padding: var(--space-10) 0; }
+  .band {
+    padding: var(--space-10) 0; background: var(--bg-sunken);
+    border-top: 1px solid var(--border-hairline);
+    border-bottom: 1px solid var(--border-hairline);
+  }
+
+  /* hero — woad thread accent on the top rule */
+  .hero {
+    padding: var(--space-10) 0 var(--space-10);
+    border-top: 4px solid var(--thread);
+    border-bottom: 1px solid var(--border-hairline);
+  }
+  .hero__title {
+    font: var(--type-display); color: var(--loom-900);
+    letter-spacing: -0.025em; line-height: 1.06;
+    max-width: 18ch; margin: 0 0 22px;
+  }
+  .hero__sub { font: var(--type-body); font-size: var(--text-lg); color: var(--text-body); max-width: 62ch; margin: 0 0 16px; }
+  .hero__sub strong { color: var(--text-strong); }
+  .hero__sub em, .hero__job em { font-style: italic; color: var(--text-strong); }
+  .hero__job { font: var(--type-body-sm); color: var(--text-muted); max-width: 64ch; margin: 0 0 20px; }
+  .hero__sub code { font-family: var(--font-mono); font-size: 0.9em; color: var(--text-strong); }
+  .hero__meta { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 0 0 24px; }
+  .hero__ver { font: var(--type-mono-sm); color: var(--text-strong); }
+  .hero__vernote { font: var(--type-mono-sm); color: var(--text-faint); font-size: var(--text-xs); }
+  .hero__vernote a { color: var(--text-muted); }
+  .hero__cta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 40px; }
+
+  .terminal {
+    background: var(--surface-inverse); border-radius: var(--radius-lg);
+    padding: 18px 20px; max-width: 760px; box-shadow: var(--shadow-lg);
+  }
+  .terminal--block { max-width: 860px; margin-bottom: 22px; }
+  .terminal__lines { font: var(--type-mono); color: var(--text-on-inverse); font-size: var(--text-xs); line-height: 1.8; }
+  .terminal__prompt { color: var(--ash-500); }
+  .terminal__arg { color: var(--indigo-300); }
+  .terminal__dim { color: var(--ash-500); }
+  .terminal__hl { color: var(--woad-100); }
+  .terminal__warn { color: var(--brass-100); }
+  .terminal__ok { color: var(--woad-400); }
+  .terminal__gap { height: 10px; }
+  .terminal__chips { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+
+  /* cards (shared) */
+  .grid { display: grid; gap: 16px; }
+  .grid--2 { grid-template-columns: repeat(2, 1fr); }
+  .card {
+    background: var(--surface-card); border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-xs);
+  }
+
+  /* feature capability (the coverage honesty beat) */
+  .cap-feature {
+    display: grid; grid-template-columns: 1.4fr 1fr; gap: 24px; align-items: center;
+    padding: 22px; margin-bottom: 16px;
+    border-left: 3px solid var(--thread);
+  }
+  .cap-feature__copy { min-width: 0; }
+  .cap-feature__chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+  .cap-feature__demo { min-width: 0; }
+
+  /* capability card */
+  .cap { padding: 20px; display: flex; flex-direction: column; }
+  .cap__title { font: var(--type-h3); color: var(--text-strong); margin: 0 0 10px; }
+  .cap__body { font: var(--type-body-sm); color: var(--text-body); margin: 0 0 14px; }
+  .cap__prim {
+    display: block; font: var(--type-mono-sm); color: var(--indigo-700);
+    background: var(--bg-sunken); border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-sm); padding: 8px 10px; margin: 0 0 12px;
+    overflow-wrap: anywhere; line-height: 1.6;
+  }
+  .cap__note { font: var(--type-mono-sm); color: var(--text-faint); margin: auto 0 0; line-height: 1.5; }
+  .cap__more { margin: 22px 0 0; font: var(--type-mono-sm); }
+  .cap__more a { color: var(--indigo-700); }
+
+  /* usage note */
+  .note { font: var(--type-body-sm); color: var(--text-body); max-width: 66ch; margin: 0 0 0; }
+  .note code { font-family: var(--font-mono); font-size: 0.92em; color: var(--text-strong); }
+
+  /* matrix pair card */
+  .card--pair { padding: 16px; }
+  .pair__head { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .pair__mark { text-decoration: none; }
+  a.pair__mark:hover { text-decoration: underline; text-underline-offset: 3px; }
+  .pair__plus { color: var(--text-faint); font-family: var(--font-mono); }
+  .pair__status { margin-left: auto; }
+  .pair__cap { font: var(--type-body-sm); color: var(--text-body); margin: 0; }
+  .pair__note { font: var(--type-mono-sm); color: var(--text-faint); margin: 8px 0 0; line-height: 1.5; }
+
+  /* honest limits */
+  .limits { margin: 18px 0 0; padding-left: 18px; color: var(--text-body); font: var(--type-body-sm); max-width: 72ch; }
+  .limits li { margin: 12px 0; line-height: 1.6; }
+  .limits code { font-family: var(--font-mono); font-size: 0.92em; color: var(--text-strong); }
+  .limits em { font-style: italic; color: var(--text-strong); }
+  .posture {
+    margin: 22px 0 0; padding: 14px 16px; max-width: 72ch;
+    background: var(--surface-card); border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-md); font: var(--type-body-sm); color: var(--text-muted);
+  }
+  .posture strong { color: var(--text-strong); }
+
+  /* links */
+  .links { margin: 0; padding-left: 18px; color: var(--text-body); font: var(--type-body); }
+  .links li { margin: 10px 0; }
+  .links a { color: var(--indigo-700); }
+  .links__note { color: var(--text-faint); font: var(--type-mono-sm); font-size: var(--text-xs); }
+
+  /* CTA strip */
+  .cta { padding: 40px 0; background: var(--bg-sunken); border-top: 4px solid var(--thread); }
+  .cta__inner { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  .cta__dot { width: 12px; height: 12px; border-radius: var(--radius-sm); flex: none; box-shadow: inset 0 0 0 1px var(--border-hairline); }
+  .cta__copy { flex: 1 1 360px; }
+  .cta__lead { font: var(--type-body); font-weight: var(--fw-semibold); color: var(--text-strong); margin: 0 0 2px; }
+  .cta__sub { font: var(--type-body-sm); color: var(--text-muted); margin: 0; }
+  .cta__buttons { flex: none; display: flex; gap: 12px; flex-wrap: wrap; }
+
+  @media (max-width: 880px) {
+    .grid--2 { grid-template-columns: 1fr; }
+    .cap-feature { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 720px) {
+    .wrap { padding: 0 18px; }
+    .hero { padding: 48px 0; }
+  }
+</style>
