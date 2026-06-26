@@ -83,7 +83,8 @@ suggestion`), `location {path, line_start, line_end, col_start, col_end}`,
 - **Non-defect** — `kind ∈ {metric, fact, classification, suggestion}` is surfaced
   and tagged `non_defect: true` (the bid explicitly requires non-defect findings stay
   visible). `kind == defect` → `non_defect: false`. The synthetic engine record
-  (`location.path == "<engine>"` / `rule_id` starting `WLN-ENGINE-METRICS`) is
+  is identified by the `location.path == "<engine>"` **sentinel** (real snapshots tag
+  such records with varying `rule_id`s, so the path governs, not `rule_id`); it is
   surfaced separately as run-metrics, NOT as an entity-anchored finding, and is
   excluded from the resolved/unseen diff (§5.3).
 - **Resolved/unseen** — computed by snapshot diff under the honest rule in §5.3.
@@ -187,10 +188,13 @@ Per entity, the closed Warpline vocab is derived as:
 | `resolved` (≥1 alive requirement binding) | `present` | peer present, fact attached |
 | `resolved_no_binding` (entity in catalog, no requirement bound) | `absent` | peer present, definitively no requirement fact |
 | `unresolved` (identity not resolvable) | `unavailable` | **cannot determine — NOT "no requirements"** |
+| binding matched but its requirement won't load (dead binding) | `unavailable` | a binding exists → cannot claim "definitively none" |
 | store error / Plainweave unreachable | `unavailable` | producer could not answer |
 
-The `unresolved → unavailable` split is the load-bearing correction: an identity gap
-is "I can't tell," never "absent."
+Two load-bearing no-silent-clean corrections: an identity gap (`unresolved`) is "I
+can't tell," never `absent`; and a *dead binding* (a trace matched but its requirement
+can't be loaded) is also `unavailable`, never `absent` — there is a binding, so
+"definitively no requirement" cannot be asserted.
 
 ### 6.3 Item-level shape (Plainweave proposes; sibling ratifies)
 
@@ -216,6 +220,12 @@ verdict tokens):
 `status: present` carries a non-empty `items` array; `absent`/`unavailable` carry
 `items: []` plus the reason. This proposed schema is sent to the Warpline
 interface-lock owner for ratification (§7) before the wire-golden is byte-pinned.
+
+Sourcing note (verified against the codebase): `version`, `type`, and `criticality`
+come from `PlainweaveService.requirement_preflight_profile()` — the same source the
+preflight producer uses — NOT from the requirement record dict, which does not carry
+`type`/`criticality`. Reading them off the record would silently emit nulls (the §4
+trap); the producer threads the service and looks up the profile.
 
 ### 6.4 Envelope `weft.plainweave.requirements_enrichment.v1`
 
