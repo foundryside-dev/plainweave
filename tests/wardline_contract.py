@@ -12,7 +12,10 @@ from typing import Any
 WARDLINE_SEVERITIES = {"CRITICAL", "ERROR", "WARN", "INFO", "NONE"}
 WARDLINE_SUPPRESSION_STATES = {"active", "waived", "baselined", "judged"}
 WARDLINE_KINDS = {"defect", "metric", "fact", "classification", "suggestion"}
-WARDLINE_FRESHNESS = {"current", "stale", "unavailable"}
+# The producer only ever emits current|unavailable (no staleness threshold is defined),
+# so the vocab is kept minimal — adding "stale" without a policy would advertise a value
+# nothing can emit.
+WARDLINE_FRESHNESS = {"current", "unavailable"}
 WARDLINE_DATA_KEYS = {
     "source",
     "freshness",

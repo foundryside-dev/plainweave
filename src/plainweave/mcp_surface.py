@@ -362,7 +362,7 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
             "authority_boundary",
             "notes",
         ],
-        "freshness_states": ["current", "stale", "unavailable"],
+        "freshness_states": ["current", "unavailable"],
         "suppression_states": ["active", "waived", "baselined", "judged"],
         "degrade_codes": [
             "wardline_findings_absent",

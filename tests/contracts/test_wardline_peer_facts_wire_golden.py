@@ -10,9 +10,11 @@ Two layers, mirroring ``test_preflight_facts_wire_golden.py``:
 
 Scenario A is same-scope WITH a manifest, so the envelope carries no float jaccard,
 no scan-identity-absent note, and a basename-only source.snapshot — the properties
-that keep the byte-pin stable. ``generated_at`` / ``producer.version`` are the only
-non-deterministic fields; they are asserted LIVE then normalized to the golden's
-frozen values, exactly as the preflight golden does.
+that keep the byte-pin stable. The golden vendors only ``schema + data``; the sole
+non-deterministic fields (``generated_at`` / ``producer.version``) live in the
+envelope ``meta``, which the golden does NOT carry. The ``data`` payload is therefore
+fully deterministic and the producer recheck asserts deep equality against the golden
+directly — no normalize-then-compare step is needed.
 """
 
 from __future__ import annotations
@@ -30,8 +32,6 @@ SCENARIO_A = Path(__file__).parents[1] / "fixtures" / "wardline" / "scenario_a"
 
 # Recompute with: git hash-object tests/fixtures/contracts/wardline/peer-facts.json
 UPSTREAM_BLOB_SHA = "d9d56edc9ce508ccc8f2ee55f7eefac3fbc7afe0"
-_FROZEN_GENERATED_AT = "2026-06-04T10:00:00+00:00"
-_FROZEN_VERSION = "1.0.0"
 
 
 def _produce_schema_plus_data(root: Path) -> dict[str, Any]:

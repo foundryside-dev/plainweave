@@ -822,6 +822,7 @@ def test_mcp_contract_resources_are_readable(tmp_path: Path) -> None:
         resource = surface.read_resource(uri)
         assert resource["ok"] is True
         assert isinstance(resource["schema"], str)
+        assert resource["schema"].startswith("weft.plainweave.")
 
 
 def test_mcp_requirements_enrichment_tool_is_advertised_and_callable(tmp_path: Path) -> None:
