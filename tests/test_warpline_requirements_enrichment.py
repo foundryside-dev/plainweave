@@ -60,6 +60,43 @@ def test_status_unavailable_when_unresolved(tmp_path: Path) -> None:
     assert reason
 
 
+def test_status_unavailable_when_binding_matched_but_requirement_dead(tmp_path: Path) -> None:
+    # No-silent-clean (spec §6.2, "binding matched but requirement won't load" row):
+    # a trace matched (matched_refs non-empty) but no alive requirement loaded behind it
+    # (empty requirement_trail) is "cannot tell", NEVER "absent" — a binding exists, so
+    # "definitively no requirement" cannot be asserted. This test pins that branch and
+    # would FAIL (assert below) if the mapping flipped this dead binding to "absent".
+    surface, _seed = _seed_bound(tmp_path)
+    item: dict[str, object] = {
+        "resolution": {
+            "local_catalog": {"state": "resolved", "sei": "x", "locator": "y", "reason": None},
+            "matched_refs": [{"kind": "loomweave_entity", "id": "x", "match": "exact_local_trace"}],
+        },
+        "requirement_trail": [],
+    }
+    status, reason = surface._requirements_enrichment_status(item)
+    assert status == "unavailable"  # NOT "absent": the dead binding is "cannot determine"
+    assert reason
+
+
+def test_status_unavailable_when_local_catalog_unavailable(tmp_path: Path) -> None:
+    # No-silent-clean (spec §6.2, "store error / Plainweave unreachable" row): when the
+    # local Loomweave catalog could not be consulted (state == "unavailable") the producer
+    # cannot determine requirements, so it must answer "unavailable", NEVER "absent". This
+    # test pins that branch and would FAIL (assert below) if it flipped to "absent".
+    surface, _seed = _seed_bound(tmp_path)
+    item: dict[str, object] = {
+        "resolution": {
+            "local_catalog": {"state": "unavailable", "sei": None, "locator": None, "reason": "catalog unreachable"},
+            "matched_refs": [],
+        },
+        "requirement_trail": [],
+    }
+    status, reason = surface._requirements_enrichment_status(item)
+    assert status == "unavailable"  # NOT "absent": a store error cannot prove "no requirements"
+    assert reason
+
+
 def test_present_item_shape(tmp_path: Path) -> None:
     surface, seed = _seed_bound(tmp_path)
     service = surface._service()
