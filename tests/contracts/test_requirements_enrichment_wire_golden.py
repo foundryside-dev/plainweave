@@ -17,14 +17,12 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
-from plainweave.mcp_surface import PlainweaveMcpSurface
+from tests.test_warpline_requirements_enrichment import _seed_bound  # reuse the B1/B3 seed helper
 from tests.warpline_contract import (
     ENRICHMENT_ITEM_KEYS,
     ENRICHMENT_STATUSES,
     validate_requirements_enrichment,
 )
-# reuse the B1/B3 seed helper:
-from tests.test_warpline_requirements_enrichment import _seed_bound
 
 GOLDEN_PATH = Path(__file__).parents[1] / "fixtures" / "contracts" / "warpline" / "requirements-enrichment.json"
 
