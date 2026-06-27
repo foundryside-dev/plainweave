@@ -231,6 +231,111 @@ class WardlineAdapter:
             )
         return covered
 
+    def list_peer_facts(self, *, limit: int = 50, offset: int = 0) -> JsonObject:
+        snapshots = self._snapshots()
+        authority = {
+            "local_only": True,
+            "live_peer_calls": False,
+            "governance_verdicts": False,
+            "trust_policy_owner": "wardline",
+        }
+        if not snapshots:
+            return {
+                "source": {"snapshot": None, "snapshot_count": 0, "prior": None},
+                "freshness": "unavailable",
+                "facts": [],
+                "resolved_or_unseen": [],
+                "engine_metrics": [],
+                "summary": self._summary([], [], resolved=0, indeterminate=0),
+                "degraded": [
+                    self._degraded(
+                        WARDLINE_DEGRADE_FINDINGS_ABSENT,
+                        "No .wardline findings snapshot is present; peer facts are unavailable.",
+                    )
+                ],
+                "authority_boundary": authority,
+                "notes": ["No .wardline findings snapshot present; result is unavailable, not clean."],
+            }
+        latest_path = snapshots[-1]
+        latest_records = self._load_snapshot(latest_path)
+        entity_records = [r for r in latest_records if not self._is_engine_record(r)]
+        engine_metrics = [r for r in latest_records if self._is_engine_record(r)]
+        findings = [self._finding_from_record(r) for r in entity_records]
+        degraded: list[JsonObject] = []
+        notes: list[str] = []
+        resolved: list[JsonObject] = []
+        indeterminate = 0
+        prior_path: Path | None = None
+        if len(snapshots) < 2:
+            degraded.append(
+                self._degraded(
+                    WARDLINE_DEGRADE_SINGLE_SNAPSHOT,
+                    "Only one snapshot present; resolved/unseen cannot be computed.",
+                )
+            )
+            notes.append("resolved/unseen unavailable: a single snapshot cannot diff.")
+        else:
+            prior_path = snapshots[-2]
+            prior_records = self._load_snapshot(prior_path)
+            latest_manifest = self._read_manifest(latest_path)
+            prior_manifest = self._read_manifest(prior_path)
+            covered = self._scope_for_diff(
+                latest_records, prior_records,
+                latest_manifest=latest_manifest, prior_manifest=prior_manifest, degraded=degraded,
+            )
+            resolved, indeterminate = self._resolved_unseen(
+                latest_records, prior_records, covered=covered, degraded=degraded,
+                prior_manifest=prior_manifest, latest_manifest=latest_manifest,
+            )
+            if not self._read_manifest(latest_path):
+                notes.append("scan-identity metadata absent; resolved/unseen bounded by latest path-set.")
+        summary = self._summary(findings, engine_metrics, resolved=len(resolved), indeterminate=indeterminate)
+        fact_dicts = [f.to_dict() for f in findings]
+        page = fact_dicts[offset : offset + limit]
+        if len(page) < len(fact_dicts):
+            notes.append(f"facts truncated to page; {len(fact_dicts)} total")
+        return {
+            "source": {
+                "snapshot": latest_path.name,
+                "snapshot_count": len(snapshots),
+                "prior": prior_path.name if prior_path is not None else None,
+            },
+            "freshness": "current",
+            "facts": page,
+            "resolved_or_unseen": resolved,
+            "engine_metrics": engine_metrics,
+            "summary": summary,
+            "degraded": degraded,
+            "authority_boundary": authority,
+            "notes": notes,
+        }
+
+    def _summary(
+        self,
+        findings: list[WardlineFinding],
+        engine_metrics: list[JsonObject],
+        *,
+        resolved: int,
+        indeterminate: int,
+    ) -> JsonObject:
+        by_state = {"active": 0, "waived": 0, "baselined": 0, "judged": 0}
+        by_kind: dict[str, int] = {}
+        defect = 0
+        for finding in findings:
+            if finding.suppression_state in by_state:
+                by_state[finding.suppression_state] += 1
+            by_kind[finding.kind] = by_kind.get(finding.kind, 0) + 1
+            if not finding.non_defect:
+                defect += 1
+        return {
+            "by_suppression_state": by_state,
+            "by_kind": dict(sorted(by_kind.items())),
+            "defect": defect,
+            "non_defect": len(findings) - defect,
+            "resolved_or_unseen": resolved,
+            "indeterminate": indeterminate,
+        }
+
     def _finding_from_record(self, record: JsonObject) -> WardlineFinding:
         location = record.get("location")
         kind = str(record.get("kind"))

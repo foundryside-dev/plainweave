@@ -265,6 +265,35 @@ def test_fallback_flags_scan_identity_absent_when_no_manifest(tmp_path: Path) ->
     assert isinstance(cast(dict[str, object], mismatch["detail"])["jaccard"], float)
 
 
+def test_list_peer_facts_single_snapshot_marks_resolved_unavailable(tmp_path: Path) -> None:
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl",
+                    [_defect("d1", state="active"), _defect("w1", state="waived"), _engine()])
+    data = WardlineAdapter(tmp_path).list_peer_facts()
+    source = cast(dict[str, Any], data["source"])
+    assert source["snapshot"] == "20260101T000000Z-findings.jsonl"
+    assert source["prior"] is None
+    assert "/" not in str(source["snapshot"])
+    summary = cast(dict[str, Any], data["summary"])
+    by_state = cast(dict[str, Any], summary["by_suppression_state"])
+    assert by_state == {"active": 1, "waived": 1, "baselined": 0, "judged": 0}
+    assert summary["defect"] == 2 and summary["non_defect"] == 0
+    assert data["resolved_or_unseen"] == []
+    degraded = cast(list[dict[str, Any]], data["degraded"])
+    assert any(d["code"] == "wardline_single_snapshot" for d in degraded)
+    engine_metrics = cast(list[Any], data["engine_metrics"])
+    assert len(engine_metrics) == 1
+    authority = cast(dict[str, Any], data["authority_boundary"])
+    assert authority["trust_policy_owner"] == "wardline"
+
+
+def test_list_peer_facts_unavailable_when_absent(tmp_path: Path) -> None:
+    data = WardlineAdapter(tmp_path).list_peer_facts()
+    assert data["freshness"] == "unavailable"
+    assert data["facts"] == []
+    degraded = cast(list[dict[str, Any]], data["degraded"])
+    assert any(d["code"] == "wardline_findings_absent" for d in degraded)
+
+
 def test_fallback_resolved_when_same_path_set(tmp_path: Path) -> None:
     _write_snapshot(
         tmp_path, "20260101T000000Z-findings.jsonl", [_defect("d1", path="src/a.py"), _defect("keep", path="src/a.py")]
