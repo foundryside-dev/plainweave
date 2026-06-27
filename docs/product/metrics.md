@@ -121,3 +121,24 @@ cross-language coverage.
 PDR-009 reversal-trigger check: the release artifacts (README / CHANGELOG) did NOT publish a
 headline north-star number — they state completeness is a roadmap item — so the
 vanity-metric / silent-clean trigger did NOT fire. Guardrails intact (advisory, no verdict).
+
+### 2026-06-26 — Plainweave 1.1.0 cut: operator web UI + SEI conformance (PDR-013)
+
+Delivery milestone, NOT a north-star reading. The operator web UI (`plainweave[web]`) and
+the SEI 4th-conformer landed on `main`; `release/1.1.0` (PR #2) is open; the public site is
+live. North-star (coverage completeness) unchanged. Guardrails intact (web writes are
+human-attributed; advisory; no release verdict). Owner ratified the direction (PDR-013).
+
+### 2026-06-27 — Peer facts: production-blocker reduction + contract-test coverage (PDR-014)
+
+Hardening reading, NOT a north-star reading. Two local-first advisory producers shipped
+with frozen `.v1` contracts; `make ci` green (355 tests, **90.94% coverage**, up from
+90.11% at 1.0; mypy --strict, ruff clean); `wardline scan` clean (0 active). Retires 3 of
+the 5 named production blockers (live-data peer adapters, explicit degraded-state,
+Warpline/Wardline contract tests).
+
+Guardrails — all intact and now contract-test-pinned: advisory only (no-verdict validator
+on both new envelopes); SEIs consumed opaquely; no-silent-clean (resolved/unseen
+scope-bounded; `unresolved`/dead-binding → `unavailable`, not `absent` — both
+mutation-verified). No reversal trigger fired; PDR-014's trigger (Warpline schema
+rejection) is pending the owner-gated interface-lock ratification.

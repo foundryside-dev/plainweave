@@ -1,4 +1,4 @@
-# Plainweave Roadmap            Updated: 2026-06-25 (PDR-012)
+# Plainweave Roadmap            Updated: 2026-06-27 (PDR-013, PDR-014)
 
 > Sequencing, WSJF / cost-of-delay, and dated forecasts are produced by
 > /axiom-program-management. This file records bets as INTENT, not a delivery
@@ -9,6 +9,14 @@
 - **Dogfood against live sibling peers** — Lacuna + Loomweave done (PDR-008): the
   code-up graph and the cross-member seam (PDR-004) reproduce on real sibling corpora.
   Remaining: more peers as desired; keep proving the seam holds. · metric: north-star.
+- **Operator web UI** (ratified PDR-013) — the human-facing seam (`plainweave[web]`,
+  Starlette+HTMX over PlainweaveService) is now an **accepted standing bet**, shipped in
+  1.1.0; keep hardening/extending it under the soft-launch posture. · metric: operator
+  use (once real users exist).
+- **Live peer adapters + contract hardening** (PDR-014) — Wardline peer facts +
+  Warpline requirements enrichment shipped to `main` with frozen `.v1` contracts;
+  continue retiring production blockers (Loomweave-owned identity resolution, Legis fact
+  emission, Filigree contract tests remain). · metric: production-readiness.
 
 ## Next (shaped, decreasing certainty)
 
@@ -37,12 +45,21 @@
 - Corpus-curation workflows for duplicate or overlapping requirements.
 - Formal suite membership / hub-roster admission — **owner-gated** (PDR-002). The 1.0.0
   packaging + PyPI release shipped (PDR-012); formal suite admission is a separate owner step.
-- **Operator web UI** (`plainweave[web]`, thin Starlette+HTMX over PlainweaveService) — a
-  design brainstorm landed on `main` from a concurrent session; **owner-gated at the vision
-  level** (a new human-facing direction), NOT approved and NOT part of 1.0. Reopens only on
-  owner decision.
+  _(The operator web UI moved Later → Now: ratified as a standing bet, PDR-013.)_
 
-## Done since last checkpoint (2026-06-24 → 06-25)
+## Done since last checkpoint (2026-06-26 → 06-27)
+
+- **Plainweave 1.1.0 cut: operator web UI + SEI conformance** (PDR-013 ratifies the web-UI
+  direction). The human-facing seam (`plainweave[web]`) merged to `main`; the public site
+  `plainweave.foundryside.dev` is live; `release/1.1.0` (PR #2) is the open release-ceremony
+  vehicle. **The PyPI publish is held, owner-gated.**
+- **Peer facts shipped** (PDR-014): `weft.plainweave.wardline_peer_facts.v1` +
+  `weft.plainweave.requirements_enrichment.v1`, merged to `main` (`bc37a24`) via 17-task
+  subagent-driven TDD. `make ci` green (355 tests, 90.94% cov); `wardline scan` clean.
+  Retires 3 of 5 production blockers. Sibling wiring handed off as 3 owner-gated peer
+  prompts (`docs/handoffs/`).
+
+## Done earlier (2026-06-24 → 06-25)
 
 - **Plainweave 1.0.0 RELEASED to PyPI** (PDR-012, owner-directed): public repo
   `foundryside-dev/plainweave` + CI/CD (Trusted Publishing, `main` branch protection);

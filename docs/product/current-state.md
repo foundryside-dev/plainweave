@@ -1,55 +1,57 @@
-# Plainweave Current State        Checkpoint: 2026-06-25 (1.0 release) · (commit recorded below)
+# Plainweave Current State        Checkpoint: 2026-06-27 (PDR-013, PDR-014) · (commit recorded below)
 
 ## The bet right now
 
-**Plainweave 1.0.0 is shipped** — live on PyPI, public repo + CI/CD (PDR-012). The north-star
-is self-computable (PDR-009) and 1.0 ships **stable behaviour + contracts**. The open product
-frontier is unchanged: **coverage *completeness*** — the owner-raised cross-member language gap
-(the Rust public surface is untagged upstream). 1.0 does not close it; the README/CHANGELOG are
-deliberately honest that completeness is a roadmap item. Metric: north-star (completeness).
+**Harden + build out, under the soft-launch / RC posture** (owner-stated: Plainweave is
+published but has no users yet, so iteration is cheap). The active theme is
+**production-readiness hardening**: PDR-014 retired 3 of the 5 named production blockers
+(live-data peer adapters, explicit degraded-state, Warpline/Wardline contract tests).
+The carried **coverage-completeness** frontier remains the genuine north-star mover but is
+owner-gated / sibling-paced. Metric: production-readiness (blockers retired); north-star
+(completeness) unchanged.
 
 ## In flight
 
-- **Pre-alpha preflight perf** — fan-out cap + N+1 connections; deferred until a real corpus
-  makes them bite. · tracker: plainweave-706d80dc8e, plainweave-3edcd19943 (P3).
-- **Semantic-similarity hint** — DEFERRED by PDR-003. · tracker: plainweave-02376962ab.
-- **Federation operability — remaining install surfaces** — `doctor`/`--fix` shipped (PDR-011);
-  skill pack / SessionStart hook / `.mcp.json` self-registration / `install` command are a
-  deferred future onboarding bet, not committed.
+- **1.1.0 release ceremony** — operator web UI + SEI conformance is on `main`; the public
+  site is live; `release/1.1.0` (PR #2) is OPEN; **PyPI publish HELD** (owner-gated).
+- **Peer-facts sibling wiring** — 3 owner-gated handoff prompts written (`docs/handoffs/`),
+  not yet handed off: Warpline consumer, Wardline scan-identity metadata (owner building in
+  parallel for integration testing), Warpline interface-lock item-schema ratification.
+- **Deferred perf/hint** (unchanged, acceptable at pre-alpha scale): preflight project-scope
+  fan-out + N+1 connections — `plainweave-706d80dc8e`, `plainweave-3edcd19943` (P3);
+  semantic-similarity hint — `plainweave-02376962ab` (deferred, PDR-003).
 
-_(The build epic `plainweave-c2d58800a0` was closed this checkpoint — realized by the 1.0 release.)_
+## Open questions / blocked-on-owner (escalations)
 
-## Open questions / blocked-on-owner
-
-- **Operator web-UI direction (new — owner decision).** A concurrent session committed an
-  owner-gated webUX design brainstorm (`plainweave[web]`, Starlette+HTMX over PlainweaveService)
-  to `main`; it's now public and in the `v1.0.0` tag (docs-only — the wheel is code-identical).
-  The **direction itself is unapproved** (vision-level, a new human-facing surface). Owner: ratify,
-  shelve, or route it. Also note: **another session is active on this repo** — coordinate.
-- **Cross-member coverage completeness (carried, most pressing).** A peer's north-star covers
-  only languages its Loomweave plugin tags; the Rust surface is untagged upstream. Plainweave
-  surfaces the gap (`present_plugins`); **closing it is owner-gated** (sibling obligation — do
-  not file a Loomweave ticket unilaterally). DECIDE: drive Loomweave-side Rust tagging vs. accommodate.
-- **Publishing a headline north-star number remains owner-gated** (PDR-002): computable, but the
-  real-API denominator on Loomweave is **1** (44/45 are test/CI harness).
-- **vision.md authority-grant metadata** (`Granted by` / `Last reviewed` / `Review cadence`) still
-  missing; adding them is a vision edit → gates to owner (carried).
-- **Release hardening (minor, offered).** Pin the workflow actions (a Node-20 deprecation warning
-  fired); add a required reviewer on the `pypi` environment to gate future publishes.
+- **Push `main`?** `main` is **33 commits ahead of `origin/main`** (unpushed). Pushing the
+  public repo `foundryside-dev/plainweave` is outward-facing and needs the `tachyon-beep`
+  account (`gh auth switch`). Owner: push, or hold.
+- **Release version + publish.** Fold peer-facts into a re-cut **1.1.0**, or ship it as
+  **1.2.0**? And proceed with the held 1.1.0 PyPI publish (PR #2), or keep holding?
+- **Hand off the 3 peer prompts** to the sibling owners (Warpline/Wardline) — sibling
+  obligations, owner-gated. Owner: dispatch, or hold.
+- **Cross-member coverage completeness** (carried, most pressing north-star mover) — Rust
+  public surface untagged upstream on Loomweave; closing it is owner-gated (sibling
+  obligation, do not file unilaterally).
+- **Carried:** `vision.md` authority-grant metadata (`Granted by`/`Last reviewed`/`Review
+  cadence`) still missing — grant was confirmed AS WRITTEN this session; adding metadata is
+  a vision edit, owner-gated. Publishing a headline north-star number remains owner-gated
+  (PDR-002/009).
 
 ## Last checkpoint did
 
-- **PDR-012 — released Plainweave 1.0.0 to PyPI** (owner-directed): packaging (version, LICENSE,
-  CHANGELOG, Production/Stable), CI + release workflows, version-bump-robust contract suite; created
-  the public repo `foundryside-dev/plainweave` + configured topics / `pypi` Trusted-Publishing env /
-  `main` branch protection; tagged `v1.0.0` → built + published (wheel + sdist + attestations). Verified live.
-- **Accepted as-shipped** ("leave it, good shape") despite a docs-only concurrent commit swept into
-  the tag — wheel is code-identical; 1.0.0 is immutable on PyPI.
-- Reconciled the tracker: closed the realized build epic `plainweave-c2d58800a0`.
+- **Ratified the operator web UI** as a standing bet (PDR-013, owner-explicit) and recorded
+  the soft-launch/RC posture — reconciling the workspace, which had it as "unapproved."
+- **Delivered peer facts** (PDR-014): `weft.plainweave.wardline_peer_facts.v1` +
+  `weft.plainweave.requirements_enrichment.v1` merged to `main` (`bc37a24`) via 17-task
+  subagent-driven TDD + opus whole-branch review; `make ci` green (355 tests, 90.94% cov);
+  `wardline scan` clean. Wrote 3 owner-gated peer prompts; reconciled the spec freshness vocab.
+- Reconciled roadmap/metrics to reality (1.1.0, the live site, peer-facts).
 
 ## Next session, start here
 
-**DECIDE the cross-member coverage-completeness gap** (carried, owner-raised, most pressing) — drive
-Loomweave-side Rust public-surface tagging (owner-gated sibling obligation) vs. limit Plainweave to
-honestly surfacing it. This moves north-star *completeness*. Separately, surface the **web-UI direction**
-for an owner ratify/shelve decision, and coordinate with the concurrent session on this repo.
+**Get the owner's calls on the escalations** — push `main` + the release-version decision
+(1.1.0 refold vs 1.2.0) + the held publish, and whether to hand off the 3 peer prompts.
+Then continue **harden + build** (next production blockers: Loomweave-owned identity
+resolution, Legis fact emission, Filigree contract tests), or pivot to the carried
+**coverage-completeness** north-star if the owner wants product (not surface) movement.
