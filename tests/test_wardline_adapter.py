@@ -166,7 +166,9 @@ def test_health_reports_unavailable_when_no_wardline_dir(tmp_path: Path) -> None
     # no-silent-clean: a missing source is reported, never an empty-but-ok health
     for entry in degraded:
         assert set(entry) == {"code", "message"}
-        assert ".wardline" not in entry["message"] or "/" not in entry["message"]
+        # byte-pin safety: a degraded message must carry no path separator (and thus no
+        # leaked absolute path), so the message stays stable across machines/checkouts.
+        assert "/" not in entry["message"]
 
 
 def test_health_reports_available_with_one_snapshot(tmp_path: Path) -> None:
@@ -252,6 +254,29 @@ def test_manifest_ruleset_mismatch_is_flagged(tmp_path: Path) -> None:
         latest_manifest=adapter._read_manifest(snaps[-1]),
     )
     assert any(d["code"] == "wardline_ruleset_mismatch" for d in degraded)
+
+
+def test_ruleset_mismatch_not_flagged_when_only_one_manifest_present(tmp_path: Path) -> None:
+    # A ruleset mismatch needs BOTH manifests to compare ruleset ids. When exactly one
+    # manifest is present (the other snapshot has no scan-identity metadata), that is the
+    # scan-identity-absent/heuristic path, NOT a ruleset mismatch — `_ruleset_id(None)`
+    # returning None must not spuriously trip the mismatch flag.
+    prior = [_defect("d1", path="src/a.py")]  # no manifest
+    latest = [_manifest(["src/a.py"], ruleset="rs@1")]  # manifest present
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", prior)
+    _write_snapshot(tmp_path, "20260102T000000Z-findings.jsonl", latest)
+    adapter = WardlineAdapter(tmp_path)
+    snaps = adapter._snapshots()
+    degraded: list[dict[str, object]] = []
+    adapter._resolved_unseen(
+        adapter._load_snapshot(snaps[-1]),
+        adapter._load_snapshot(snaps[-2]),
+        covered={"src/a.py"},
+        degraded=degraded,
+        prior_manifest=adapter._read_manifest(snaps[-2]),  # None
+        latest_manifest=adapter._read_manifest(snaps[-1]),  # rs@1
+    )
+    assert not any(d["code"] == "wardline_ruleset_mismatch" for d in degraded)
 
 
 def test_fallback_flags_scan_identity_absent_when_no_manifest(tmp_path: Path) -> None:

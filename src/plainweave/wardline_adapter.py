@@ -164,7 +164,14 @@ class WardlineAdapter:
                 )
             else:
                 indeterminate += 1
-        if self._ruleset_id(prior_manifest) != self._ruleset_id(latest_manifest):
+        # Only a genuine mismatch between two PRESENT manifests is a ruleset mismatch.
+        # When one manifest is absent, ruleset ids cannot be compared — that is the
+        # scan-identity-absent/heuristic path, not a mismatch — so do not flag it.
+        if (
+            prior_manifest is not None
+            and latest_manifest is not None
+            and self._ruleset_id(prior_manifest) != self._ruleset_id(latest_manifest)
+        ):
             degraded.append(
                 self._degraded(
                     WARDLINE_DEGRADE_RULESET_MISMATCH,
@@ -353,7 +360,10 @@ class WardlineAdapter:
             fingerprint=str(record.get("fingerprint")),
             rule_id=str(record.get("rule_id")),
             kind=kind,
-            non_defect=kind not in {"defect"},
+            # Closed Wardline kind vocab: "defect" is the only defect kind, every other
+            # kind in NON_DEFECT_KINDS is non-defect. Equivalent to `kind != "defect"`
+            # over the validated vocab; the explicit set names the intent.
+            non_defect=kind in NON_DEFECT_KINDS,
             severity=str(record.get("severity")),
             suppression_state=str(record.get("suppression_state")),
             suppression_reason=reason if isinstance(reason, str) else None,
