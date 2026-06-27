@@ -121,6 +121,19 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     dossier_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
     dossier_parser.set_defaults(handler=handle_dossier)
 
+    wardline_facts_parser = subparsers.add_parser(
+        "wardline-peer-facts",
+        help="Surface Wardline findings as advisory peer facts (weft.plainweave.wardline_peer_facts.v1).",
+    )
+    wardline_facts_parser.add_argument(
+        "--limit", type=int, default=50, metavar="N", help="Max facts per page (1-100; default 50)."
+    )
+    wardline_facts_parser.add_argument(
+        "--offset", type=int, default=0, metavar="N", help="Facts page offset (default 0)."
+    )
+    wardline_facts_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
+    wardline_facts_parser.set_defaults(handler=handle_wardline_peer_facts)
+
 
 def _register_requirement_commands(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
@@ -1078,6 +1091,17 @@ def handle_dossier(args: argparse.Namespace) -> int:
     return 0
 
 
+def handle_wardline_peer_facts(args: argparse.Namespace) -> int:
+    from plainweave.mcp_surface import PlainweaveMcpSurface  # local import: cli_commands<->mcp_surface cycle
+
+    surface = PlainweaveMcpSurface(project_root())
+    try:
+        envelope = surface.plainweave_wardline_peer_facts_list(limit=args.limit, offset=args.offset)
+    except PlainweaveError as exc:
+        return _emit_error(args, exc)
+    return _emit_surface_result(args, envelope)
+
+
 def initialize_project(root: Path, project_key: str) -> dict[str, object]:
     db_path = plainweave_db_path(root)
     created = not db_path.exists()
@@ -1156,6 +1180,29 @@ def _emit_error(args: argparse.Namespace, exc: PlainweaveError) -> int:
     else:
         print(f"{exc.code.value}: {exc.message}")
     return 4 if exc.code == ErrorCode.INTERNAL else 2
+
+
+def _emit_surface_result(args: argparse.Namespace, envelope: dict[str, Any]) -> int:
+    """Print a peer-facts surface envelope and map it to an exit code.
+
+    The MCP surface returns a full envelope (success or error). ``--json`` prints it
+    whole; the human path prints ``data`` on success or ``CODE: message`` on an error
+    envelope. Exit codes mirror ``_emit_error``: 0 ok, 4 on INTERNAL, else 2.
+    """
+    ok = bool(envelope.get("ok"))
+    if bool(args.json):
+        print(json.dumps(envelope))
+    elif ok:
+        print(json.dumps(envelope["data"]))
+    else:
+        error = envelope.get("error")
+        error = error if isinstance(error, dict) else {}
+        print(f"{error.get('code', ErrorCode.INTERNAL.value)}: {error.get('message', '')}")
+    if ok:
+        return 0
+    error = envelope.get("error")
+    error = error if isinstance(error, dict) else {}
+    return 4 if error.get("code") == ErrorCode.INTERNAL.value else 2
 
 
 def _service() -> PlainweaveService:
