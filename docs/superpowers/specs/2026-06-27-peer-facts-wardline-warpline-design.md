@@ -143,7 +143,7 @@ House success-envelope (`envelopes.py` conventions): `schema`, `ok`, `data`,
 ```
 {
   "source": {"snapshot": "<filename>", "snapshot_count": N, "prior": "<filename|null>"},
-  "freshness": "current | stale | unavailable",
+  "freshness": "current | unavailable",   // `stale` deferred: no snapshot-age threshold defined (YAGNI); add when one exists
   "facts": [
     {
       "fingerprint": "...", "rule_id": "...", "kind": "...",
