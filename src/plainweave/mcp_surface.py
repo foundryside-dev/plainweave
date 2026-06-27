@@ -722,6 +722,23 @@ class PlainweaveMcpSurface:
             return self._error(exc)
         return success_envelope("weft.plainweave.wardline_peer_facts.v1", data, project=self._project_key())
 
+    def _requirements_enrichment_status(self, item: JsonObject) -> tuple[str, str | None]:
+        resolution = cast(JsonObject, item["resolution"])
+        local = cast(JsonObject, resolution["local_catalog"])
+        requirement_trail = cast(list[object], item["requirement_trail"])
+        matched = cast(list[object], resolution["matched_refs"])
+        if requirement_trail:
+            return "present", None
+        if local["state"] == "unavailable":
+            return "unavailable", "Local Loomweave catalog could not be consulted; cannot determine requirements."
+        if not matched:
+            if local["state"] == "resolved":
+                return "absent", "Entity resolves locally but no requirement is bound to it."
+            return "unavailable", "Entity identity is not resolvable locally; cannot determine requirements."
+        # A trace matched but no alive requirement loaded behind it: this is "cannot
+        # tell", never "definitively none" (no-silent-clean, spec §4).
+        return "unavailable", "A binding exists but its requirement could not be resolved; cannot determine."
+
     def _project_key(self) -> str | None:
         if self.root == project_root():
             return _current_project_key()
