@@ -6,6 +6,7 @@ from typing import Any, cast
 
 from tests.intent_coverage_contract import validate_intent_coverage
 from tests.preflight_contract import validate_preflight_facts
+from tests.wardline_contract import validate_wardline_peer_facts
 
 FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "contracts"
 
@@ -66,6 +67,7 @@ REQUIRED_FIXTURES = {
     "traces/trace-link-stale.json",
     "traces/trace-link-orphaned.json",
     "legis/preflight-facts.json",
+    "wardline/peer-facts.json",
     "intent/intent-coverage.json",
     "loomweave/identity-resolve.json",
     "loomweave/identity-sei.json",
@@ -345,6 +347,7 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
         "plainweave_preflight_facts_get",
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
+        "plainweave_wardline_peer_facts_list",
     }
 
     assert fixture["schema"] == "weft.plainweave.mcp_tool_inventory.v1"
@@ -375,6 +378,7 @@ def test_mcp_resource_inventory_fixture_contract() -> None:
         "plainweave://contracts/weft.plainweave.intent_trace.v1",
         "plainweave://contracts/weft.plainweave.intent_corpus.v1",
         "plainweave://contracts/weft.plainweave.intent_coverage.v1",
+        "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1",
     ]
 
 
@@ -678,3 +682,9 @@ def test_requirement_dossier_fixture_contract() -> None:
         assert_computed_gap_shape(gap)
     for action in fixture["next_actions"]:
         assert_next_action_shape(action)
+
+
+def test_wardline_peer_facts_fixture_contract() -> None:
+    fixture = load_fixture("wardline/peer-facts.json")
+    assert fixture["schema"] == "weft.plainweave.wardline_peer_facts.v1"
+    validate_wardline_peer_facts({k: v for k, v in fixture.items() if k != "schema"})
