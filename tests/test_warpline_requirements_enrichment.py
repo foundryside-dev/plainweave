@@ -134,9 +134,7 @@ def test_status_absent_when_only_binding_is_rejected(tmp_path: Path) -> None:
     # as test_status_absent_when_resolved_but_unbound; never a silent "present".
     surface, seed = _seed_bound(tmp_path)
     service = surface._service()
-    req = service.create_requirement(
-        "Audit retention", "The system shall retain audit logs for 90 days.", "human:john"
-    )
+    req = service.create_requirement("Audit retention", "The system shall retain audit logs for 90 days.", "human:john")
     service.add_acceptance_criterion(req.id, "Logs older than 90 days are purged.", actor="human:john")
     service.approve_requirement(req.id, actor="human:john", expected_version=0, idempotency_key="approve-2")
     link = service.propose_trace_link(
