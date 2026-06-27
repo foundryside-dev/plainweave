@@ -4,6 +4,31 @@ All notable changes to Plainweave are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/), and Plainweave adheres to
 [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+Closes the CLI/MCP parity gap for the 1.1 peer-facts producers (they shipped MCP-only).
+Additive and backward-compatible; the new surfaces are advisory and verdict-free like the
+rest of Plainweave.
+
+### Added
+- **`plainweave wardline-peer-facts [--json] [--limit N] [--offset N]`** — surfaces the
+  full `weft.plainweave.wardline_peer_facts.v1` envelope over the CLI (previously MCP-only),
+  reusing the existing MCP surface. Reads `.wardline/*-findings.jsonl` only (no store
+  required); an absent `.wardline/` reports `freshness: unavailable`, never clean.
+- **`plainweave requirements-enrichment <entity_ref>... [--json]`** — surfaces the full
+  `weft.plainweave.requirements_enrichment.v1` envelope over the CLI (previously MCP-only).
+  Accepts a SEI or a dotted locator; preserves the no-silent-clean contract
+  (`present`/`absent`/`unavailable` — an identity gap is `unavailable`, never `absent`).
+
+### Fixed
+- `requirements_enrichment` now drops `rejected` trace links before building the view — a
+  reviewed-and-rejected binding no longer reads as requirement coverage (`present`); a
+  rejected-only entity that resolves locally reads `absent`. _(Folded in from a sibling
+  product's contract work.)_
+- `plainweave doctor` Wardline-findings remediation is now root-aware (`cd <root> &&
+  wardline scan .` when the inspected root is not the cwd). _(Folded in from a sibling
+  product's contract work.)_
+
 ## [1.1.0] — 2026-06-27
 
 Operator-facing web UX, SEI conformance, and cross-member peer facts. Additive and

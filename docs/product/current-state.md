@@ -1,4 +1,4 @@
-# Plainweave Current State        Checkpoint: 2026-06-27 (PDR-013, PDR-014) · (commit recorded below)
+# Plainweave Current State        Checkpoint: 2026-06-28 (PDR-015; prior PDR-013, PDR-014) · (commit recorded below)
 
 ## The bet right now
 
@@ -17,6 +17,11 @@ owner-gated / sibling-paced. Metric: production-readiness (blockers retired); no
 - **Peer-facts sibling wiring** — 3 owner-gated handoff prompts written (`docs/handoffs/`),
   not yet handed off: Warpline consumer, Wardline scan-identity metadata (owner building in
   parallel for integration testing), Warpline interface-lock item-schema ratification.
+- **Peer-facts CLI parity + Lacuna tour demos** (PDR-015; branch
+  `feat/lacuna-peer-facts-tour-cli-parity`) — `plainweave wardline-peer-facts` /
+  `requirements-enrichment` CLI subcommands close the MCP-only gap; the Lacuna tour gains
+  `plainweave+wardline` / `plainweave+warpline` cells (full resolved/unseen). Recorded
+  Lacuna-side as PDR-0015. Not a release blocker; no public push without owner sign-off.
 - **Deferred perf/hint** (unchanged, acceptable at pre-alpha scale): preflight project-scope
   fan-out + N+1 connections — `plainweave-706d80dc8e`, `plainweave-3edcd19943` (P3);
   semantic-similarity hint — `plainweave-02376962ab` (deferred, PDR-003).
