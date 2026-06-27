@@ -14,22 +14,51 @@ WARDLINE_SUPPRESSION_STATES = {"active", "waived", "baselined", "judged"}
 WARDLINE_KINDS = {"defect", "metric", "fact", "classification", "suggestion"}
 WARDLINE_FRESHNESS = {"current", "stale", "unavailable"}
 WARDLINE_DATA_KEYS = {
-    "source", "freshness", "facts", "resolved_or_unseen",
-    "engine_metrics", "summary", "degraded", "authority_boundary", "notes",
+    "source",
+    "freshness",
+    "facts",
+    "resolved_or_unseen",
+    "engine_metrics",
+    "summary",
+    "degraded",
+    "authority_boundary",
+    "notes",
 }
 WARDLINE_FACT_KEYS = {
-    "fingerprint", "rule_id", "kind", "non_defect", "severity",
-    "suppression_state", "suppression_reason", "location", "qualname", "message",
+    "fingerprint",
+    "rule_id",
+    "kind",
+    "non_defect",
+    "severity",
+    "suppression_state",
+    "suppression_reason",
+    "location",
+    "qualname",
+    "message",
 }
 WARDLINE_SUMMARY_KEYS = {
-    "by_suppression_state", "by_kind", "defect", "non_defect", "resolved_or_unseen", "indeterminate",
+    "by_suppression_state",
+    "by_kind",
+    "defect",
+    "non_defect",
+    "resolved_or_unseen",
+    "indeterminate",
 }
 WARDLINE_AUTHORITY_KEYS = {"local_only", "live_peer_calls", "governance_verdicts", "trust_policy_owner"}
 
 _VERDICT_KEYS = {"allow", "allowed", "block", "blocked", "verdict", "decision", "gate", "enforcement"}
 _VERDICT_VALUE_TOKENS = {
-    "allow", "allowed", "block", "blocked", "block_candidate", "deny", "denied",
-    "approved", "rejected", "pass_fail", "verdict",
+    "allow",
+    "allowed",
+    "block",
+    "blocked",
+    "block_candidate",
+    "deny",
+    "denied",
+    "approved",
+    "rejected",
+    "pass_fail",
+    "verdict",
 }
 
 

@@ -3,8 +3,9 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
-JsonObject = dict[str, object]
+JsonObject = dict[str, Any]
 
 WARDLINE_DEGRADE_FINDINGS_ABSENT = "wardline_findings_absent"
 WARDLINE_DEGRADE_RULESET_MISMATCH = "wardline_ruleset_mismatch"

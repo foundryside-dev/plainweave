@@ -18,8 +18,17 @@ ENRICHMENT_AUTHORITY_KEYS = {"local_only", "live_peer_calls", "governance_verdic
 
 _VERDICT_KEYS = {"allow", "allowed", "block", "blocked", "verdict", "decision", "gate", "enforcement"}
 _VERDICT_VALUE_TOKENS = {
-    "allow", "allowed", "block", "blocked", "block_candidate", "deny", "denied",
-    "approved", "rejected", "pass_fail", "verdict",
+    "allow",
+    "allowed",
+    "block",
+    "blocked",
+    "block_candidate",
+    "deny",
+    "denied",
+    "approved",
+    "rejected",
+    "pass_fail",
+    "verdict",
 }
 
 

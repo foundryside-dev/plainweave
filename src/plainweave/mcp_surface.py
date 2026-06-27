@@ -30,7 +30,7 @@ from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
 from plainweave.wardline_adapter import WardlineAdapter
 
-JsonObject = dict[str, object]
+JsonObject = dict[str, Any]
 ENTITY_TRACE_KINDS = {"loomweave_entity", "file_ref"}
 MAX_ENTITY_CONTEXT_REFS = 100
 PREFLIGHT_SCOPE_KINDS = {"pending_diff", "commit_range", "explicit_requirements", "project"}
@@ -352,14 +352,24 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
     "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1": {
         "contract": "weft.plainweave.wardline_peer_facts.v1",
         "required_sections": [
-            "source", "freshness", "facts", "resolved_or_unseen",
-            "engine_metrics", "summary", "degraded", "authority_boundary", "notes",
+            "source",
+            "freshness",
+            "facts",
+            "resolved_or_unseen",
+            "engine_metrics",
+            "summary",
+            "degraded",
+            "authority_boundary",
+            "notes",
         ],
         "freshness_states": ["current", "stale", "unavailable"],
         "suppression_states": ["active", "waived", "baselined", "judged"],
         "degrade_codes": [
-            "wardline_findings_absent", "wardline_single_snapshot", "wardline_scope_mismatch",
-            "wardline_scan_identity_absent", "wardline_ruleset_mismatch",
+            "wardline_findings_absent",
+            "wardline_single_snapshot",
+            "wardline_scope_mismatch",
+            "wardline_scan_identity_absent",
+            "wardline_ruleset_mismatch",
         ],
         "authority_boundary": "Advisory Wardline findings read from local .wardline snapshots; no verdict, no scan.",
     },
@@ -754,9 +764,7 @@ class PlainweaveMcpSurface:
         def action(service: PlainweaveService) -> JsonObject:
             traces = service.trace_for()
             items = [
-                self._requirements_enrichment_item(
-                    service, self._entity_intent_context_item(service, ref, traces)
-                )
+                self._requirements_enrichment_item(service, self._entity_intent_context_item(service, ref, traces))
                 for ref in entity_refs
             ]
             summary = {"present": 0, "absent": 0, "unavailable": 0}
@@ -1536,9 +1544,7 @@ class PlainweaveMcpSurface:
     def _actor_kind_from_authority(self, authority: str) -> str:
         return "human" if authority in {"accepted", "human_proposed", "human_attested"} else "agent"
 
-    def _requirements_enrichment_items(
-        self, service: PlainweaveService, item: JsonObject
-    ) -> list[JsonObject]:
+    def _requirements_enrichment_items(self, service: PlainweaveService, item: JsonObject) -> list[JsonObject]:
         items: list[JsonObject] = []
         for entry in cast(list[JsonObject], item["requirement_trail"]):
             record = cast(JsonObject, entry["requirement"])
