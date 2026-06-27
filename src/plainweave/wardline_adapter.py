@@ -280,12 +280,19 @@ class WardlineAdapter:
             latest_manifest = self._read_manifest(latest_path)
             prior_manifest = self._read_manifest(prior_path)
             covered = self._scope_for_diff(
-                latest_records, prior_records,
-                latest_manifest=latest_manifest, prior_manifest=prior_manifest, degraded=degraded,
+                latest_records,
+                prior_records,
+                latest_manifest=latest_manifest,
+                prior_manifest=prior_manifest,
+                degraded=degraded,
             )
             resolved, indeterminate = self._resolved_unseen(
-                latest_records, prior_records, covered=covered, degraded=degraded,
-                prior_manifest=prior_manifest, latest_manifest=latest_manifest,
+                latest_records,
+                prior_records,
+                covered=covered,
+                degraded=degraded,
+                prior_manifest=prior_manifest,
+                latest_manifest=latest_manifest,
             )
             if not self._read_manifest(latest_path):
                 notes.append("scan-identity metadata absent; resolved/unseen bounded by latest path-set.")

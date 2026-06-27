@@ -266,8 +266,11 @@ def test_fallback_flags_scan_identity_absent_when_no_manifest(tmp_path: Path) ->
 
 
 def test_list_peer_facts_single_snapshot_marks_resolved_unavailable(tmp_path: Path) -> None:
-    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl",
-                    [_defect("d1", state="active"), _defect("w1", state="waived"), _engine()])
+    _write_snapshot(
+        tmp_path,
+        "20260101T000000Z-findings.jsonl",
+        [_defect("d1", state="active"), _defect("w1", state="waived"), _engine()],
+    )
     data = WardlineAdapter(tmp_path).list_peer_facts()
     source = cast(dict[str, Any], data["source"])
     assert source["snapshot"] == "20260101T000000Z-findings.jsonl"
