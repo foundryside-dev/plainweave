@@ -6,6 +6,8 @@ All notable changes to Plainweave are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-06-28
+
 Closes the CLI/MCP parity gap for the 1.1 peer-facts producers (they shipped MCP-only).
 Additive and backward-compatible; the new surfaces are advisory and verdict-free like the
 rest of Plainweave.
@@ -101,5 +103,6 @@ coverage *completeness* remains a documented roadmap item, not a 1.0 gate.)
 - Zero Plainweave-minted SEIs; sibling SEIs consumed opaquely.
 - No silent-clean — a degraded or language-partial denominator is flagged in-band.
 
+[1.2.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.2.0
 [1.1.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.1.0
 [1.0.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.0.0
