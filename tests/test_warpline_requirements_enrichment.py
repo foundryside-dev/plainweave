@@ -2,12 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from tests.loomweave_test_utils import seed_loomweave_catalog
-
 from plainweave.mcp_surface import PlainweaveMcpSurface
 from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
 from plainweave.store import migrate
+from tests.loomweave_test_utils import seed_loomweave_catalog
 
 
 def _seed_bound(tmp_path: Path) -> tuple[PlainweaveMcpSurface, dict[str, str]]:
