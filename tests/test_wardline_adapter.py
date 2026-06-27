@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from plainweave.wardline_adapter import WardlineAdapter
+from tests.wardline_contract import validate_wardline_peer_facts
 
 
 def _write_snapshot(root: Path, name: str, records: list[dict[str, object]]) -> None:
@@ -287,6 +288,7 @@ def test_list_peer_facts_single_snapshot_marks_resolved_unavailable(tmp_path: Pa
     assert len(engine_metrics) == 1
     authority = cast(dict[str, Any], data["authority_boundary"])
     assert authority["trust_policy_owner"] == "wardline"
+    validate_wardline_peer_facts(data)
 
 
 def test_list_peer_facts_unavailable_when_absent(tmp_path: Path) -> None:
