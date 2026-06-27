@@ -7,6 +7,7 @@ from typing import Any, cast
 from tests.intent_coverage_contract import validate_intent_coverage
 from tests.preflight_contract import validate_preflight_facts
 from tests.wardline_contract import validate_wardline_peer_facts
+from tests.warpline_contract import validate_requirements_enrichment
 
 FIXTURE_ROOT = Path(__file__).parents[1] / "fixtures" / "contracts"
 
@@ -68,6 +69,7 @@ REQUIRED_FIXTURES = {
     "traces/trace-link-orphaned.json",
     "legis/preflight-facts.json",
     "wardline/peer-facts.json",
+    "warpline/requirements-enrichment.json",
     "intent/intent-coverage.json",
     "loomweave/identity-resolve.json",
     "loomweave/identity-sei.json",
@@ -688,3 +690,11 @@ def test_wardline_peer_facts_fixture_contract() -> None:
     fixture = load_fixture("wardline/peer-facts.json")
     assert fixture["schema"] == "weft.plainweave.wardline_peer_facts.v1"
     validate_wardline_peer_facts({k: v for k, v in fixture.items() if k != "schema"})
+
+
+def test_requirements_enrichment_fixture_contract() -> None:
+    fixture = load_fixture("warpline/requirements-enrichment.json")
+    assert fixture["schema"] == "weft.plainweave.requirements_enrichment.v1"
+    # Validated through the SAME structural validator as live service/CLI/MCP output, so the
+    # golden fixture and the running tool cannot diverge without one test or the other failing.
+    validate_requirements_enrichment({k: v for k, v in fixture.items() if k != "schema"})
