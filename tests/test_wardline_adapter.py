@@ -13,6 +13,12 @@ def _write_snapshot(root: Path, name: str, records: list[dict[str, object]]) -> 
     (wdir / name).write_text("\n".join(json.dumps(r) for r in records), encoding="utf-8")
 
 
+def _write_raw_snapshot(root: Path, name: str, text: str) -> None:
+    wdir = root / ".wardline"
+    wdir.mkdir(exist_ok=True)
+    (wdir / name).write_text(text, encoding="utf-8")
+
+
 def _defect(
     fp: str,
     path: str = "src/a.py",
@@ -80,6 +86,60 @@ def test_non_defect_kinds_are_tagged_non_defect(tmp_path: Path) -> None:
     adapter = WardlineAdapter(tmp_path)
     [record] = adapter._load_snapshot(tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl")
     assert adapter._finding_from_record(record).non_defect is True
+
+
+def test_load_snapshot_skips_blank_lines(tmp_path: Path) -> None:
+    # Blank and whitespace-only lines must be silently skipped; only valid
+    # non-blank records must be returned.
+    good = _defect("g1")
+    text = "\n".join([
+        "",
+        "   ",
+        json.dumps(good),
+        "",
+        "\t",
+    ])
+    _write_raw_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", text)
+    adapter = WardlineAdapter(tmp_path)
+    records = adapter._load_snapshot(tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl")
+    assert len(records) == 1
+    assert records[0]["fingerprint"] == "g1"
+
+
+def test_load_snapshot_skips_scan_manifest_records(tmp_path: Path) -> None:
+    # scan_manifest records must be silently dropped; surrounding valid records
+    # must be returned unaffected.
+    manifest: dict[str, object] = {
+        "kind": "scan_manifest",
+        "fingerprint": "m1",
+        "scan_id": "s1",
+        "rule_ids": [],
+        "scanned_paths": [],
+    }
+    good = _defect("g2")
+    text = "\n".join([json.dumps(manifest), json.dumps(good)])
+    _write_raw_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", text)
+    adapter = WardlineAdapter(tmp_path)
+    records = adapter._load_snapshot(tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl")
+    assert len(records) == 1
+    assert records[0]["fingerprint"] == "g2"
+
+
+def test_load_snapshot_tolerates_malformed_lines(tmp_path: Path) -> None:
+    # A corrupt / truncated JSONL line must NOT raise; subsequent valid records
+    # must still be returned.  This is a reliability guarantee for corrupt files.
+    good = _defect("g3")
+    text = "\n".join([
+        "{not valid json",
+        "null",          # valid JSON but not a dict — also skipped
+        json.dumps(good),
+        "TRUNCATED",
+    ])
+    _write_raw_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", text)
+    adapter = WardlineAdapter(tmp_path)
+    records = adapter._load_snapshot(tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl")
+    assert len(records) == 1
+    assert records[0]["fingerprint"] == "g3"
 
 
 def test_health_reports_unavailable_when_no_wardline_dir(tmp_path: Path) -> None:
