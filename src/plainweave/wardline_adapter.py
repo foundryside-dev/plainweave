@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -7,6 +8,8 @@ JsonObject = dict[str, object]
 
 WARDLINE_DEGRADE_FINDINGS_ABSENT = "wardline_findings_absent"
 ENGINE_PATH_SENTINEL = "<engine>"
+
+NON_DEFECT_KINDS = frozenset({"metric", "fact", "classification", "suggestion"})
 
 
 @dataclass(frozen=True)
@@ -80,3 +83,43 @@ class WardlineAdapter:
 
     def _degraded(self, code: str, message: str) -> JsonObject:
         return {"code": code, "message": message}
+
+    def _load_snapshot(self, path: Path) -> list[JsonObject]:
+        records: list[JsonObject] = []
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if not isinstance(parsed, dict):
+                continue
+            if parsed.get("kind") == "scan_manifest":
+                continue
+            records.append(parsed)
+        return records
+
+    def _is_engine_record(self, record: JsonObject) -> bool:
+        location = record.get("location")
+        path = location.get("path") if isinstance(location, dict) else None
+        return path == ENGINE_PATH_SENTINEL
+
+    def _finding_from_record(self, record: JsonObject) -> WardlineFinding:
+        location = record.get("location")
+        kind = str(record.get("kind"))
+        reason = record.get("suppression_reason")
+        qualname = record.get("qualname")
+        return WardlineFinding(
+            fingerprint=str(record.get("fingerprint")),
+            rule_id=str(record.get("rule_id")),
+            kind=kind,
+            non_defect=kind not in {"defect"},
+            severity=str(record.get("severity")),
+            suppression_state=str(record.get("suppression_state")),
+            suppression_reason=reason if isinstance(reason, str) else None,
+            location=dict(location) if isinstance(location, dict) else {"path": None},
+            qualname=qualname if isinstance(qualname, str) else None,
+            message=str(record.get("message")),
+        )
