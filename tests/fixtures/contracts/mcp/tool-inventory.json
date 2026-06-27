@@ -119,6 +119,13 @@
       "local_only": true,
       "peer_side_effects": [],
       "authority_boundary": "Lists local unverified or stale verification statuses without recording evidence."
+    },
+    {
+      "name": "plainweave_wardline_peer_facts_list",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Reads Wardline's local findings snapshots as advisory peer facts; it runs no scan, makes no trust decision, and emits no verdict. Wardline owns trust policy."
     }
   ]
 }

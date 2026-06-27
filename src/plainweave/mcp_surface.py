@@ -28,6 +28,7 @@ from plainweave.loomweave_adapter import PUBLIC_SURFACE_TAGS, LoomweaveAdapter, 
 from plainweave.models import TraceLink, TraceRef
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
+from plainweave.wardline_adapter import WardlineAdapter
 
 JsonObject = dict[str, object]
 ENTITY_TRACE_KINDS = {"loomweave_entity", "file_ref"}
@@ -169,6 +170,16 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
         "peer_side_effects": [],
         "authority_boundary": "Lists local unverified or stale verification statuses without recording evidence.",
     },
+    "plainweave_wardline_peer_facts_list": {
+        "name": "plainweave_wardline_peer_facts_list",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Reads Wardline's local findings snapshots as advisory peer facts; it runs no scan, makes no "
+            "trust decision, and emits no verdict. Wardline owns trust policy."
+        ),
+    },
 }
 
 MCP_RESOURCE_URIS = [
@@ -185,6 +196,7 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.intent_trace.v1",
     "plainweave://contracts/weft.plainweave.intent_corpus.v1",
     "plainweave://contracts/weft.plainweave.intent_coverage.v1",
+    "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1",
 ]
 
 REQUIREMENT_STATUS_FILTERS = {"draft", "approved", "deprecated", "rejected"}
@@ -324,6 +336,20 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
             "An advisory coverage fact over the explicitly-tagged public surface; the ratio is qualified by "
             "denominator_complete and is never a pass/fail on the north-star target."
         ),
+    },
+    "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1": {
+        "contract": "weft.plainweave.wardline_peer_facts.v1",
+        "required_sections": [
+            "source", "freshness", "facts", "resolved_or_unseen",
+            "engine_metrics", "summary", "degraded", "authority_boundary", "notes",
+        ],
+        "freshness_states": ["current", "stale", "unavailable"],
+        "suppression_states": ["active", "waived", "baselined", "judged"],
+        "degrade_codes": [
+            "wardline_findings_absent", "wardline_single_snapshot", "wardline_scope_mismatch",
+            "wardline_scan_identity_absent", "wardline_ruleset_mismatch",
+        ],
+        "authority_boundary": "Advisory Wardline findings read from local .wardline snapshots; no verdict, no scan.",
     },
 }
 
@@ -684,6 +710,17 @@ class PlainweaveMcpSurface:
 
     def _loomweave_adapter(self) -> LoomweaveAdapter:
         return LoomweaveAdapter(self.root)
+
+    def _wardline_adapter(self) -> WardlineAdapter:
+        return WardlineAdapter(self.root)
+
+    def plainweave_wardline_peer_facts_list(self, *, limit: int = 50, offset: int = 0) -> JsonObject:
+        try:
+            self._validate_pagination(limit, offset)
+            data = self._wardline_adapter().list_peer_facts(limit=limit, offset=offset)
+        except PlainweaveError as exc:
+            return self._error(exc)
+        return success_envelope("weft.plainweave.wardline_peer_facts.v1", data, project=self._project_key())
 
     def _project_key(self) -> str | None:
         if self.root == project_root():

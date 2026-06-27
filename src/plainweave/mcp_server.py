@@ -152,6 +152,12 @@ def create_mcp_server(surface: PlainweaveMcpSurface | None = None) -> FastMCP:
             status_filter=status_filter, limit=limit, offset=offset
         )
 
+    @mcp.tool()
+    def plainweave_wardline_peer_facts_list(limit: int = 50, offset: int = 0) -> dict[str, Any]:
+        """Read local Wardline findings as advisory peer facts (active/waived/baselined/judged,
+        defect/non-defect, resolved-or-unseen). Runs no scan and emits no verdict."""
+        return active_surface.plainweave_wardline_peer_facts_list(limit=limit, offset=offset)
+
     def register_resource(uri: str) -> None:
         @mcp.resource(uri)
         def plainweave_resource() -> str:
