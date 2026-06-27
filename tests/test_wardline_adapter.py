@@ -163,3 +163,64 @@ def test_health_reports_available_with_one_snapshot(tmp_path: Path) -> None:
     adapter_status = cast(dict[str, Any], health["adapter_status"])
     assert adapter_status["status"] in {"available", "degraded"}
     assert adapter_status["snapshot_count"] == 1
+
+
+def _manifest(covered: list[str], ruleset: str = "rs@1") -> dict[str, object]:
+    return {
+        "kind": "scan_manifest", "scan_id": "s1", "started_at": "2026-01-01T00:00:00Z",
+        "commit": "abc", "ruleset_id": ruleset, "scope": {"selector": "src", "covered_paths": covered},
+    }
+
+
+def test_manifest_primary_resolved_when_path_recovered(tmp_path: Path) -> None:
+    prior = [_manifest(["src/a.py"]), _defect("d1", path="src/a.py")]
+    latest = [_manifest(["src/a.py"])]  # d1 gone, src/a.py still covered -> resolved
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", prior)
+    _write_snapshot(tmp_path, "20260102T000000Z-findings.jsonl", latest)
+    adapter = WardlineAdapter(tmp_path)
+    snaps = adapter._snapshots()
+    latest_records = adapter._load_snapshot(snaps[-1])
+    prior_records = adapter._load_snapshot(snaps[-2])
+    covered = adapter._covered_paths(adapter._read_manifest(snaps[-1]))
+    assert covered == {"src/a.py"}
+    degraded: list[dict[str, object]] = []
+    resolved, indeterminate = adapter._resolved_unseen(
+        latest_records, prior_records, covered=covered, degraded=degraded,
+        prior_manifest=adapter._read_manifest(snaps[-2]), latest_manifest=adapter._read_manifest(snaps[-1]),
+    )
+    assert [item["fingerprint"] for item in resolved] == ["d1"]
+    assert indeterminate == 0
+
+
+def test_manifest_primary_indeterminate_when_path_not_covered(tmp_path: Path) -> None:
+    prior = [_manifest(["src/a.py", "src/b.py"]), _defect("d2", path="src/b.py")]
+    latest = [_manifest(["src/a.py"])]  # b.py no longer scanned -> indeterminate, NOT resolved
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", prior)
+    _write_snapshot(tmp_path, "20260102T000000Z-findings.jsonl", latest)
+    adapter = WardlineAdapter(tmp_path)
+    snaps = adapter._snapshots()
+    covered = adapter._covered_paths(adapter._read_manifest(snaps[-1]))
+    degraded: list[dict[str, object]] = []
+    resolved, indeterminate = adapter._resolved_unseen(
+        adapter._load_snapshot(snaps[-1]), adapter._load_snapshot(snaps[-2]),
+        covered=covered, degraded=degraded,
+        prior_manifest=adapter._read_manifest(snaps[-2]), latest_manifest=adapter._read_manifest(snaps[-1]),
+    )
+    assert resolved == []
+    assert indeterminate == 1
+
+
+def test_manifest_ruleset_mismatch_is_flagged(tmp_path: Path) -> None:
+    prior = [_manifest(["src/a.py"], ruleset="rs@1"), _defect("d1", path="src/a.py")]
+    latest = [_manifest(["src/a.py"], ruleset="rs@2")]
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", prior)
+    _write_snapshot(tmp_path, "20260102T000000Z-findings.jsonl", latest)
+    adapter = WardlineAdapter(tmp_path)
+    snaps = adapter._snapshots()
+    degraded: list[dict[str, object]] = []
+    adapter._resolved_unseen(
+        adapter._load_snapshot(snaps[-1]), adapter._load_snapshot(snaps[-2]),
+        covered={"src/a.py"}, degraded=degraded,
+        prior_manifest=adapter._read_manifest(snaps[-2]), latest_manifest=adapter._read_manifest(snaps[-1]),
+    )
+    assert any(d["code"] == "wardline_ruleset_mismatch" for d in degraded)

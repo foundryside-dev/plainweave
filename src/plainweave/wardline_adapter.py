@@ -7,6 +7,7 @@ from pathlib import Path
 JsonObject = dict[str, object]
 
 WARDLINE_DEGRADE_FINDINGS_ABSENT = "wardline_findings_absent"
+WARDLINE_DEGRADE_RULESET_MISMATCH = "wardline_ruleset_mismatch"
 ENGINE_PATH_SENTINEL = "<engine>"
 
 NON_DEFECT_KINDS = frozenset({"metric", "fact", "classification", "suggestion"})
@@ -100,6 +101,79 @@ class WardlineAdapter:
                 continue
             records.append(parsed)
         return records
+
+    def _read_manifest(self, path: Path) -> JsonObject | None:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict) and parsed.get("kind") == "scan_manifest":
+                return parsed
+        return None
+
+    def _covered_paths(self, manifest: JsonObject | None) -> set[str] | None:
+        if manifest is None:
+            return None
+        scope = manifest.get("scope")
+        paths = scope.get("covered_paths") if isinstance(scope, dict) else None
+        if not isinstance(paths, list):
+            return None
+        return {str(p) for p in paths}
+
+    def _record_path(self, record: JsonObject) -> str | None:
+        location = record.get("location")
+        path = location.get("path") if isinstance(location, dict) else None
+        return path if isinstance(path, str) else None
+
+    def _resolved_unseen(
+        self,
+        latest: list[JsonObject],
+        prior: list[JsonObject],
+        *,
+        covered: set[str] | None,
+        degraded: list[JsonObject],
+        prior_manifest: JsonObject | None,
+        latest_manifest: JsonObject | None,
+    ) -> tuple[list[JsonObject], int]:
+        latest_fps = {str(r.get("fingerprint")) for r in latest if not self._is_engine_record(r)}
+        resolved: list[JsonObject] = []
+        indeterminate = 0
+        effective_covered: set[str] = covered if covered is not None else set()
+        for record in prior:
+            if self._is_engine_record(record):
+                continue
+            if str(record.get("fingerprint")) in latest_fps:
+                continue
+            path = self._record_path(record)
+            if path is not None and path in effective_covered:
+                loc = record.get("location")
+                resolved.append(
+                    {
+                        "fingerprint": str(record.get("fingerprint")),
+                        "rule_id": str(record.get("rule_id")),
+                        "location": dict(loc) if isinstance(loc, dict) else {},
+                    }
+                )
+            else:
+                indeterminate += 1
+        if self._ruleset_id(prior_manifest) != self._ruleset_id(latest_manifest):
+            degraded.append(
+                self._degraded(
+                    WARDLINE_DEGRADE_RULESET_MISMATCH,
+                    "Ruleset id differs between snapshots; resolved/unseen is lower-trust.",
+                )
+            )
+        return resolved, indeterminate
+
+    def _ruleset_id(self, manifest: JsonObject | None) -> str | None:
+        if manifest is None:
+            return None
+        value = manifest.get("ruleset_id")
+        return value if isinstance(value, str) else None
 
     def _is_engine_record(self, record: JsonObject) -> bool:
         location = record.get("location")
