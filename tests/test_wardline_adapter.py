@@ -224,3 +224,37 @@ def test_manifest_ruleset_mismatch_is_flagged(tmp_path: Path) -> None:
         prior_manifest=adapter._read_manifest(snaps[-2]), latest_manifest=adapter._read_manifest(snaps[-1]),
     )
     assert any(d["code"] == "wardline_ruleset_mismatch" for d in degraded)
+
+
+def test_fallback_flags_scan_identity_absent_when_no_manifest(tmp_path: Path) -> None:
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", [_defect("d1", path="src/a.py")])
+    _write_snapshot(tmp_path, "20260102T000000Z-findings.jsonl", [])  # d1 gone, no manifest
+    # latest has no findings -> latest_path_set empty -> d1 path not covered -> indeterminate + scope_mismatch
+    adapter = WardlineAdapter(tmp_path)
+    snaps = adapter._snapshots()
+    degraded: list[dict[str, object]] = []
+    covered = adapter._scope_for_diff(
+        adapter._load_snapshot(snaps[-1]), adapter._load_snapshot(snaps[-2]),
+        latest_manifest=None, prior_manifest=None, degraded=degraded,
+    )
+    assert covered == set()
+    assert any(d["code"] == "wardline_scan_identity_absent" for d in degraded)
+    assert any(d["code"] == "wardline_scope_mismatch" for d in degraded)
+    mismatch = next(d for d in degraded if d["code"] == "wardline_scope_mismatch")
+    assert isinstance(mismatch["detail"]["jaccard"], float)
+
+
+def test_fallback_resolved_when_same_path_set(tmp_path: Path) -> None:
+    _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl",
+                    [_defect("d1", path="src/a.py"), _defect("keep", path="src/a.py")])
+    _write_snapshot(tmp_path, "20260102T000000Z-findings.jsonl", [_defect("keep", path="src/a.py")])
+    adapter = WardlineAdapter(tmp_path)
+    snaps = adapter._snapshots()
+    degraded: list[dict[str, object]] = []
+    covered = adapter._scope_for_diff(
+        adapter._load_snapshot(snaps[-1]), adapter._load_snapshot(snaps[-2]),
+        latest_manifest=None, prior_manifest=None, degraded=degraded,
+    )
+    assert covered == {"src/a.py"}
+    assert not any(d["code"] == "wardline_scope_mismatch" for d in degraded)
+    assert any(d["code"] == "wardline_scan_identity_absent" for d in degraded)

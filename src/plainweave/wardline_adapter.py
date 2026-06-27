@@ -8,6 +8,9 @@ JsonObject = dict[str, object]
 
 WARDLINE_DEGRADE_FINDINGS_ABSENT = "wardline_findings_absent"
 WARDLINE_DEGRADE_RULESET_MISMATCH = "wardline_ruleset_mismatch"
+WARDLINE_DEGRADE_SINGLE_SNAPSHOT = "wardline_single_snapshot"
+WARDLINE_DEGRADE_SCOPE_MISMATCH = "wardline_scope_mismatch"
+WARDLINE_DEGRADE_SCAN_IDENTITY_ABSENT = "wardline_scan_identity_absent"
 ENGINE_PATH_SENTINEL = "<engine>"
 
 NON_DEFECT_KINDS = frozenset({"metric", "fact", "classification", "suggestion"})
@@ -179,6 +182,54 @@ class WardlineAdapter:
         location = record.get("location")
         path = location.get("path") if isinstance(location, dict) else None
         return path == ENGINE_PATH_SENTINEL
+
+    def _latest_path_set(self, records: list[JsonObject]) -> set[str]:
+        paths: set[str] = set()
+        for record in records:
+            if self._is_engine_record(record):
+                continue
+            path = self._record_path(record)
+            if path is not None:
+                paths.add(path)
+        return paths
+
+    def _jaccard(self, a: set[str], b: set[str]) -> float:
+        union = a | b
+        if not union:
+            return 1.0
+        return round(len(a & b) / len(union), 4)
+
+    def _scope_for_diff(
+        self,
+        latest: list[JsonObject],
+        prior: list[JsonObject],
+        *,
+        latest_manifest: JsonObject | None,
+        prior_manifest: JsonObject | None,
+        degraded: list[JsonObject],
+    ) -> set[str]:
+        latest_covered = self._covered_paths(latest_manifest)
+        prior_covered = self._covered_paths(prior_manifest)
+        if latest_covered is not None and prior_covered is not None:
+            covered = latest_covered
+        else:
+            covered = self._latest_path_set(latest)
+            degraded.append(
+                self._degraded(
+                    WARDLINE_DEGRADE_SCAN_IDENTITY_ABSENT,
+                    "Scan-identity metadata absent; resolved/unseen bounded by the latest path-set heuristic.",
+                )
+            )
+        prior_paths = self._latest_path_set(prior)
+        if prior_paths - covered:
+            degraded.append(
+                {
+                    "code": WARDLINE_DEGRADE_SCOPE_MISMATCH,
+                    "message": "Some prior findings lie outside the latest scanned scope; they are indeterminate.",
+                    "detail": {"jaccard": self._jaccard(prior_paths, covered)},
+                }
+            )
+        return covered
 
     def _finding_from_record(self, record: JsonObject) -> WardlineFinding:
         location = record.get("location")
