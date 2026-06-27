@@ -560,6 +560,13 @@ def _doctor_catalog_check(root: Path) -> dict[str, object]:
 def _doctor_wardline_check(root: Path) -> dict[str, object]:
     """Wardline findings binding: the sibling-owned trust-gate output Plainweave reads
     as advisory peer facts. Report-only (consumer boundary; Plainweave never scans)."""
+    # The remediation must scan the root doctor actually inspected, not the caller's cwd.
+    # When root is the cwd, `wardline scan .` already targets it; otherwise prefix
+    # `cd <root>` so the suggested fix writes its snapshot in the inspected project rather
+    # than wherever the operator happens to be standing.
+    cwd_is_root = root == Path.cwd().resolve()
+    scan_cmd = "wardline scan ." if cwd_is_root else f"cd {root} && wardline scan ."
+    wardline_dir = ".wardline" if cwd_is_root else f"{root}/.wardline"
     try:
         health = WardlineAdapter(root).health()
     except Exception as exc:  # never let a sibling probe crash doctor
@@ -569,7 +576,7 @@ def _doctor_wardline_check(root: Path) -> dict[str, object]:
             "detail": f"could not probe the Wardline findings ({type(exc).__name__})",
             "fixable": False,
             "fixed": False,
-            "next_action": "wardline scan .  (Plainweave consumes its findings; the sibling owns the scan)",
+            "next_action": f"{scan_cmd}  (Plainweave consumes its findings; the sibling owns the scan)",
         }
     raw_status = health.get("adapter_status")
     status = raw_status if isinstance(raw_status, dict) else {}
@@ -580,7 +587,7 @@ def _doctor_wardline_check(root: Path) -> dict[str, object]:
             "detail": "no .wardline findings snapshot present; peer facts are unavailable (not clean)",
             "fixable": False,
             "fixed": False,
-            "next_action": "wardline scan .  (writes .wardline/<ts>-findings.jsonl)",
+            "next_action": f"{scan_cmd}  (writes {wardline_dir}/<ts>-findings.jsonl)",
         }
     count = status.get("snapshot_count")
     detail = f"Wardline findings available ({count} snapshot(s))"

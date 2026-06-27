@@ -101,6 +101,9 @@ def test_doctor_wardline_check_warns_when_probe_raises(tmp_path: Path, monkeypat
     assert check["id"] == "wardline_findings"
     assert check["status"] == "warn"  # report-only: a raising probe warns, never errors
     assert "could not probe" in cast(str, check["detail"])
+    # The probe-raised remediation must also target the inspected root (tmp_path != cwd),
+    # not the caller's cwd — same root-awareness as the unavailable branch.
+    assert str(tmp_path) in cast(str, check["next_action"])
 
 
 def test_doctor_wardline_check_warns_when_unavailable(tmp_path: Path) -> None:
@@ -110,6 +113,26 @@ def test_doctor_wardline_check_warns_when_unavailable(tmp_path: Path) -> None:
     assert check["status"] == "warn"  # report-only: absent findings warn, never error
     assert "unavailable" in cast(str, check["detail"])
     assert "wardline scan" in cast(str, check["next_action"])
+
+
+def test_doctor_wardline_remediation_targets_inspected_root(tmp_path: Path) -> None:
+    # The check inspected `tmp_path`, not the caller's cwd. A bare `wardline scan .` would
+    # scan/write in the wrong project, so when root != cwd the remediation must name the
+    # inspected root (cd <root> && wardline scan .) and point the written path at it.
+    check = _doctor_wardline_check(tmp_path)
+    next_action = cast(str, check["next_action"])
+    assert str(tmp_path) in next_action
+    assert f"cd {tmp_path}" in next_action
+
+
+def test_doctor_wardline_remediation_is_plain_when_root_is_cwd(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # When the inspected root IS the caller's cwd, `wardline scan .` already targets the
+    # right project, so the remediation stays plain (no redundant cd prefix).
+    monkeypatch.chdir(tmp_path)
+    check = _doctor_wardline_check(tmp_path.resolve())
+    next_action = cast(str, check["next_action"])
+    assert "wardline scan ." in next_action
+    assert "cd " not in next_action
 
 
 def test_doctor_wardline_check_ok_when_findings_present(tmp_path: Path) -> None:

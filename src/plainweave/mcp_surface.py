@@ -762,7 +762,14 @@ class PlainweaveMcpSurface:
             return validation_error
 
         def action(service: PlainweaveService) -> JsonObject:
-            traces = service.trace_for()
+            # A rejected trace is an explicitly reviewed-and-rejected binding, not coverage.
+            # trace_for() returns links in every state, so drop rejected rows before building
+            # the enrichment view: _requirements_enrichment_status stays naive (a non-empty
+            # requirement_trail => "present"), so "rejected is not a binding" must already hold
+            # by the time it sees the item. Scoped to this Warpline-facing surface only; the
+            # diagnostic entity_intent_context surface keeps rejected rows on purpose (its
+            # orphan/freshness context counts bindings by state).
+            traces = [trace for trace in service.trace_for() if trace.state != "rejected"]
             items = [
                 self._requirements_enrichment_item(service, self._entity_intent_context_item(service, ref, traces))
                 for ref in entity_refs

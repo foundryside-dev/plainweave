@@ -97,6 +97,62 @@ def test_status_unavailable_when_local_catalog_unavailable(tmp_path: Path) -> No
     assert reason
 
 
+def test_present_excludes_rejected_binding_from_coverage(tmp_path: Path) -> None:
+    # The finding: a rejected trace's requirement must not surface as coverage. The emitted
+    # requirement item drops the trace state, so a reviewed-and-rejected binding would read
+    # as real requirement coverage to a Warpline consumer. An entity with an accepted binding
+    # to req A AND a rejected binding to req B must report "present" with ONLY req A — req B
+    # (explicitly rejected) is not coverage. This also pins the via[0] ordering subtlety.
+    surface, seed = _seed_bound(tmp_path)
+    service = surface._service()
+    rejected_req = service.create_requirement(
+        "Rate limit logins", "The API shall rate-limit login attempts.", "human:john"
+    )
+    service.add_acceptance_criterion(rejected_req.id, "6th attempt in 60s returns 429.", actor="human:john")
+    service.approve_requirement(rejected_req.id, actor="human:john", expected_version=0, idempotency_key="approve-2")
+    link = service.propose_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", f"{rejected_req.id}@1"),
+        actor="agent:codex",
+    )
+    service.reject_trace_link(link.id, actor="human:john", reason="wrong entity")
+
+    envelope = surface.plainweave_requirements_enrichment_get(entity_refs=[seed["public_sei"]])
+    item = envelope["data"]["items"][0]
+    assert item["status"] == "present"  # the accepted binding to req A still holds
+    requirement_ids = {req["requirement_id"] for req in item["requirements"]}
+    assert rejected_req.id not in requirement_ids  # rejected binding to req B is NOT coverage
+    assert len(item["requirements"]) == 1  # only the accepted binding to req A
+
+
+def test_status_absent_when_only_binding_is_rejected(tmp_path: Path) -> None:
+    # A reviewed-and-rejected trace is not coverage. service.trace_for() returns rejected
+    # rows, so without filtering the enrichment surface would count an entity's only (rejected)
+    # binding as real coverage and report "present". A rejected-only entity that resolves
+    # locally must read "absent" (resolves, but no live requirement bound) — same semantics
+    # as test_status_absent_when_resolved_but_unbound; never a silent "present".
+    surface, seed = _seed_bound(tmp_path)
+    service = surface._service()
+    req = service.create_requirement(
+        "Audit retention", "The system shall retain audit logs for 90 days.", "human:john"
+    )
+    service.add_acceptance_criterion(req.id, "Logs older than 90 days are purged.", actor="human:john")
+    service.approve_requirement(req.id, actor="human:john", expected_version=0, idempotency_key="approve-2")
+    link = service.propose_trace_link(
+        TraceRef("loomweave_entity", "python:function:pkg.main"),  # entry entity, otherwise unbound
+        "satisfies",
+        TraceRef("requirement_version", f"{req.id}@1"),
+        actor="agent:codex",
+    )
+    service.reject_trace_link(link.id, actor="human:john", reason="not relevant")
+
+    envelope = surface.plainweave_requirements_enrichment_get(entity_refs=[seed["entry_sei"]])
+    item = envelope["data"]["items"][0]
+    assert item["status"] == "absent"  # rejected binding is not coverage
+    assert item["requirements"] == []
+
+
 def test_present_item_shape(tmp_path: Path) -> None:
     surface, seed = _seed_bound(tmp_path)
     service = surface._service()
