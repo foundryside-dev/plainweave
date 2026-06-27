@@ -329,7 +329,7 @@ class WardlineAdapter:
         by_kind: dict[str, int] = {}
         defect = 0
         for finding in findings:
-            if finding.suppression_state in by_state:
+            if not finding.non_defect and finding.suppression_state in by_state:
                 by_state[finding.suppression_state] += 1
             by_kind[finding.kind] = by_kind.get(finding.kind, 0) + 1
             if not finding.non_defect:
