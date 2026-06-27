@@ -134,6 +134,14 @@ def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentPa
     wardline_facts_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
     wardline_facts_parser.set_defaults(handler=handle_wardline_peer_facts)
 
+    enrichment_parser = subparsers.add_parser(
+        "requirements-enrichment",
+        help="Per-entity requirements enrichment for Warpline (weft.plainweave.requirements_enrichment.v1).",
+    )
+    enrichment_parser.add_argument("entity_ref", nargs="+", help="One or more entity refs (SEI or dotted locator).")
+    enrichment_parser.add_argument("--json", action="store_true", help="Emit a JSON envelope.")
+    enrichment_parser.set_defaults(handler=handle_requirements_enrichment)
+
 
 def _register_requirement_commands(
     subparsers: argparse._SubParsersAction[argparse.ArgumentParser],
@@ -1097,6 +1105,17 @@ def handle_wardline_peer_facts(args: argparse.Namespace) -> int:
     surface = PlainweaveMcpSurface(project_root())
     try:
         envelope = surface.plainweave_wardline_peer_facts_list(limit=args.limit, offset=args.offset)
+    except PlainweaveError as exc:
+        return _emit_error(args, exc)
+    return _emit_surface_result(args, envelope)
+
+
+def handle_requirements_enrichment(args: argparse.Namespace) -> int:
+    from plainweave.mcp_surface import PlainweaveMcpSurface  # local import: cli_commands<->mcp_surface cycle
+
+    surface = PlainweaveMcpSurface(project_root())
+    try:
+        envelope = surface.plainweave_requirements_enrichment_get(entity_refs=args.entity_ref)
     except PlainweaveError as exc:
         return _emit_error(args, exc)
     return _emit_surface_result(args, envelope)
