@@ -64,7 +64,7 @@ def _engine() -> dict[str, object]:
 def test_engine_record_is_separated_from_entity_findings(tmp_path: Path) -> None:
     _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", [_defect("d1"), _engine()])
     adapter = WardlineAdapter(tmp_path)
-    records = adapter._load_snapshot((tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl"))
+    records = adapter._load_snapshot(tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl")
     entity = [r for r in records if not adapter._is_engine_record(r)]
     engine = [r for r in records if adapter._is_engine_record(r)]
     assert len(entity) == 1 and len(engine) == 1
@@ -78,7 +78,7 @@ def test_non_defect_kinds_are_tagged_non_defect(tmp_path: Path) -> None:
     rec["kind"] = "classification"
     _write_snapshot(tmp_path, "20260101T000000Z-findings.jsonl", [rec])
     adapter = WardlineAdapter(tmp_path)
-    [record] = adapter._load_snapshot((tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl"))
+    [record] = adapter._load_snapshot(tmp_path / ".wardline" / "20260101T000000Z-findings.jsonl")
     assert adapter._finding_from_record(record).non_defect is True
 
 
