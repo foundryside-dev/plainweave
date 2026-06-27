@@ -7,6 +7,7 @@ from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
 from plainweave.store import migrate
 from tests.loomweave_test_utils import seed_loomweave_catalog
+from tests.warpline_contract import validate_requirements_enrichment
 
 
 def _seed_bound(tmp_path: Path) -> tuple[PlainweaveMcpSurface, dict[str, str]]:
@@ -84,6 +85,7 @@ def test_envelope_mixed_states(tmp_path: Path) -> None:
     assert envelope["schema"] == "weft.plainweave.requirements_enrichment.v1"
     assert envelope["ok"] is True
     data = envelope["data"]
+    validate_requirements_enrichment(data)
     statuses = {it["entity_ref"]: it["status"] for it in data["items"]}
     assert statuses[seed["public_sei"]] == "present"
     assert statuses[seed["module_sei"]] == "absent"
