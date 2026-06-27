@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, cast
 
@@ -123,6 +124,8 @@ def test_mcp_tool_inventory_is_agent_task_surface() -> None:
         "plainweave_preflight_facts_get",
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
+        "plainweave_wardline_peer_facts_list",
+        "plainweave_requirements_enrichment_get",
     }
 
     assert set(MCP_TOOL_METADATA) == expected_tools
@@ -781,6 +784,34 @@ def test_mcp_errors_use_plainweave_error_envelope(tmp_path: Path) -> None:
     assert_error(surface.plainweave_verification_status_list(status_filter="satisfied"), "VALIDATION")
 
 
+def test_mcp_wardline_peer_facts_returns_advisory_envelope_without_verdicts(tmp_path: Path) -> None:
+    service_for(tmp_path)  # initialize the plainweave store
+    wdir = tmp_path / ".wardline"
+    wdir.mkdir()
+    record: dict[str, object] = {
+        "fingerprint": "d1",
+        "kind": "defect",
+        "rule_id": "WLN-1",
+        "location": {"path": "src/a.py", "line_start": 1, "line_end": 1, "col_start": 0, "col_end": 1},
+        "maturity": "stable",
+        "message": "m",
+        "properties": {},
+        "qualname": "a.f",
+        "related_entities": [],
+        "severity": "CRITICAL",
+        "suggestion": None,
+        "suppression_reason": None,
+        "suppression_state": "active",
+    }
+    (wdir / "20260101T000000Z-findings.jsonl").write_text(json.dumps(record), encoding="utf-8")
+    envelope = PlainweaveMcpSurface(tmp_path).plainweave_wardline_peer_facts_list()
+    assert envelope["schema"] == "weft.plainweave.wardline_peer_facts.v1"
+    assert envelope["ok"] is True
+    from tests.wardline_contract import validate_wardline_peer_facts
+
+    validate_wardline_peer_facts(cast(dict[str, Any], envelope["data"]))
+
+
 def test_mcp_contract_resources_are_readable(tmp_path: Path) -> None:
     service_for(tmp_path)
 
@@ -792,3 +823,13 @@ def test_mcp_contract_resources_are_readable(tmp_path: Path) -> None:
         assert resource["ok"] is True
         assert isinstance(resource["schema"], str)
         assert resource["schema"].startswith("weft.plainweave.")
+
+
+def test_mcp_requirements_enrichment_tool_is_advertised_and_callable(tmp_path: Path) -> None:
+    service_for(tmp_path)
+    seed_loomweave_catalog(tmp_path)
+    envelope = PlainweaveMcpSurface(tmp_path).plainweave_requirements_enrichment_get(
+        entity_refs=["loomweave:eid:public00000000000000000000000000"]
+    )
+    assert envelope["schema"] == "weft.plainweave.requirements_enrichment.v1"
+    assert "plainweave_requirements_enrichment_get" in MCP_TOOL_METADATA

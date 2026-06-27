@@ -1,0 +1,66 @@
+{
+  "authority_boundary": {
+    "governance_verdicts": false,
+    "live_peer_calls": false,
+    "local_only": true,
+    "trust_policy_owner": "wardline"
+  },
+  "degraded": [],
+  "engine_metrics": [],
+  "facts": [
+    {
+      "fingerprint": "fa-keep",
+      "kind": "defect",
+      "location": {
+        "col_end": 3,
+        "col_start": 0,
+        "line_end": 9,
+        "line_start": 9,
+        "path": "src/b.py"
+      },
+      "message": "tainted b",
+      "non_defect": false,
+      "qualname": "b.g",
+      "rule_id": "WLN-TAINT",
+      "severity": "WARN",
+      "suppression_reason": null,
+      "suppression_state": "active"
+    }
+  ],
+  "freshness": "current",
+  "notes": [],
+  "resolved_or_unseen": [
+    {
+      "fingerprint": "fa-resolved",
+      "location": {
+        "col_end": 3,
+        "col_start": 0,
+        "line_end": 4,
+        "line_start": 4,
+        "path": "src/a.py"
+      },
+      "rule_id": "WLN-TAINT"
+    }
+  ],
+  "schema": "weft.plainweave.wardline_peer_facts.v1",
+  "source": {
+    "prior": "20260101T000000Z-findings.jsonl",
+    "snapshot": "20260102T000000Z-findings.jsonl",
+    "snapshot_count": 2
+  },
+  "summary": {
+    "by_kind": {
+      "defect": 1
+    },
+    "by_suppression_state": {
+      "active": 1,
+      "baselined": 0,
+      "judged": 0,
+      "waived": 0
+    },
+    "defect": 1,
+    "indeterminate": 0,
+    "non_defect": 0,
+    "resolved_or_unseen": 1
+  }
+}

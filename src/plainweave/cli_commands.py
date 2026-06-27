@@ -50,6 +50,7 @@ from plainweave.models import (
 from plainweave.paths import default_project_key, plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
 from plainweave.store import SCHEMA_VERSION, connect, migrate, read_schema_meta
+from plainweave.wardline_adapter import WardlineAdapter
 
 
 def register_commands(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
@@ -556,6 +557,45 @@ def _doctor_catalog_check(root: Path) -> dict[str, object]:
     }
 
 
+def _doctor_wardline_check(root: Path) -> dict[str, object]:
+    """Wardline findings binding: the sibling-owned trust-gate output Plainweave reads
+    as advisory peer facts. Report-only (consumer boundary; Plainweave never scans)."""
+    try:
+        health = WardlineAdapter(root).health()
+    except Exception as exc:  # never let a sibling probe crash doctor
+        return {
+            "id": "wardline_findings",
+            "status": "warn",
+            "detail": f"could not probe the Wardline findings ({type(exc).__name__})",
+            "fixable": False,
+            "fixed": False,
+            "next_action": "wardline scan .  (Plainweave consumes its findings; the sibling owns the scan)",
+        }
+    raw_status = health.get("adapter_status")
+    status = raw_status if isinstance(raw_status, dict) else {}
+    if status.get("status") == "unavailable":
+        return {
+            "id": "wardline_findings",
+            "status": "warn",
+            "detail": "no .wardline findings snapshot present; peer facts are unavailable (not clean)",
+            "fixable": False,
+            "fixed": False,
+            "next_action": "wardline scan .  (writes .wardline/<ts>-findings.jsonl)",
+        }
+    count = status.get("snapshot_count")
+    detail = f"Wardline findings available ({count} snapshot(s))"
+    if status.get("status") == "degraded":
+        detail += "; <2 snapshots, resolved/unseen unavailable"
+    return {
+        "id": "wardline_findings",
+        "status": "ok",
+        "detail": detail,
+        "fixable": False,
+        "fixed": False,
+        "next_action": None,
+    }
+
+
 def _doctor_mcp_check() -> dict[str, object]:
     """MCP/agent surface: the plainweave-mcp server entry point resolves."""
     import importlib.util
@@ -586,7 +626,7 @@ def run_doctor(root: Path, *, fix: bool = False) -> dict[str, Any]:
     when no check is in error (warnings are advisory, e.g. a sibling catalog the
     consumer boundary forbids us to build)."""
     store_check, fixed = _doctor_store_check(root, fix)
-    checks = [store_check, _doctor_catalog_check(root), _doctor_mcp_check()]
+    checks = [store_check, _doctor_catalog_check(root), _doctor_wardline_check(root), _doctor_mcp_check()]
     summary = {state: sum(1 for c in checks if c["status"] == state) for state in ("ok", "warn", "error")}
     info = inspect_project(root)
     return {

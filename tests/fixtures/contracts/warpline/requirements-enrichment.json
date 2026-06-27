@@ -1,0 +1,50 @@
+{
+  "schema": "weft.plainweave.requirements_enrichment.v1",
+  "items": [
+    {
+      "entity_ref": "loomweave:eid:public00000000000000000000000000",
+      "status": "present",
+      "requirements": [
+        {
+          "requirement_id": "req-1",
+          "stable_id": "plainweave:req:AUTH:0001",
+          "version": 1,
+          "type": "functional",
+          "criticality": "medium",
+          "binding": {
+            "relation": "satisfies",
+            "actor_kind": "human",
+            "freshness": "current"
+          }
+        }
+      ],
+      "reason": null,
+      "freshness": "current"
+    },
+    {
+      "entity_ref": "loomweave:eid:module00000000000000000000000000",
+      "status": "absent",
+      "requirements": [],
+      "reason": "Entity resolves locally but no requirement is bound to it.",
+      "freshness": "unavailable"
+    },
+    {
+      "entity_ref": "loomweave:eid:missing00000000000000000000000000",
+      "status": "unavailable",
+      "requirements": [],
+      "reason": "Entity identity is not resolvable locally; cannot determine requirements.",
+      "freshness": "unavailable"
+    }
+  ],
+  "summary": {
+    "present": 1,
+    "absent": 1,
+    "unavailable": 1
+  },
+  "authority_boundary": {
+    "local_only": true,
+    "live_peer_calls": false,
+    "governance_verdicts": false,
+    "requirements_owner": "plainweave"
+  }
+}

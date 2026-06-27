@@ -58,6 +58,7 @@ from plainweave.models import (
     VerificationReason,
 )
 from plainweave.store import connect, read_schema_meta
+from plainweave.wardline_adapter import WardlineAdapter
 
 
 class PlainweaveService:
@@ -2593,6 +2594,9 @@ class PlainweaveService:
 
     def _loomweave_adapter(self) -> LoomweaveAdapter:
         return LoomweaveAdapter(self.root)
+
+    def _wardline_adapter(self) -> WardlineAdapter:
+        return WardlineAdapter(self.root)
 
     def _loomweave_error(self, exc: LoomweaveIdentityError) -> PlainweaveError:
         code = {

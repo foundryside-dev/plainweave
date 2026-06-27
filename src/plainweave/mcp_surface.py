@@ -28,8 +28,9 @@ from plainweave.loomweave_adapter import PUBLIC_SURFACE_TAGS, LoomweaveAdapter, 
 from plainweave.models import TraceLink, TraceRef
 from plainweave.paths import plainweave_db_path, project_root
 from plainweave.service import PlainweaveService
+from plainweave.wardline_adapter import WardlineAdapter
 
-JsonObject = dict[str, object]
+JsonObject = dict[str, Any]
 ENTITY_TRACE_KINDS = {"loomweave_entity", "file_ref"}
 MAX_ENTITY_CONTEXT_REFS = 100
 PREFLIGHT_SCOPE_KINDS = {"pending_diff", "commit_range", "explicit_requirements", "project"}
@@ -169,6 +170,27 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
         "peer_side_effects": [],
         "authority_boundary": "Lists local unverified or stale verification statuses without recording evidence.",
     },
+    "plainweave_wardline_peer_facts_list": {
+        "name": "plainweave_wardline_peer_facts_list",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Reads Wardline's local findings snapshots as advisory peer facts; it runs no scan, makes no "
+            "trust decision, and emits no verdict. Wardline owns trust policy."
+        ),
+    },
+    "plainweave_requirements_enrichment_get": {
+        "name": "plainweave_requirements_enrichment_get",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Returns local Plainweave requirement facts for Warpline's reserved enrichment slot as "
+            "present|absent|unavailable; an identity gap is 'unavailable' (cannot tell), never 'absent'. "
+            "No verdict; Plainweave owns requirements."
+        ),
+    },
 }
 
 MCP_RESOURCE_URIS = [
@@ -185,6 +207,8 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.intent_trace.v1",
     "plainweave://contracts/weft.plainweave.intent_corpus.v1",
     "plainweave://contracts/weft.plainweave.intent_coverage.v1",
+    "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1",
+    "plainweave://contracts/weft.plainweave.requirements_enrichment.v1",
 ]
 
 REQUIREMENT_STATUS_FILTERS = {"draft", "approved", "deprecated", "rejected"}
@@ -324,6 +348,42 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
             "An advisory coverage fact over the explicitly-tagged public surface; the ratio is qualified by "
             "denominator_complete and is never a pass/fail on the north-star target."
         ),
+    },
+    "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1": {
+        "contract": "weft.plainweave.wardline_peer_facts.v1",
+        "required_sections": [
+            "source",
+            "freshness",
+            "facts",
+            "resolved_or_unseen",
+            "engine_metrics",
+            "summary",
+            "degraded",
+            "authority_boundary",
+            "notes",
+        ],
+        "freshness_states": ["current", "unavailable"],
+        "suppression_states": ["active", "waived", "baselined", "judged"],
+        "degrade_codes": [
+            "wardline_findings_absent",
+            "wardline_single_snapshot",
+            "wardline_scope_mismatch",
+            "wardline_scan_identity_absent",
+            "wardline_ruleset_mismatch",
+        ],
+        "authority_boundary": "Advisory Wardline findings read from local .wardline snapshots; no verdict, no scan.",
+    },
+    "plainweave://contracts/weft.plainweave.requirements_enrichment.v1": {
+        "contract": "weft.plainweave.requirements_enrichment.v1",
+        "required_sections": ["items", "summary", "authority_boundary"],
+        "statuses": ["present", "absent", "unavailable"],
+        "status_meaning": {
+            "present": "peer present, ≥1 alive requirement bound",
+            "absent": "peer present, definitively no requirement bound",
+            "unavailable": "cannot determine (identity gap, dead binding, or store error) — NOT 'no requirements'",
+        },
+        "schema_status": "item-level shape PROPOSED; pending Warpline interface-lock ratification (spec 11)",
+        "authority_boundary": "Plainweave owns requirements; advisory only; no governance verdict.",
     },
 }
 
@@ -684,6 +744,76 @@ class PlainweaveMcpSurface:
 
     def _loomweave_adapter(self) -> LoomweaveAdapter:
         return LoomweaveAdapter(self.root)
+
+    def _wardline_adapter(self) -> WardlineAdapter:
+        return WardlineAdapter(self.root)
+
+    def plainweave_wardline_peer_facts_list(self, *, limit: int = 50, offset: int = 0) -> JsonObject:
+        try:
+            self._validate_pagination(limit, offset)
+            data = self._wardline_adapter().list_peer_facts(limit=limit, offset=offset)
+        except PlainweaveError as exc:
+            return self._error(exc)
+        return success_envelope("weft.plainweave.wardline_peer_facts.v1", data, project=self._project_key())
+
+    def plainweave_requirements_enrichment_get(self, *, entity_refs: Sequence[str]) -> JsonObject:
+        validation_error = self._validate_entity_refs(entity_refs)
+        if validation_error is not None:
+            return validation_error
+
+        def action(service: PlainweaveService) -> JsonObject:
+            traces = service.trace_for()
+            items = [
+                self._requirements_enrichment_item(service, self._entity_intent_context_item(service, ref, traces))
+                for ref in entity_refs
+            ]
+            summary = {"present": 0, "absent": 0, "unavailable": 0}
+            for entry in items:
+                summary[str(entry["status"])] += 1
+            return {
+                "items": items,
+                "summary": summary,
+                "authority_boundary": {
+                    "local_only": True,
+                    "live_peer_calls": False,
+                    "governance_verdicts": False,
+                    "requirements_owner": "plainweave",
+                },
+            }
+
+        return self._result("weft.plainweave.requirements_enrichment.v1", action)
+
+    def _requirements_enrichment_item(self, service: PlainweaveService, item: JsonObject) -> JsonObject:
+        status, reason = self._requirements_enrichment_status(item)
+        requirements = self._requirements_enrichment_items(service, item) if status == "present" else []
+        if status == "unavailable":
+            freshness = "unavailable"
+        else:
+            freshness = str(cast(JsonObject, item["freshness"]).get("state", "unknown"))
+        return {
+            "entity_ref": item["input_ref"],
+            "status": status,
+            "requirements": requirements,
+            "reason": reason,
+            "freshness": freshness,
+        }
+
+    def _requirements_enrichment_status(self, item: JsonObject) -> tuple[str, str | None]:
+        resolution = cast(JsonObject, item["resolution"])
+        local = cast(JsonObject, resolution["local_catalog"])
+        requirement_trail = cast(list[object], item["requirement_trail"])
+        matched = cast(list[object], resolution["matched_refs"])
+        if requirement_trail:
+            return "present", None
+        if local["state"] == "unavailable":
+            return "unavailable", "Local Loomweave catalog could not be consulted; cannot determine requirements."
+        if not matched:
+            if local["state"] == "resolved":
+                return "absent", "Entity resolves locally but no requirement is bound to it."
+            return "unavailable", "Entity identity is not resolvable locally; cannot determine requirements."
+        # A trace matched but no alive requirement loaded behind it: this is "cannot
+        # tell", never "definitively none" (no-silent-clean, spec §4).
+        return "unavailable", "A binding exists but its requirement could not be resolved; cannot determine."
 
     def _project_key(self) -> str | None:
         if self.root == project_root():
@@ -1410,6 +1540,33 @@ class PlainweaveMcpSurface:
 
     def _trace_ref_dict(self, trace_ref: TraceRef) -> JsonObject:
         return {"kind": trace_ref.kind, "id": trace_ref.id}
+
+    def _actor_kind_from_authority(self, authority: str) -> str:
+        return "human" if authority in {"accepted", "human_proposed", "human_attested"} else "agent"
+
+    def _requirements_enrichment_items(self, service: PlainweaveService, item: JsonObject) -> list[JsonObject]:
+        items: list[JsonObject] = []
+        for entry in cast(list[JsonObject], item["requirement_trail"]):
+            record = cast(JsonObject, entry["requirement"])
+            profile = service.requirement_preflight_profile(str(record["requirement_id"]))
+            via = cast(list[JsonObject], entry["via_bindings"])
+            binding_trace = via[0] if via and isinstance(via[0], dict) else {}
+            authority = str(binding_trace.get("authority", ""))
+            items.append(
+                {
+                    "requirement_id": profile["requirement_id"],
+                    "stable_id": profile["stable_id"],
+                    "version": profile["version"],
+                    "type": profile["type"],
+                    "criticality": profile["criticality"],
+                    "binding": {
+                        "relation": binding_trace.get("relation"),
+                        "actor_kind": self._actor_kind_from_authority(authority),
+                        "freshness": binding_trace.get("freshness"),
+                    },
+                }
+            )
+        return items
 
     def _entity_orphan_context(self, traces: Sequence[TraceLink], *, local_state: str) -> JsonObject:
         if not traces:
