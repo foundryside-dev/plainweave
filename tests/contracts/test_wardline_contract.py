@@ -4,15 +4,15 @@ import json
 from pathlib import Path
 
 import pytest
+from tests.wardline_contract import assert_no_wardline_verdicts, validate_wardline_peer_facts
 
 from plainweave.wardline_adapter import WardlineAdapter
-from tests.wardline_contract import assert_no_wardline_verdicts, validate_wardline_peer_facts
 
 
 def test_validator_accepts_live_payload(tmp_path: Path) -> None:
     wdir = tmp_path / ".wardline"
     wdir.mkdir()
-    record = {
+    record: dict[str, object] = {
         "fingerprint": "d1", "kind": "defect", "rule_id": "WLN-1",
         "location": {"path": "src/a.py", "line_start": 1, "line_end": 1, "col_start": 0, "col_end": 1},
         "maturity": "stable", "message": "m", "properties": {}, "qualname": "a.f",
