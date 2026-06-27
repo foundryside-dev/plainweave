@@ -1465,6 +1465,35 @@ class PlainweaveMcpSurface:
     def _trace_ref_dict(self, trace_ref: TraceRef) -> JsonObject:
         return {"kind": trace_ref.kind, "id": trace_ref.id}
 
+    def _actor_kind_from_authority(self, authority: str) -> str:
+        return "human" if authority in {"accepted", "human_proposed", "human_attested"} else "agent"
+
+    def _requirements_enrichment_items(
+        self, service: PlainweaveService, item: JsonObject
+    ) -> list[JsonObject]:
+        items: list[JsonObject] = []
+        for entry in cast(list[JsonObject], item["requirement_trail"]):
+            record = cast(JsonObject, entry["requirement"])
+            profile = service.requirement_preflight_profile(str(record["requirement_id"]))
+            via = cast(list[JsonObject], entry["via_bindings"])
+            binding_trace = via[0] if via and isinstance(via[0], dict) else {}
+            authority = str(binding_trace.get("authority", ""))
+            items.append(
+                {
+                    "requirement_id": profile["requirement_id"],
+                    "stable_id": profile["stable_id"],
+                    "version": profile["version"],
+                    "type": profile["type"],
+                    "criticality": profile["criticality"],
+                    "binding": {
+                        "relation": binding_trace.get("relation"),
+                        "actor_kind": self._actor_kind_from_authority(authority),
+                        "freshness": binding_trace.get("freshness"),
+                    },
+                }
+            )
+        return items
+
     def _entity_orphan_context(self, traces: Sequence[TraceLink], *, local_state: str) -> JsonObject:
         if not traces:
             # An entity known to the local catalog but bound to no trace is a genuine

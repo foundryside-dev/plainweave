@@ -57,3 +57,20 @@ def test_status_unavailable_when_unresolved(tmp_path: Path) -> None:
     )
     assert status == "unavailable"
     assert reason
+
+
+def test_present_item_shape(tmp_path: Path) -> None:
+    surface, seed = _seed_bound(tmp_path)
+    service = surface._service()
+    items = surface._requirements_enrichment_items(service, _item(surface, tmp_path, seed["public_sei"]))
+    assert len(items) == 1
+    it = items[0]
+    assert set(it) == {"requirement_id", "stable_id", "version", "type", "criticality", "binding"}
+    assert it["stable_id"].startswith("plainweave:req:")
+    # anti-trap: type/criticality must come from requirement_preflight_profile, NOT be silent nulls
+    assert it["version"] == 1
+    assert it["criticality"] is not None
+    assert it["type"] is not None
+    assert set(it["binding"]) == {"relation", "actor_kind", "freshness"}
+    assert it["binding"]["actor_kind"] == "human"  # trace authority == "accepted"
+    assert it["binding"]["relation"] == "satisfies"
