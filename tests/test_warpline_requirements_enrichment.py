@@ -74,3 +74,24 @@ def test_present_item_shape(tmp_path: Path) -> None:
     assert set(it["binding"]) == {"relation", "actor_kind", "freshness"}
     assert it["binding"]["actor_kind"] == "human"  # trace authority == "accepted"
     assert it["binding"]["relation"] == "satisfies"
+
+
+def test_envelope_mixed_states(tmp_path: Path) -> None:
+    surface, seed = _seed_bound(tmp_path)
+    envelope = surface.plainweave_requirements_enrichment_get(
+        entity_refs=[seed["public_sei"], seed["module_sei"], "loomweave:eid:missing00000000000000000000000000"]
+    )
+    assert envelope["schema"] == "weft.plainweave.requirements_enrichment.v1"
+    assert envelope["ok"] is True
+    data = envelope["data"]
+    statuses = {it["entity_ref"]: it["status"] for it in data["items"]}
+    assert statuses[seed["public_sei"]] == "present"
+    assert statuses[seed["module_sei"]] == "absent"
+    assert statuses["loomweave:eid:missing00000000000000000000000000"] == "unavailable"
+    assert data["summary"] == {"present": 1, "absent": 1, "unavailable": 1}
+    assert data["authority_boundary"]["requirements_owner"] == "plainweave"
+    present = next(it for it in data["items"] if it["status"] == "present")
+    assert present["requirements"]  # non-empty per §6.3
+    for it in data["items"]:
+        if it["status"] != "present":
+            assert it["requirements"] == [] and it["reason"]

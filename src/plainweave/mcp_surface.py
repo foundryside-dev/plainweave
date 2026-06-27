@@ -722,6 +722,50 @@ class PlainweaveMcpSurface:
             return self._error(exc)
         return success_envelope("weft.plainweave.wardline_peer_facts.v1", data, project=self._project_key())
 
+    def plainweave_requirements_enrichment_get(self, *, entity_refs: Sequence[str]) -> JsonObject:
+        validation_error = self._validate_entity_refs(entity_refs)
+        if validation_error is not None:
+            return validation_error
+
+        def action(service: PlainweaveService) -> JsonObject:
+            traces = service.trace_for()
+            items = [
+                self._requirements_enrichment_item(
+                    service, self._entity_intent_context_item(service, ref, traces)
+                )
+                for ref in entity_refs
+            ]
+            summary = {"present": 0, "absent": 0, "unavailable": 0}
+            for entry in items:
+                summary[str(entry["status"])] += 1
+            return {
+                "items": items,
+                "summary": summary,
+                "authority_boundary": {
+                    "local_only": True,
+                    "live_peer_calls": False,
+                    "governance_verdicts": False,
+                    "requirements_owner": "plainweave",
+                },
+            }
+
+        return self._result("weft.plainweave.requirements_enrichment.v1", action)
+
+    def _requirements_enrichment_item(self, service: PlainweaveService, item: JsonObject) -> JsonObject:
+        status, reason = self._requirements_enrichment_status(item)
+        requirements = self._requirements_enrichment_items(service, item) if status == "present" else []
+        if status == "unavailable":
+            freshness = "unavailable"
+        else:
+            freshness = str(cast(JsonObject, item["freshness"]).get("state", "unknown"))
+        return {
+            "entity_ref": item["input_ref"],
+            "status": status,
+            "requirements": requirements,
+            "reason": reason,
+            "freshness": freshness,
+        }
+
     def _requirements_enrichment_status(self, item: JsonObject) -> tuple[str, str | None]:
         resolution = cast(JsonObject, item["resolution"])
         local = cast(JsonObject, resolution["local_catalog"])
