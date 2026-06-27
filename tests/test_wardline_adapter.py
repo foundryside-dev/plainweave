@@ -1,11 +1,20 @@
 from __future__ import annotations
 
 import json
+import shutil
 from pathlib import Path
 from typing import Any, cast
 
 from plainweave.wardline_adapter import WardlineAdapter
 from tests.wardline_contract import validate_wardline_peer_facts
+
+FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "wardline"
+
+
+def _seed_scenario(tmp_path: Path, name: str) -> Path:
+    dest = tmp_path / ".wardline"
+    shutil.copytree(FIXTURE_ROOT / name, dest)
+    return tmp_path
 
 
 def _write_snapshot(root: Path, name: str, records: list[dict[str, object]]) -> None:
@@ -317,3 +326,33 @@ def test_fallback_resolved_when_same_path_set(tmp_path: Path) -> None:
     assert covered == {"src/a.py"}
     assert not any(d["code"] == "wardline_scope_mismatch" for d in degraded)
     assert any(d["code"] == "wardline_scan_identity_absent" for d in degraded)
+
+
+def test_scenario_a_resolution(tmp_path: Path) -> None:
+    data = WardlineAdapter(_seed_scenario(tmp_path, "scenario_a")).list_peer_facts()
+    assert [r["fingerprint"] for r in data["resolved_or_unseen"]] == ["fa-resolved"]
+    assert data["summary"]["indeterminate"] == 0
+    assert not any(d["code"] == "wardline_scan_identity_absent" for d in data["degraded"])
+    validate_wardline_peer_facts(data)
+
+
+def test_scenario_b_scope_mismatch(tmp_path: Path) -> None:
+    data = WardlineAdapter(_seed_scenario(tmp_path, "scenario_b")).list_peer_facts()
+    assert data["resolved_or_unseen"] == []
+    assert data["summary"]["indeterminate"] == 1
+    assert any(d["code"] == "wardline_scope_mismatch" for d in data["degraded"])
+    assert any(d["code"] == "wardline_scan_identity_absent" for d in data["degraded"])
+    validate_wardline_peer_facts(data)
+
+
+def test_scenario_c_single_snapshot(tmp_path: Path) -> None:
+    data = WardlineAdapter(_seed_scenario(tmp_path, "scenario_c")).list_peer_facts()
+    assert any(d["code"] == "wardline_single_snapshot" for d in data["degraded"])
+    validate_wardline_peer_facts(data)
+
+
+def test_scenario_d_state_matrix(tmp_path: Path) -> None:
+    data = WardlineAdapter(_seed_scenario(tmp_path, "scenario_d")).list_peer_facts()
+    assert data["summary"]["by_suppression_state"] == {"active": 1, "waived": 1, "baselined": 1, "judged": 1}
+    assert data["summary"]["non_defect"] == 1 and data["summary"]["defect"] == 4
+    validate_wardline_peer_facts(data)

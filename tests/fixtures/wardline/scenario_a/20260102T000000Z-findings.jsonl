@@ -1,0 +1,2 @@
+{"kind": "scan_manifest", "scan_id": "a-2", "started_at": "2026-01-02T00:00:00Z", "commit": "c2", "ruleset_id": "rs@1", "scope": {"selector": "src", "covered_paths": ["src/a.py", "src/b.py"]}}
+{"fingerprint": "fa-keep", "kind": "defect", "rule_id": "WLN-TAINT", "location": {"path": "src/b.py", "line_start": 9, "line_end": 9, "col_start": 0, "col_end": 3}, "maturity": "stable", "message": "tainted b", "properties": {}, "qualname": "b.g", "related_entities": [], "severity": "WARN", "suggestion": null, "suppression_reason": null, "suppression_state": "active"}
