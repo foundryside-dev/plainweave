@@ -350,6 +350,7 @@ def test_mcp_tool_inventory_fixture_contract() -> None:
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
         "plainweave_wardline_peer_facts_list",
+        "plainweave_requirements_enrichment_get",
     }
 
     assert fixture["schema"] == "weft.plainweave.mcp_tool_inventory.v1"
@@ -381,6 +382,7 @@ def test_mcp_resource_inventory_fixture_contract() -> None:
         "plainweave://contracts/weft.plainweave.intent_corpus.v1",
         "plainweave://contracts/weft.plainweave.intent_coverage.v1",
         "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1",
+        "plainweave://contracts/weft.plainweave.requirements_enrichment.v1",
     ]
 
 

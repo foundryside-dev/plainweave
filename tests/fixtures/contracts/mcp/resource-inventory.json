@@ -14,6 +14,7 @@
     "plainweave://contracts/weft.plainweave.intent_trace.v1",
     "plainweave://contracts/weft.plainweave.intent_corpus.v1",
     "plainweave://contracts/weft.plainweave.intent_coverage.v1",
-    "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1"
+    "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1",
+    "plainweave://contracts/weft.plainweave.requirements_enrichment.v1"
   ]
 }

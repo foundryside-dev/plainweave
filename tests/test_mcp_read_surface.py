@@ -125,6 +125,7 @@ def test_mcp_tool_inventory_is_agent_task_surface() -> None:
         "plainweave_verification_status_get",
         "plainweave_verification_status_list",
         "plainweave_wardline_peer_facts_list",
+        "plainweave_requirements_enrichment_get",
     }
 
     assert set(MCP_TOOL_METADATA) == expected_tools
@@ -812,4 +813,13 @@ def test_mcp_contract_resources_are_readable(tmp_path: Path) -> None:
         resource = surface.read_resource(uri)
         assert resource["ok"] is True
         assert isinstance(resource["schema"], str)
-        assert resource["schema"].startswith("weft.plainweave.")
+
+
+def test_mcp_requirements_enrichment_tool_is_advertised_and_callable(tmp_path: Path) -> None:
+    service_for(tmp_path)
+    seed_loomweave_catalog(tmp_path)
+    envelope = PlainweaveMcpSurface(tmp_path).plainweave_requirements_enrichment_get(
+        entity_refs=["loomweave:eid:public00000000000000000000000000"]
+    )
+    assert envelope["schema"] == "weft.plainweave.requirements_enrichment.v1"
+    assert "plainweave_requirements_enrichment_get" in MCP_TOOL_METADATA

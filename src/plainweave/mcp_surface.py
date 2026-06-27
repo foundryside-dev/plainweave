@@ -180,6 +180,17 @@ MCP_TOOL_METADATA: dict[str, JsonObject] = {
             "trust decision, and emits no verdict. Wardline owns trust policy."
         ),
     },
+    "plainweave_requirements_enrichment_get": {
+        "name": "plainweave_requirements_enrichment_get",
+        "mutates": False,
+        "local_only": True,
+        "peer_side_effects": [],
+        "authority_boundary": (
+            "Returns local Plainweave requirement facts for Warpline's reserved enrichment slot as "
+            "present|absent|unavailable; an identity gap is 'unavailable' (cannot tell), never 'absent'. "
+            "No verdict; Plainweave owns requirements."
+        ),
+    },
 }
 
 MCP_RESOURCE_URIS = [
@@ -197,6 +208,7 @@ MCP_RESOURCE_URIS = [
     "plainweave://contracts/weft.plainweave.intent_corpus.v1",
     "plainweave://contracts/weft.plainweave.intent_coverage.v1",
     "plainweave://contracts/weft.plainweave.wardline_peer_facts.v1",
+    "plainweave://contracts/weft.plainweave.requirements_enrichment.v1",
 ]
 
 REQUIREMENT_STATUS_FILTERS = {"draft", "approved", "deprecated", "rejected"}
@@ -350,6 +362,18 @@ CONTRACT_RESOURCES: dict[str, JsonObject] = {
             "wardline_scan_identity_absent", "wardline_ruleset_mismatch",
         ],
         "authority_boundary": "Advisory Wardline findings read from local .wardline snapshots; no verdict, no scan.",
+    },
+    "plainweave://contracts/weft.plainweave.requirements_enrichment.v1": {
+        "contract": "weft.plainweave.requirements_enrichment.v1",
+        "required_sections": ["items", "summary", "authority_boundary"],
+        "statuses": ["present", "absent", "unavailable"],
+        "status_meaning": {
+            "present": "peer present, ≥1 alive requirement bound",
+            "absent": "peer present, definitively no requirement bound",
+            "unavailable": "cannot determine (identity gap, dead binding, or store error) — NOT 'no requirements'",
+        },
+        "schema_status": "item-level shape PROPOSED; pending Warpline interface-lock ratification (spec 11)",
+        "authority_boundary": "Plainweave owns requirements; advisory only; no governance verdict.",
     },
 }
 

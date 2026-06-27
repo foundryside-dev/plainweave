@@ -100,6 +100,13 @@
       "authority_boundary": "Returns local requirement records without changing authority state."
     },
     {
+      "name": "plainweave_requirements_enrichment_get",
+      "mutates": false,
+      "local_only": true,
+      "peer_side_effects": [],
+      "authority_boundary": "Returns local Plainweave requirement facts for Warpline's reserved enrichment slot as present|absent|unavailable; an identity gap is 'unavailable' (cannot tell), never 'absent'. No verdict; Plainweave owns requirements."
+    },
+    {
       "name": "plainweave_trace_link_list",
       "mutates": false,
       "local_only": true,
