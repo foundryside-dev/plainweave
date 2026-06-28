@@ -3,13 +3,16 @@
 {% block title %}Corpus · Plainweave{% endblock %}
 {% block main %}
 <h1>Corpus</h1>
+<p><a class="btn btn--primary" href="/req/new">New requirement</a></p>
 {% include "_partials/corpus_filter.html" %}
-<table>
-  <thead>
-    <tr><th scope="col">Requirement</th><th scope="col">Status</th><th scope="col">Goal</th><th scope="col">Code links</th></tr>
-  </thead>
-  <tbody id="corpus-rows">
-    {% include "_partials/corpus_rows.html" %}
-  </tbody>
-</table>
+<div class="table-scroll">
+  <table>
+    <thead>
+      <tr><th scope="col">Requirement</th><th scope="col">Status</th><th scope="col">Goal</th><th scope="col">Code links</th></tr>
+    </thead>
+    <tbody id="corpus-rows">
+      {% include "_partials/corpus_rows.html" %}
+    </tbody>
+  </table>
+</div>
 {% endblock %}

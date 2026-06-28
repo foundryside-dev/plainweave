@@ -19,9 +19,20 @@
     var list = document.getElementById('queue-list');
     if (!list) return;
     var next = list.querySelector('.queue-action-primary');
-    if (next) { next.focus(); return; }
-    var empty = document.getElementById('empty-queue-heading');
-    if (empty) empty.focus();
+    if (next) { next.focus(); } else {
+      var empty = document.getElementById('empty-queue-heading');
+      if (empty) empty.focus();
+    }
+    // Auto-dismiss the visible toast so the confirmation stays "brief" (M9). The
+    // #sr-status live region is untouched. Token guards against an out-of-order clear.
+    var toast = document.getElementById('toast');
+    if (toast && toast.textContent.trim()) {
+      var token = (toast.dataset.token || 0) + 1;
+      toast.dataset.token = token;
+      setTimeout(function () {
+        if (String(toast.dataset.token) === String(token)) toast.textContent = '';
+      }, 4000);
+    }
   });
 }());
 </script>

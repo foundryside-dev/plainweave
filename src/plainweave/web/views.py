@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from plainweave.intent_graph import CorpusEntry
+from plainweave.intent_graph import CorpusEntry, IntentLevel, IntentNode
 from plainweave.models import RequirementRecord
 
 if TYPE_CHECKING:
@@ -49,6 +49,52 @@ def build_corpus_rows(
             )
         )
     return rows
+
+
+@dataclass(frozen=True)
+class OrphanItem:
+    """One orphan rendered as a human-readable, linkable row (M7)."""
+
+    label: str
+    href: str | None
+
+
+@dataclass(frozen=True)
+class OrphanSection:
+    """A non-empty group of orphans at one intent altitude."""
+
+    level: str
+    items: list[OrphanItem]
+
+
+def build_orphan_sections(
+    orphans: dict[str, list[IntentNode]],
+    req_titles: dict[str, str],
+    goal_titles: dict[str, str],
+) -> list[OrphanSection]:
+    """Resolve raw orphan nodes into titled, linked rows, dropping empty altitudes (M7).
+
+    Requirement orphans link to their detail page and show their resolved title; goal
+    orphans link to the goals page and show their title; code orphans keep their SEI
+    ``node_id`` as the label (there is no human title to resolve, and the design scopes
+    titling to requirements and goals). Zero-count altitudes are omitted entirely so the
+    page never shows an empty "Orphans — X (0)" section.
+    """
+    sections: list[OrphanSection] = []
+    for level in (IntentLevel.CODE, IntentLevel.REQUIREMENT, IntentLevel.GOAL):
+        nodes = orphans.get(level.value, [])
+        if not nodes:
+            continue
+        items: list[OrphanItem] = []
+        for node in nodes:
+            if level is IntentLevel.REQUIREMENT:
+                items.append(OrphanItem(req_titles.get(node.node_id, node.node_id), f"/req/{node.node_id}"))
+            elif level is IntentLevel.GOAL:
+                items.append(OrphanItem(goal_titles.get(node.node_id, node.node_id), "/goals"))
+            else:
+                items.append(OrphanItem(node.node_id, None))
+        sections.append(OrphanSection(level=level.value, items=items))
+    return sections
 
 
 def coverage_banner(cov: object) -> str | None:

@@ -18,11 +18,13 @@
     </a>
     <a href="/intent" {% if active_page == 'intent' %}aria-current="page"{% endif %}>Intent</a>
     <a href="/goals" {% if active_page == 'goals' %}aria-current="page"{% endif %}>Goals</a>
-    <span class="operator">operator: {{ operator.display_name }} · {{ operator.kind }}</span>
+    {% if operator %}<span class="operator">operator: {{ operator.display_name }} · {{ operator.kind }}</span>{% endif %}
   </nav>
 
   {# Permanent SR status live region — NEVER replaced via outerHTML; innerHTML-OOB only. #}
   <div id="sr-status" role="status" aria-live="polite" aria-atomic="true" class="visually-hidden"></div>
+  {# Visible confirmation toast mirroring #sr-status. Decorative: SR users hear #sr-status. #}
+  <div id="toast" class="pw-toast" aria-hidden="true"></div>
   {# Decorative global loader; status comes from #sr-status, so this is aria-hidden. #}
   <div id="global-loader" class="htmx-indicator" aria-hidden="true"><span class="loader-spinner"></span></div>
 

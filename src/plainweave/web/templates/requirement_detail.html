@@ -14,9 +14,9 @@
 {% if section.active_draft %}
 <section class="draft"><h2>Draft{% if section.current_version %} (proposed changes){% else %} (new — no approved version yet){% endif %}</h2>
   <p>{{ section.active_draft.statement }}</p>
-  <p><a href="/req/{{ req_id }}/edit">Edit draft</a></p>
+  <p><a class="btn btn--secondary" href="/req/{{ req_id }}/edit">Edit draft</a></p>
   <div id="dossier-approve-slot">
-    <button type="button" hx-get="/req/{{ req_id }}/approve-confirm" hx-target="#dossier-approve-slot" hx-swap="innerHTML">Approve this draft</button>
+    <button type="button" class="btn btn--primary" hx-get="/req/{{ req_id }}/approve-confirm" hx-target="#dossier-approve-slot" hx-swap="innerHTML">Approve this draft</button>
   </div>
 </section>
 {% endif %}
@@ -32,7 +32,7 @@
         {% endfor %}
       </select>
     </label>
-    <button type="submit">Ladder</button>
+    <button type="submit" class="btn btn--primary">Ladder</button>
   </form>
 </section>
 {% endif %}

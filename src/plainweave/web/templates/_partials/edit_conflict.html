@@ -7,7 +7,7 @@
       <h3>Your edits (not saved)</h3>
       <label>Title<input type="text" name="title" value="{{ submitted_title }}"></label>
       <label>Statement<textarea name="statement" rows="6">{{ submitted_statement }}</textarea></label>
-      <button type="submit">Save my edits</button>
+      <button type="submit" class="btn btn--primary">Save my edits</button>
     </form>
     <div><h3>Current draft</h3><p><strong>{{ current_title }}</strong></p><p>{{ current_statement }}</p>
       <a href="/req/{{ req_id }}/edit">Discard mine — start from current</a></div>
