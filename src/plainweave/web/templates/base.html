@@ -31,5 +31,25 @@
   <main id="main-content">
     {% block main %}{% endblock %}
   </main>
+
+  <script>
+  (function () {
+    // Auto-dismiss the visible confirmation toast a few seconds after any OOB
+    // swap reveals it, on EVERY page — the review queue, the corpus, and the
+    // requirement dossier all OOB-fill #toast, and the latter loads no page
+    // script of its own. The #sr-status live region is left untouched (SR users
+    // hear it). A token guards against an out-of-order clear when toasts arrive
+    // back-to-back.
+    document.body.addEventListener('htmx:afterSettle', function () {
+      var toast = document.getElementById('toast');
+      if (!toast || !toast.textContent.trim()) return;
+      var token = (Number(toast.dataset.token) || 0) + 1;
+      toast.dataset.token = token;
+      setTimeout(function () {
+        if (String(toast.dataset.token) === String(token)) toast.textContent = '';
+      }, 4000);
+    });
+  }());
+  </script>
 </body>
 </html>

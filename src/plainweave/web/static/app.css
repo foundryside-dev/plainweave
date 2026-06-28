@@ -279,6 +279,15 @@ button[disabled], .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
 .queue-action-primary:focus-visible {
   outline: 2px solid var(--border-focus); outline-offset: 2px; box-shadow: var(--ring);
 }
+/* Anchor-styled primary buttons (e.g. the "New requirement" link): the global
+   `a:visited` rule (0,1,1) outspecifies the `.btn--primary` class (0,1,0), which
+   would flip visited link text to --link on the brass fill (~1.7:1). Re-assert
+   --text-on-accent at higher specificity for both link states. (Plain <button>
+   primaries have no :visited state, so this only matters for anchors.) */
+a.btn--primary:link,
+a.btn--primary:visited {
+  color: var(--text-on-accent);
+}
 
 /* ---- forms ------------------------------------------------- */
 form { margin: 0 0 var(--space-4); }

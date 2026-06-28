@@ -13,6 +13,10 @@
 </div>
 <script>
 (function () {
+  // After a queue action settles, move focus to the next primary control (or the
+  // empty-state heading) so keyboard users aren't stranded on a removed card.
+  // The visible toast is auto-dismissed globally in base.html, regardless of
+  // which control triggered the swap (M9).
   document.body.addEventListener('htmx:afterSettle', function (evt) {
     var elt = evt.detail.requestConfig && evt.detail.requestConfig.elt;
     if (!elt || !elt.closest('.qi-actions')) return;
@@ -22,16 +26,6 @@
     if (next) { next.focus(); } else {
       var empty = document.getElementById('empty-queue-heading');
       if (empty) empty.focus();
-    }
-    // Auto-dismiss the visible toast so the confirmation stays "brief" (M9). The
-    // #sr-status live region is untouched. Token guards against an out-of-order clear.
-    var toast = document.getElementById('toast');
-    if (toast && toast.textContent.trim()) {
-      var token = (toast.dataset.token || 0) + 1;
-      toast.dataset.token = token;
-      setTimeout(function () {
-        if (String(toast.dataset.token) === String(token)) toast.textContent = '';
-      }, 4000);
     }
   });
 }());
