@@ -142,3 +142,21 @@ on both new envelopes); SEIs consumed opaquely; no-silent-clean (resolved/unseen
 scope-bounded; `unresolved`/dead-binding → `unavailable`, not `absent` — both
 mutation-verified). No reversal trigger fired; PDR-014's trigger (Warpline schema
 rejection) is pending the owner-gated interface-lock ratification.
+
+### 2026-06-28 — Peer-facts CLI/MCP parity + Lacuna tour regression (PDR-015)
+
+Hardening / surface-completeness reading, NOT a north-star reading. The two 1.1 peer-facts
+producers (MCP-only since PDR-014) gained CLI surfaces — `plainweave wardline-peer-facts`
+and `plainweave requirements-enrichment` — reusing `PlainweaveMcpSurface` verbatim. `make ci`
+green: **378 tests, 91.14% coverage** (up from 90.94% at 1.1); mypy --strict + ruff clean;
+`wardline scan` clean (0 active). Merged to `main`; the work rode the concurrent
+`release/1.2.0` cut (CHANGELOG `[Unreleased]`). Lacuna's cross-member tour gained
+`plainweave+wardline` / `plainweave+warpline` cells (sibling repo, Lacuna PDR-0015).
+
+Guardrails — all intact: advisory only (the CLI passes the producers' envelopes through
+unchanged; the no-verdict structural validators run over CLI output in tests); no-silent-clean
+preserved and now ALSO regression-asserted cross-member (the Lacuna demos pin
+covered→present, orphan→absent, identity-gap→`unavailable`-never-`absent`,
+absent-`.wardline/`→`unavailable`-never-clean, out-of-scope→`indeterminate`-never-resolved).
+No reversal trigger fired. (Out-of-scope item filed: a pre-existing wheel-build packaging bug
+blocks `uv tool install` — observation `plainweave-obs-6a7255ffbe`.)
