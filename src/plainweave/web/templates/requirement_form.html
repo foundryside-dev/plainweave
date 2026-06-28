@@ -7,6 +7,6 @@
   {% if expected_draft_revision is not none %}<input type="hidden" name="expected_draft_revision" value="{{ expected_draft_revision }}">{% endif %}
   <label>Title<input type="text" name="title" value="{{ title or '' }}" required></label>
   <label>Statement<textarea name="statement" rows="6" required>{{ statement or '' }}</textarea></label>
-  <button type="submit">Save</button>
+  <button type="submit" class="btn btn--primary">Save</button>
 </form>
 {% endblock %}

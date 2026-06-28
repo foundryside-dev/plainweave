@@ -34,6 +34,26 @@ def test_corpus_lists_requirements(client: TestClient) -> None:
     assert "Coverage is self-computable" in resp.text
 
 
+def test_corpus_has_new_requirement_link(client: TestClient) -> None:
+    """M8: the Corpus page carries a visible New-requirement primary control to /req/new."""
+    html = client.get("/").text
+    assert 'href="/req/new"' in html
+    assert "New requirement" in html
+    assert "btn--primary" in html
+
+
+def test_global_pending_badge_on_non_review_page(client: TestClient) -> None:
+    """M6: the nav "Review N" badge is populated on a non-review page (the Corpus page),
+    not only on /review — proving the global context-processor mechanism."""
+    app: Starlette = client.app  # type: ignore[assignment]
+    ctx = app.state.ctx_factory()
+    ctx.service.create_requirement("Pending one", "body", actor="human:alice")
+    ctx.service.create_requirement("Pending two", "body", actor="human:alice")
+    html = client.get("/").text
+    # Two pending drafts → the badge on the Corpus page reads 2.
+    assert 'class="nav-badge">2</span>' in html
+
+
 def test_corpus_orphan_filter_no_goal(client: TestClient) -> None:
     _mint(client, "Orphan req", "no goal yet")
     resp = client.get("/", params={"orphan": "no-goal"})

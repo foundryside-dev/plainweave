@@ -4,6 +4,8 @@ import secrets
 from dataclasses import dataclass
 from pathlib import Path
 
+from starlette.requests import Request
+
 from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.paths import plainweave_db_path
 from plainweave.service import PlainweaveService
@@ -49,6 +51,23 @@ class RequestContext:
                 ) from exc
             raise
         return OperatorIdentity(actor_id=actor_id, display_name=display, kind="human")
+
+
+def request_ctx(request: Request) -> RequestContext:
+    """Return a per-request :class:`RequestContext`, building it once and caching it
+    on ``request.state``.
+
+    Routes and the global Jinja context processor both reach for the context within a
+    single request; memoising on ``request.state`` keeps the work to one
+    ``PlainweaveService`` construction (and one operator self-registration) per request
+    instead of one per call site.
+    """
+    cached = getattr(request.state, "ctx", None)
+    if isinstance(cached, RequestContext):
+        return cached
+    ctx: RequestContext = request.app.state.ctx_factory()
+    request.state.ctx = ctx
+    return ctx
 
 
 def new_csrf_token() -> str:

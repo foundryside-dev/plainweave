@@ -137,7 +137,8 @@ def test_accept_link(client: TestClient) -> None:
     token = client.cookies.get("pw_csrf")
     resp = client.post(f"/trace/{link.id}/accept", data={"_csrf": token})
     assert resp.status_code == 200
-    assert 'hx-swap-oob="innerHTML:#sr-status"' in resp.text
+    assert 'hx-swap-oob="innerHTML:#sr-status"' in resp.text  # SR announcement preserved
+    assert 'hx-swap-oob="innerHTML:#toast"' in resp.text  # M9: visible toast mirrors it
     assert not ctx.service.trace_for(state="proposed")  # no longer pending
 
 
@@ -232,6 +233,56 @@ def test_accept_link_attributes_operator(client: TestClient) -> None:
         f"accepted_by is {accepted.accepted_by!r}, expected 'human:alice' — "
         "human authority attribution is broken for trace-link accept"
     )
+
+
+def _req_stub() -> object:
+    from types import SimpleNamespace
+
+    return SimpleNamespace(state=SimpleNamespace(csrf_token="test-token"))
+
+
+@pytest.mark.parametrize(
+    ("confidence", "band"),
+    [(0.3, "low"), (0.5, "med"), (0.79, "med"), (0.8, "high"), (0.95, "high")],
+)
+def test_conf_chip_band(project_root: Path, confidence: float, band: str) -> None:
+    """Fold-in: link confidence renders a .conf chip banded low/med/high alongside the raw value
+    so an operator can read calibration risk at a glance."""
+    app = create_app(actor="human:alice", root=project_root)
+    item = LinkItem(
+        kind="link",
+        link_id="LINK-1",
+        from_label="a",
+        relation="rel",
+        to_label="b",
+        proposing_actor="agent:claude",
+        confidence=confidence,
+        drifted=False,
+    )
+    rendered = app.state.templates.get_template("_partials/queue_item_link.html").render(
+        {"item": item, "request": _req_stub()}
+    )
+    assert f"conf {confidence}" in rendered  # raw value preserved
+    assert f'class="conf conf--{band}"' in rendered
+    assert f">{band}</span>" in rendered
+
+
+def test_conf_chip_absent_when_no_confidence(project_root: Path) -> None:
+    app = create_app(actor="human:alice", root=project_root)
+    item = LinkItem(
+        kind="link",
+        link_id="LINK-2",
+        from_label="a",
+        relation="rel",
+        to_label="b",
+        proposing_actor="agent:claude",
+        confidence=None,
+        drifted=False,
+    )
+    rendered = app.state.templates.get_template("_partials/queue_item_link.html").render(
+        {"item": item, "request": _req_stub()}
+    )
+    assert 'class="conf' not in rendered
 
 
 def test_drift_card_branch_renders(project_root: Path) -> None:

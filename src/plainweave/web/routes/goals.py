@@ -7,10 +7,11 @@ from starlette.routing import Route
 from starlette.templating import Jinja2Templates
 
 from plainweave.intent_graph import IntentLevel
+from plainweave.web.context import request_ctx
 
 
 async def goals_page(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     goals = ctx.service.list_goals()
     orphan_goal_ids = {n.node_id for n in ctx.service.intent_orphans(IntentLevel.GOAL)}
     templates: Jinja2Templates = request.app.state.templates
@@ -22,14 +23,14 @@ async def goals_page(request: Request) -> Response:
 
 
 async def goals_new(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     form = await request.form()
     ctx.service.create_goal(str(form["title"]), str(form["statement"]), actor=ctx.operator.actor_id)
     return RedirectResponse("/goals", status_code=303)
 
 
 async def req_ladder(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id = request.path_params["req_id"]
     form = await request.form()
     ctx.service.link_goal_to_requirement(str(form["goal_id"]), req_id, actor=ctx.operator.actor_id)
