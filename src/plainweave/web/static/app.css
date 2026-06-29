@@ -1,19 +1,579 @@
-:root { --amber: #c47b1a; --warn-bg: #fdf3e3; --line: #d9d9d9; }
-body { font-family: system-ui, sans-serif; margin: 0; color: #1c1c1c; font-size: 16px; }
-.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
-.skip-link { position: absolute; left: -999px; }
-.skip-link:focus { left: 1rem; top: 0.5rem; background: #fff; padding: 0.5rem; }
-.topnav { display: flex; gap: 1rem; align-items: center; padding: 0.6rem 1rem; border-bottom: 1px solid var(--line); }
-.topnav a[aria-current="page"] { font-weight: 700; text-decoration: underline; }
-.nav-badge:not(:empty) { background: #b00; color: #fff; border-radius: 8px; padding: 0 6px; font-size: 0.75rem; }
-.operator { margin-left: auto; opacity: 0.7; font-size: 0.85rem; }
-main { padding: 1rem; }
-table { border-collapse: collapse; width: 100%; font-size: 14px; }
-th, td { text-align: left; padding: 6px 8px; border-top: 1px solid var(--line); }
-.htmx-indicator { opacity: 0; transition: opacity 0.1s; }
-.htmx-request .htmx-indicator, .htmx-indicator.htmx-request { opacity: 1; }
-.queue-item--drifted { border: 1px solid var(--amber); border-left-width: 4px; background: var(--warn-bg); padding: 0.6rem; }
-.drift-badge { display: inline-block; background: var(--amber); color: #fff; font-size: 0.7rem; font-weight: 700; padding: 1px 7px; border-radius: 4px; }
-.toggle-btn { border: 1px solid var(--line); border-radius: 4px; padding: 3px 9px; font-size: 0.8rem; }
-.toggle-btn--active { border-width: 2px; font-weight: 700; }
-.toggle-btn--active::before { content: "✓ "; }
+/* ============================================================
+   Plainweave operator UI — self-contained stylesheet.
+   Adopts the Weft site-kit design language ("natural dyes on
+   unbleached cloth": warm linen surfaces, ink text, brass/woad
+   accents) by INLINING the token values read from
+   site/vendor/site-kit/src/tokens/*.css and the relevant plain
+   component rules from components.css.
+   NO build step, NO @import, NO external font — light theme only.
+   ============================================================ */
+
+/* ---- Token layer (inlined from site-kit) ------------------- */
+:root {
+  /* neutrals — linen → ink (warm) */
+  --linen-50:  #FBF8F1;
+  --linen-100: #F5F0E5;
+  --linen-200: #EBE4D4;
+  --linen-300: #DDD3BF;
+  --thread-400:#C2B69E;
+  --ink-400:   #8C8470;
+  --ink-500:   #6E6857;
+  --ink-600:   #585241;
+  --ink-700:   #464134;
+  --loom-800:  #2C281F;
+  --loom-900:  #1E1B15;
+
+  /* brass / weld — work + WARNING + primary accent here */
+  --brass-50:  #F7EFD8;
+  --brass-100: #EEDFB4;
+  --brass-400: #C99A2E;
+  --brass-500: #AC8222;
+  --brass-600: #8C681A;
+  --brass-700: #6B4F14;
+
+  /* woad — Plainweave's own thread (OK / success) */
+  --woad-50:  #E5F0EB;
+  --woad-100: #C6E0D5;
+  --woad-600: #235E4D;
+  --woad-700: #1A463A;
+
+  /* madder — DANGER / missing / reject */
+  --madder-50:  #F8ECE7;
+  --madder-100: #F0D6CC;
+  --madder-600: #993C26;
+  --madder-700: #7A2F1E;
+
+  /* indigo — federation spine: links + focus ring */
+  --indigo-50:  #ECEFF6;
+  --indigo-100: #D3DAEA;
+  --indigo-600: #35487B;
+  --indigo-700: #283861;
+
+  /* ---- semantic aliases ---- */
+  --bg-page:        var(--linen-100);
+  --surface-card:   #FFFDF8;   /* raised card; chosen so .muted (ink-500) keeps 5.46:1 on it */
+  --surface-raised: var(--linen-200);
+  --surface-sunken: var(--linen-50);
+
+  --text-strong: var(--loom-900);
+  --text-heading:var(--loom-800);
+  --text-body:   var(--ink-700);
+  --text-muted:  var(--ink-500);
+  --text-faint:  var(--ink-400);
+  --text-on-accent: #FBF8F1;
+
+  /* lines — see border-contrast note below */
+  --border-hairline: var(--thread-400); /* structural rules (table/nav); decorative, darker than the old #d9d9d9 */
+  --border-control:  var(--ink-400);    /* interactive control outlines — 3.27:1 on linen-100 (WCAG 1.4.11) */
+  --border-focus:    var(--indigo-600);
+
+  --link:        var(--indigo-600);
+  --link-strong: var(--indigo-700);
+
+  /* status */
+  --ok:         var(--woad-600);
+  --ok-tint:    var(--woad-50);
+  --warn:       var(--brass-600);
+  --warn-tint:  var(--brass-50);
+  --danger:     var(--madder-600);
+  --danger-tint:var(--madder-50);
+
+  /* the work accent (primary actions, badges) */
+  --accent:        var(--brass-600);
+  --accent-strong: var(--brass-700);
+
+  /* radius */
+  --radius-sm: 3px;
+  --radius-md: 5px;
+  --radius-lg: 8px;
+  --radius-pill: 999px;
+
+  /* spacing (4px grid) */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+
+  /* type — system fonts only (no external face) */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --fw-regular: 400;
+  --fw-medium:  500;
+  --fw-semibold:600;
+  --fw-bold:    700;
+
+  /* elevation */
+  --shadow-sm: 0 1px 2px rgba(30, 27, 21, 0.07), 0 0 0 1px rgba(30, 27, 21, 0.04);
+  --shadow-md: 0 2px 6px rgba(30, 27, 21, 0.08), 0 1px 2px rgba(30, 27, 21, 0.06);
+  --shadow-lg: 0 8px 24px rgba(30, 27, 21, 0.12), 0 2px 6px rgba(30, 27, 21, 0.07);
+  --ring: 0 0 0 3px rgba(53, 72, 123, 0.30);
+}
+
+/* border-contrast note: the task asks for "faint #d9d9d9 borders
+   darkened to >=3:1". Interactive control outlines use
+   --border-control (--ink-400 #8C8470 = 3.27:1 on the linen page),
+   satisfying WCAG 1.4.11 where a boundary identifies a control.
+   Purely decorative table/nav rules use --border-hairline
+   (--thread-400, 1.76:1) — non-essential per 1.4.11, but still
+   meaningfully darker than the original #d9d9d9 (1.24:1). */
+
+/* ---- reset + element defaults ------------------------------ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--text-body);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4 {
+  margin: 0 0 var(--space-3);
+  color: var(--text-heading);
+  font-weight: var(--fw-semibold);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+h1 { font-size: 1.9rem; }
+h2 { font-size: 1.35rem; }
+h3 { font-size: 1.1rem; }
+
+p { margin: 0 0 var(--space-3); text-wrap: pretty; }
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; text-underline-offset: 2px; }
+a:visited { color: var(--link); }
+
+code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+main { padding: var(--space-5) var(--space-6); }
+section { margin: 0 0 var(--space-5); }
+
+/* Global focus ring (>=2px) so focus never relies on the UA default. */
+:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+::selection { background: var(--indigo-100); color: var(--loom-900); }
+
+/* ---- accessibility helpers (PRESERVED) --------------------- */
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+.skip-link {
+  position: absolute; left: -999px;
+  background: var(--surface-card); color: var(--link-strong);
+  padding: var(--space-2) var(--space-3); border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md); z-index: 100; font-weight: var(--fw-semibold);
+}
+.skip-link:focus { left: var(--space-4); top: var(--space-2); }
+
+/* ---- top navigation (PRESERVED + re-tokenised) ------------- */
+.topnav {
+  display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: center;
+  padding: var(--space-3) var(--space-6);
+  background: var(--surface-card);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.topnav a { color: var(--text-body); font-weight: var(--fw-medium); }
+.topnav a:hover { color: var(--link-strong); }
+.topnav a[aria-current="page"] {
+  color: var(--link-strong); font-weight: var(--fw-bold);
+  text-decoration: underline; text-underline-offset: 4px;
+  text-decoration-thickness: 2px;
+}
+.nav-badge:not(:empty) {
+  display: inline-block; margin-left: 4px;
+  background: var(--accent); color: var(--text-on-accent);
+  border-radius: var(--radius-pill); padding: 1px 8px;
+  font-size: 0.72rem; font-weight: var(--fw-bold);
+  font-family: var(--font-mono); line-height: 1.5; vertical-align: middle;
+}
+.operator {
+  margin-left: auto; color: var(--text-muted);
+  font-size: 0.85rem; font-family: var(--font-mono);
+}
+
+/* ---- htmx loader (PRESERVED) ------------------------------- */
+.htmx-indicator { opacity: 0; transition: opacity 0.12s; }
+.htmx-request .htmx-indicator,
+.htmx-indicator.htmx-request { opacity: 1; }
+#global-loader {
+  position: fixed; top: var(--space-3); right: var(--space-4); z-index: 50;
+}
+.loader-spinner {
+  display: inline-block; width: 18px; height: 18px;
+  border: 2px solid var(--brass-100);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: pw-spin 0.7s linear infinite;
+}
+@keyframes pw-spin { to { transform: rotate(360deg); } }
+
+/* ---- buttons ----------------------------------------------- */
+/* Base/secondary = quiet outline-ghost. Primary = filled brass. */
+.btn,
+button,
+input[type="submit"],
+input[type="button"] {
+  display: inline-flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: 44px;                 /* SC 2.5.8 target size (comfortable touch) */
+  padding: var(--space-2) var(--space-4);
+  font-family: var(--font-sans); font-size: 0.95rem; font-weight: var(--fw-semibold);
+  line-height: 1.1; white-space: nowrap; cursor: pointer; text-decoration: none;
+  color: var(--text-body);
+  background: var(--surface-card);
+  border: 1px solid var(--border-control);
+  border-radius: var(--radius-md);
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.btn:hover,
+button:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover {
+  background: var(--linen-200); border-color: var(--ink-500); text-decoration: none;
+}
+.btn:focus-visible,
+button:focus-visible,
+input[type="submit"]:focus-visible,
+input[type="button"]:focus-visible {
+  outline: 2px solid var(--border-focus); outline-offset: 2px; box-shadow: var(--ring);
+}
+button[disabled], .btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+
+/* secondary == explicit quiet variant (same as base) */
+.btn--secondary {
+  background: var(--surface-card); color: var(--text-body);
+  border: 1px solid var(--border-control);
+}
+.btn--secondary:hover { background: var(--linen-200); border-color: var(--ink-500); }
+
+/* PRIMARY — filled brass, visually dominant.
+   .queue-action-primary is styled identically to .btn--primary. */
+.btn--primary,
+.queue-action-primary {
+  background: var(--accent); color: var(--text-on-accent);
+  border: 1px solid var(--accent);
+  font-weight: var(--fw-bold);
+  box-shadow: var(--shadow-sm);
+}
+.btn--primary:hover,
+.queue-action-primary:hover {
+  background: var(--accent-strong); border-color: var(--accent-strong);
+  color: var(--text-on-accent); text-decoration: none;
+}
+.btn--primary:focus-visible,
+.queue-action-primary:focus-visible {
+  outline: 2px solid var(--border-focus); outline-offset: 2px; box-shadow: var(--ring);
+}
+/* Anchor-styled primary buttons (e.g. the "New requirement" link): the global
+   `a:visited` rule (0,1,1) outspecifies the `.btn--primary` class (0,1,0), which
+   would flip visited link text to --link on the brass fill (~1.7:1). Re-assert
+   --text-on-accent at higher specificity for both link states. (Plain <button>
+   primaries have no :visited state, so this only matters for anchors.) */
+a.btn--primary:link,
+a.btn--primary:visited {
+  color: var(--text-on-accent);
+}
+
+/* ---- forms ------------------------------------------------- */
+form { margin: 0 0 var(--space-4); }
+label {
+  display: block; margin-bottom: var(--space-3);
+  font-weight: var(--fw-semibold); color: var(--text-body); font-size: 0.95rem;
+}
+input[type="text"],
+input[type="search"],
+input:not([type]),
+textarea,
+select {
+  display: block; width: 100%; max-width: 42rem; margin-top: var(--space-1);
+  min-height: 44px; padding: var(--space-2) var(--space-3);
+  font-family: var(--font-sans); font-size: 1rem; color: var(--text-strong);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-control); border-radius: var(--radius-md);
+  box-shadow: inset 0 1px 2px rgba(30, 27, 21, 0.06);
+}
+textarea { min-height: 6rem; resize: vertical; line-height: 1.5; }
+input::placeholder, textarea::placeholder { color: var(--text-faint); }
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--border-focus); outline-offset: 1px;
+  border-color: var(--border-focus); box-shadow: var(--ring);
+}
+
+/* ---- corpus filter / search + toggles (PRESERVED behaviour) */
+search { display: block; margin-bottom: var(--space-5); }
+search form { display: flex; flex-wrap: wrap; gap: var(--space-4); align-items: flex-end; margin: 0; }
+search label[for="req-search"] { margin-bottom: var(--space-1); }
+#req-search { max-width: 22rem; }
+
+.filter-toggles {
+  display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center;
+  margin: 0; padding: 0 0 0 var(--space-2);
+  border: 0; border-left: 2px solid var(--border-hairline);
+}
+.filter-toggles legend {
+  float: left; width: 100%; padding: 0; margin-bottom: var(--space-1);
+  font-size: 0.78rem; font-weight: var(--fw-semibold);
+  text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted);
+}
+.toggle-btn {
+  display: inline-flex; align-items: center; min-height: 36px;
+  margin-bottom: 0; padding: var(--space-1) var(--space-3);
+  font-size: 0.82rem; font-weight: var(--fw-medium); color: var(--text-body);
+  background: var(--surface-card);
+  border: 1px solid var(--border-control); border-radius: var(--radius-pill);
+  cursor: pointer; user-select: none;
+}
+.toggle-btn:hover { background: var(--linen-200); }
+.toggle-btn--active {
+  border-width: 2px; border-color: var(--accent);
+  background: var(--brass-50); color: var(--accent-strong); font-weight: var(--fw-bold);
+}
+.toggle-btn--active::before { content: "\2713\00a0"; }
+/* keyboard focus surfaces on the visually-hidden radio inside the label */
+.toggle-btn:focus-within { outline: 2px solid var(--border-focus); outline-offset: 2px; }
+
+/* ---- corpus data table (M4 horizontal-scroll wrapper) ------ */
+.table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { border-collapse: collapse; width: 100%; font-size: 0.9rem; }
+caption { text-align: left; }
+th, td {
+  text-align: left; padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--border-hairline); vertical-align: top;
+}
+thead th {
+  border-top: 0; border-bottom: 2px solid var(--border-hairline);
+  color: var(--text-heading); font-weight: var(--fw-semibold);
+  white-space: nowrap;
+}
+.corpus-row { cursor: pointer; }
+.corpus-row:hover td { background: var(--surface-card); }
+.corpus-row:focus-within td { background: var(--brass-50); }
+.corpus-row-detail td { padding: 0; border-top: 0; }
+.corpus-row-detail [id^="req-detail-"]:not(:empty) {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-sunken);
+  border-bottom: 1px solid var(--border-hairline);
+}
+
+/* ---- inline requirement panel (corpus expand) -------------- */
+.req-inline {
+  display: flex; flex-direction: column; gap: var(--space-3);
+}
+.req-inline__statement { margin: 0; color: var(--text-body); }
+.req-inline__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); align-items: center; }
+
+/* ---- helpers: muted / warn / big-number -------------------- */
+.muted { color: var(--text-muted); }                 /* ink-500: 5.46:1 on cards, 4.89:1 on page */
+.warn  { color: var(--danger); font-weight: var(--fw-semibold); }  /* madder-600: 6.10:1 on linen */
+.big-number {
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-3);
+  margin: 0 0 var(--space-5);
+  font-size: 2.5rem; font-weight: var(--fw-bold); line-height: 1.05;
+  color: var(--text-strong); font-variant-numeric: tabular-nums;
+}
+.big-number .muted { font-size: 1rem; font-weight: var(--fw-regular); }
+
+/* ---- banners (tinted bg + left accent + padding) ----------- */
+.banner {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-card); color: var(--text-body);
+  border: 1px solid var(--border-hairline);
+  border-left: 4px solid var(--text-faint);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem; line-height: 1.5;
+}
+.banner--warn {
+  background: var(--warn-tint); color: var(--text-body);
+  border-color: var(--brass-100); border-left-color: var(--warn);
+}
+
+/* ---- review queue cards ------------------------------------ */
+#queue-list { display: flex; flex-direction: column; gap: var(--space-4); }
+.queue-item {
+  position: relative;
+  padding: var(--space-4);
+  background: var(--surface-card);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+.queue-item header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+.queue-item h2 {
+  margin: 0; font-size: 1.05rem; font-weight: var(--fw-semibold);
+  overflow-wrap: anywhere;            /* M4: long ids don't force page scroll */
+}
+.queue-item p { margin: 0 0 var(--space-3); }
+.queue-item p:last-child { margin-bottom: 0; }
+/* long unbreakable identifiers in review link labels (M4) */
+.queue-item code, .queue-item em, .queue-item h2 code, .queue-item h2 em {
+  overflow-wrap: anywhere; word-break: break-word;
+}
+.queue-item code {
+  font-family: var(--font-mono); font-size: 0.85em;
+  background: var(--surface-sunken); padding: 1px 5px; border-radius: var(--radius-sm);
+}
+
+/* drifted card — amber treatment (PRESERVED, re-tokenised) */
+.queue-item--drifted {
+  background: var(--warn-tint);
+  border: 1px solid var(--brass-400);
+  border-left-width: 4px; border-left-color: var(--brass-500);
+}
+.drift-notice {
+  margin: 0 0 var(--space-3); font-size: 0.88rem;
+  color: var(--brass-700);            /* 6.6:1 on the warn-tint card */
+}
+
+/* ---- badges: type-badge, drift-badge ----------------------- */
+.type-badge {
+  display: inline-flex; align-items: center;
+  font-family: var(--font-mono); font-size: 0.68rem; font-weight: var(--fw-semibold);
+  letter-spacing: 0.04em;
+  padding: 3px 8px; border-radius: var(--radius-pill);
+  background: var(--linen-200); color: var(--ink-700);
+  border: 1px solid var(--linen-300);
+}
+/* DRIFT-BADGE CONTRAST (M5):
+   fg #FFFFFF on bg #8C681A (brass-600) = 5.11:1  (>= 4.5:1 AA).
+   The previous white-on-#c47b1a pairing was only 3.39:1. */
+.drift-badge {
+  display: inline-block;
+  background: var(--brass-600); color: #FFFFFF;
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: var(--radius-sm);
+}
+
+/* ---- confidence chip (AI calibration encoding) ------------- */
+.conf {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--font-mono); font-size: 0.7rem; font-weight: var(--fw-semibold);
+  letter-spacing: 0.02em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: var(--radius-pill);
+  border: 1px solid transparent; vertical-align: baseline;
+}
+.conf--low  { background: var(--danger-tint); color: var(--madder-700); border-color: var(--madder-100); }
+.conf--med  { background: var(--warn-tint);   color: var(--brass-700);  border-color: var(--brass-100); }
+.conf--high { background: var(--ok-tint);     color: var(--woad-700);   border-color: var(--woad-100); }
+
+/* ---- queue item action rows -------------------------------- */
+.qi-actions {
+  display: flex; flex-wrap: wrap; gap: var(--space-3);
+  align-items: center; margin-top: var(--space-3);
+}
+.qi-actions a { font-weight: var(--fw-medium); }
+
+/* dossier approve slot + draft section */
+#dossier-approve-slot { margin-top: var(--space-3); }
+section.draft {
+  padding: var(--space-4); background: var(--surface-card);
+  border: 1px solid var(--border-hairline); border-left: 4px solid var(--accent);
+  border-radius: var(--radius-md);
+}
+
+/* ---- empty queue ------------------------------------------- */
+.empty-queue {
+  padding: var(--space-7) var(--space-6); text-align: center;
+  background: var(--surface-card);
+  border: 1px dashed var(--border-control); border-radius: var(--radius-lg);
+}
+.empty-queue h2 { color: var(--text-heading); }
+.empty-queue h2:focus-visible { outline: 2px solid var(--border-focus); outline-offset: 4px; }
+
+/* ---- edit conflict panel ----------------------------------- */
+.conflict-panel {
+  padding: var(--space-4); background: var(--surface-card);
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-lg);
+}
+.conflict-columns {
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5);
+  align-items: start;
+}
+.conflict-columns > div,
+.conflict-columns > form {
+  min-width: 0; padding: var(--space-3);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border-hairline); border-radius: var(--radius-md);
+}
+.conflict-columns h3 { margin-top: 0; font-size: 0.95rem; color: var(--text-muted); }
+.conflict-columns p { overflow-wrap: anywhere; }
+
+/* ---- error page (M2 full-page chrome) ---------------------- */
+.error-page { max-width: 42rem; margin: 0 auto; padding: var(--space-7) var(--space-6); }
+.error-page h1 { color: var(--text-heading); }
+.error-code {
+  display: inline-block; font-family: var(--font-mono); font-size: 0.85rem;
+  font-weight: var(--fw-semibold); letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: var(--radius-sm);
+  background: var(--danger-tint); color: var(--madder-700);
+  border: 1px solid var(--madder-100);
+}
+.error-hint { color: var(--text-muted); }
+
+/* ---- success toast (M9) — VISIBLE mirror of #sr-status ------ */
+/* #toast is decorative (aria-hidden); the SR live region is #sr-status.
+   Empty by default → hidden; OOB innerHTML swap reveals it. */
+#toast.pw-toast,
+.pw-toast { display: none; }
+/* Reveal must match the id-anchored hide above on specificity, else display:none wins. */
+#toast.pw-toast:not(:empty),
+.pw-toast:not(:empty) {
+  display: block; position: fixed; z-index: 60;
+  left: 50%; bottom: var(--space-6); transform: translateX(-50%);
+  max-width: min(92vw, 30rem);
+  padding: var(--space-3) var(--space-4);
+  background: var(--ok-tint); color: var(--woad-700);
+  border: 1px solid var(--woad-100); border-left: 4px solid var(--ok);
+  border-radius: var(--radius-md); box-shadow: var(--shadow-lg);
+  font-size: 0.95rem; font-weight: var(--fw-medium); line-height: 1.4;
+  animation: pw-toast-in 0.18s ease-out;
+}
+@keyframes pw-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ---- lists (goals, intent orphans) ------------------------- */
+main ul { padding-left: var(--space-5); margin: 0 0 var(--space-4); }
+main li { margin-bottom: var(--space-2); }
+
+/* ---- reduced motion ---------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- narrow viewport (M4 reflow @ 320px) ------------------- */
+@media (max-width: 480px) {
+  main { padding: var(--space-4) var(--space-3); }
+  .topnav { gap: var(--space-3); padding: var(--space-3) var(--space-4); }
+  .operator { width: 100%; margin-left: 0; order: 99; }
+  .conflict-columns { grid-template-columns: 1fr; }
+  .qi-actions { flex-direction: column; align-items: stretch; }
+  .qi-actions .btn,
+  .qi-actions button { width: 100%; }
+}

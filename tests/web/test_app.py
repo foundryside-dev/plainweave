@@ -28,9 +28,7 @@ def test_unknown_path_404(client: TestClient) -> None:
     assert client.get("/no-such-page").status_code == 404
 
 
-def test_plainweave_error_renders_error_partial(project_root: Path) -> None:
-    """A route that raises PlainweaveError(NOT_FOUND) must render the error partial at 404."""
-
+def _boom_app(project_root: Path) -> TestClient:
     async def boom(request: Request) -> Response:
         raise PlainweaveError(
             ErrorCode.NOT_FOUND,
@@ -42,13 +40,61 @@ def test_plainweave_error_renders_error_partial(project_root: Path) -> None:
     app = create_app(actor="human:alice", root=project_root)
     # Splice in a test-only route at the front of the router.
     app.routes.insert(0, Route("/boom", boom))
+    return TestClient(app, raise_server_exceptions=False)
 
-    client = TestClient(app, raise_server_exceptions=False)
-    resp = client.get("/boom")
+
+def test_plainweave_error_renders_full_page_on_navigation(project_root: Path) -> None:
+    """A normal navigation that raises PlainweaveError must render a full, navigable page:
+    base chrome (nav + stylesheet + <html lang>) PLUS the error detail (M2)."""
+    resp = _boom_app(project_root).get("/boom")
     assert resp.status_code == 404
+    # Error detail
     assert "NOT_FOUND" in resp.text
     assert "thing not found" in resp.text
     assert "check the id" in resp.text
+    # Full-page chrome
+    assert "<html lang=" in resp.text
+    assert '<link rel="stylesheet" href="/static/app.css">' in resp.text
+    assert 'class="topnav"' in resp.text
+    assert 'class="skip-link"' in resp.text
+    # Global pending badge mechanism reaches the error page too (M6)
+    assert 'id="review-badge"' in resp.text
+
+
+def test_plainweave_error_renders_bare_fragment_on_hx(project_root: Path) -> None:
+    """An HTMX swap that raises PlainweaveError must render a bare fragment — no base chrome (M2)."""
+    resp = _boom_app(project_root).get("/boom", headers={"HX-Request": "true"})
+    assert resp.status_code == 404
+    assert "thing not found" in resp.text
+    # No full-page chrome in the fragment
+    assert "<html" not in resp.text
+    assert 'class="topnav"' not in resp.text
+
+
+def test_error_page_survives_context_construction_failure(project_root: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """If the error itself was raised while building the per-request context (e.g. a
+    launch-time POLICY_REQUIRED operator / DB-open failure), the full-page error must
+    still render with chrome — the global context processor must not raise a second
+    time and collapse the actionable page into an opaque 500."""
+
+    def explode(_request: Request) -> object:
+        raise PlainweaveError(
+            ErrorCode.POLICY_REQUIRED, "operator cannot self-register", recoverable=False, hint="register first"
+        )
+
+    # Both the route and the context processor resolve ctx via request_ctx; make it fail.
+    monkeypatch.setattr("plainweave.web.app.request_ctx", explode)
+    monkeypatch.setattr("plainweave.web.routes.requirements.request_ctx", explode, raising=False)
+
+    resp = _boom_app(project_root).get("/boom")
+    assert resp.status_code == 404
+    # Helpful detail preserved (not an opaque 500)
+    assert "thing not found" in resp.text
+    # Chrome still renders despite the degraded context...
+    assert 'class="topnav"' in resp.text
+    assert 'id="review-badge"' in resp.text
+    # ...and the operator span is gracefully omitted rather than raising UndefinedError.
+    assert "operator:" not in resp.text
 
 
 def test_csrf_blocks_mutation_without_token(project_root: Path) -> None:

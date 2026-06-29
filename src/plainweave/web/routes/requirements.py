@@ -11,6 +11,7 @@ from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.models import RequirementRecord
 from plainweave.service import PlainweaveService
 from plainweave.web import views
+from plainweave.web.context import request_ctx
 
 
 def _require_str(form: FormData, field: str) -> str:
@@ -63,7 +64,7 @@ def _resolve_titles(svc: PlainweaveService, records: list[RequirementRecord]) ->
 
 
 async def corpus(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     q = request.query_params.get("q", "")
     status = request.query_params.get("status", "")
     orphan = request.query_params.get("orphan", "")
@@ -86,7 +87,7 @@ async def corpus(request: Request) -> Response:
 
 
 async def req_inline(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id = request.path_params["req_id"]
     dossier = ctx.service.requirement_dossier(req_id)
     section = dossier.requirement
@@ -108,7 +109,7 @@ async def req_inline_collapsed(request: Request) -> Response:
 
 
 async def req_detail(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id = request.path_params["req_id"]
     dossier = ctx.service.requirement_dossier(req_id)
     goals = ctx.service.list_goals()
@@ -121,7 +122,7 @@ async def req_detail(request: Request) -> Response:
 
 
 async def req_new_get(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     templates: Jinja2Templates = request.app.state.templates
     return templates.TemplateResponse(
         request,
@@ -138,7 +139,7 @@ async def req_new_get(request: Request) -> Response:
 
 
 async def req_new_post(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     form = await request.form()
     title = _require_str(form, "title")
     statement = _require_str(form, "statement")
@@ -147,7 +148,7 @@ async def req_new_post(request: Request) -> Response:
 
 
 async def req_edit_get(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id = request.path_params["req_id"]
     draft = ctx.service.requirement_dossier(req_id).requirement.active_draft
     templates: Jinja2Templates = request.app.state.templates
@@ -166,7 +167,7 @@ async def req_edit_get(request: Request) -> Response:
 
 
 async def req_edit_post(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id = request.path_params["req_id"]
     form = await request.form()
     title = _require_str(form, "title")

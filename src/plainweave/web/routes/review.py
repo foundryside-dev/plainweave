@@ -12,6 +12,7 @@ from starlette.templating import Jinja2Templates
 from plainweave.errors import ErrorCode, PlainweaveError
 from plainweave.models import RequirementDraft, RequirementRecord
 from plainweave.web import views
+from plainweave.web.context import request_ctx
 
 if TYPE_CHECKING:
     from plainweave.service import PlainweaveService
@@ -56,7 +57,7 @@ def _draft_ctx(service: PlainweaveService, req_id: str) -> tuple[RequirementReco
 
 
 async def review(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     items = views.pending_items(ctx.service)
     templates: Jinja2Templates = request.app.state.templates
     return templates.TemplateResponse(
@@ -72,7 +73,7 @@ async def review(request: Request) -> Response:
 
 
 async def approve_confirm(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id: str = request.path_params["req_id"]
     rec, draft = _draft_ctx(ctx.service, req_id)
     templates: Jinja2Templates = request.app.state.templates
@@ -90,7 +91,7 @@ async def approve_confirm(request: Request) -> Response:
 
 
 async def approve_post(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id: str = request.path_params["req_id"]
     form = await request.form()
     expected = _require_int(form, "expected_version")
@@ -126,7 +127,7 @@ async def approve_post(request: Request) -> Response:
 
 
 async def draft_card(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     req_id: str = request.path_params["req_id"]
     rec, draft = _draft_ctx(ctx.service, req_id)
     item = views.DraftItem(
@@ -177,7 +178,7 @@ async def reject_form(request: Request) -> Response:
 
 
 async def reject_post(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     link_id: str = request.path_params["link_id"]
     form = await request.form()
     reason = str(form.get("reason", "")).strip()
@@ -208,7 +209,7 @@ async def reject_post(request: Request) -> Response:
 
 
 async def accept_post(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     link_id: str = request.path_params["link_id"]
     item = _link_item(ctx.service, link_id)
     ctx.service.accept_trace_link(link_id, actor=ctx.operator.actor_id)
@@ -226,7 +227,7 @@ async def accept_post(request: Request) -> Response:
 
 
 async def link_card(request: Request) -> Response:
-    ctx = request.app.state.ctx_factory()
+    ctx = request_ctx(request)
     item = _link_item(ctx.service, request.path_params["link_id"])
     templates: Jinja2Templates = request.app.state.templates
     return templates.TemplateResponse(
