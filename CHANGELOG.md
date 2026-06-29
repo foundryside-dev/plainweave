@@ -6,9 +6,13 @@ All notable changes to Plainweave are documented here. The format follows
 
 ## [Unreleased]
 
-Closes the CLI/MCP parity gap for the 1.1 peer-facts producers (they shipped MCP-only).
-Additive and backward-compatible; the new surfaces are advisory and verdict-free like the
-rest of Plainweave.
+## [1.2.0] — 2026-06-30
+
+Closes the CLI/MCP parity gap for the 1.1 peer-facts producers (they shipped MCP-only),
+delivers the operator web UX + accessibility overhaul, hardens three federation seams,
+ships the `plainweave-workflow` agent skill, and fixes the wheel build. Additive and
+backward-compatible; the new surfaces are advisory and verdict-free like the rest of
+Plainweave.
 
 ### Added
 - **`plainweave wardline-peer-facts [--json] [--limit N] [--offset N]`** — surfaces the
@@ -19,8 +23,8 @@ rest of Plainweave.
   `weft.plainweave.requirements_enrichment.v1` envelope over the CLI (previously MCP-only).
   Accepts a SEI or a dotted locator; preserves the no-silent-clean contract
   (`present`/`absent`/`unavailable` — an identity gap is `unavailable`, never `absent`).
-
-### Added
+  Now consumed live by Warpline as the 4th `consult_federation` member (Warpline PDR-0008;
+  validated end-to-end, Plainweave PDR-017).
 - **Frozen degraded-state contract for `weft.plainweave.loomweave_catalog.v1`** — the
   Loomweave catalog producer's `unavailable`-adapter envelope is now pinned by a structural
   validator + golden routed through the same oracle as live output (no-silent-clean: an
@@ -30,6 +34,18 @@ rest of Plainweave.
   emitted by the local-only producer (absence is the in-band `linked_work_facts_unavailable`
   warning), the `filigree_issue` trace opacity + canonical relations, and the dossier's
   advisory boundary (PDR-018, production blocker #5).
+- **`plainweave-workflow` skill pack** — a federation-standard agent skill (`SKILL.md` +
+  reference sheets) authored in-package (`src/plainweave/skills/`), shipped as package data
+  and dogfooded into the repo's `.claude/` + `.agents/` skill trees. Documents the
+  read/author/verify workflow, the doctrine invariants (advisory-only, no-silent-clean,
+  enrich-only, zero minted SEIs), and the cross-member peer-facts seams.
+
+### Changed
+- **Operator web UI — UX + accessibility overhaul (PDR-016)** — adopted the site-kit design
+  tokens and fixed contrast, focus-ring, and target-size; restored readable visited primary
+  anchors (a global `a:visited` rule had out-specified `.btn--primary`, dropping the link to
+  a ~1.7:1 WCAG AA failure once visited); and now dismiss toasts on every page (moved to
+  `base.html` so script-less pages such as the requirement dossier are covered too).
 
 ### Fixed
 - `requirements_enrichment` now drops `rejected` trace links before building the view — a
@@ -43,6 +59,12 @@ rest of Plainweave.
   other three are superseded (dedicated wardline producer) or sibling-gated (Filigree); added
   the previously-missing behavioral coverage for the `orphaned_entity_link` fact (PDR-018,
   production blocker #4).
+- **Wheel build (PDR-017)** — removed a redundant
+  `[tool.hatch.build.targets.wheel.force-include]` block that re-mapped `web/templates` +
+  `web/static` (already vendored by the `src/plainweave` src-layout), colliding on
+  `web/static/.gitkeep` and breaking `uv build`. The wheel now builds with each web asset
+  shipped exactly once, so a clean `uv tool install` again advertises every CLI verb — this
+  was darkening Warpline's requirements federation member in practice.
 
 ## [1.1.0] — 2026-06-27
 
@@ -116,5 +138,6 @@ coverage *completeness* remains a documented roadmap item, not a 1.0 gate.)
 - Zero Plainweave-minted SEIs; sibling SEIs consumed opaquely.
 - No silent-clean — a degraded or language-partial denominator is flagged in-band.
 
+[1.2.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.2.0
 [1.1.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.1.0
 [1.0.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.0.0
