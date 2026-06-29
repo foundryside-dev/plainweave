@@ -84,6 +84,26 @@ orphaned_entity_link
 untraced_change
 ```
 
+### Emission status (annotated 2026-06-29, PDR-018 — seam hardening)
+
+The local-only producer emits **8 of the 11** kinds above. Three are deliberately
+**not emitted** by this producer, and their absence is reported in-band as
+`info`/`freshness: unavailable` warnings (`linked_work_facts_unavailable`,
+`finding_facts_unavailable`) — never as an empty-but-ok fact list (no-silent-clean):
+
+- `active_finding_linked`, `waived_finding_linked` — **superseded** by the dedicated
+  `weft.plainweave.wardline_peer_facts.v1` producer (PDR-014), which surfaces the same
+  local `.wardline/*-findings.jsonl` data. Wiring them into the preflight envelope as
+  well is an owner-gated ADR fork, intentionally **not** taken (PDR-018).
+- `open_linked_work` — **sibling-gated**: no in-grant local Filigree source exists
+  (`.filigree/` is a Filigree-owned DB; the live `entity_association` read would break
+  `authority_boundary.live_peer_calls=false`). Handed off as
+  `docs/handoffs/2026-06-29-filigree-linked-work-facts.md`.
+
+Reversal trigger: if a boundary-clean local Filigree facts artifact (mirroring
+`.wardline/*.jsonl`) lands, `open_linked_work` becomes emittable in-grant and this
+fork reopens.
+
 ## Related Decisions
 
 - ADR-001: Plainweave authority boundary.

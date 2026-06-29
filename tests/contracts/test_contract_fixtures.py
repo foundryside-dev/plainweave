@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from tests.intent_coverage_contract import validate_intent_coverage
+from tests.loomweave_contract import validate_loomweave_catalog
 from tests.preflight_contract import validate_preflight_facts
 from tests.wardline_contract import validate_wardline_peer_facts
 from tests.warpline_contract import validate_requirements_enrichment
@@ -73,6 +74,7 @@ REQUIRED_FIXTURES = {
     "intent/intent-coverage.json",
     "loomweave/identity-resolve.json",
     "loomweave/identity-sei.json",
+    "loomweave/catalog-degraded.json",
     "mcp/side-effect-metadata.json",
     "mcp/tool-inventory.json",
     "mcp/resource-inventory.json",
@@ -394,6 +396,16 @@ def test_preflight_facts_fixture_contract() -> None:
     # Validated through the SAME structural validator as live output, so the golden
     # fixture and the running tool cannot diverge without one test or the other failing.
     validate_preflight_facts({key: value for key, value in fixture.items() if key != "schema"})
+
+
+def test_loomweave_catalog_degraded_fixture_contract() -> None:
+    fixture = load_fixture("loomweave/catalog-degraded.json")
+
+    assert fixture["schema"] == "weft.plainweave.loomweave_catalog.v1"
+    # The degraded envelope is validated through the SAME structural validator as live
+    # output (test_loomweave_contract.py), so the golden and the running tool cannot
+    # diverge without one test or the other failing.
+    validate_loomweave_catalog({key: value for key, value in fixture.items() if key != "schema"})
 
 
 def test_intent_coverage_fixture_contract() -> None:

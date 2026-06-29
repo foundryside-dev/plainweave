@@ -4,10 +4,13 @@ vendored byte golden (ADR-006), with a non-circular producer-source recheck.
 ``tests/fixtures/contracts/legis/preflight-facts.json`` is the preflight-facts
 ``schema + data`` payload plainweave emits from
 ``PlainweaveMcpSurface.plainweave_preflight_facts_get`` — the producer named in
-ADR-006 (Status: Accepted). Legis is the intended CONSUMER of this envelope, but
-the consumer side does NOT exist yet and legis is ringfenced, so this row is
-PRODUCER-SIDE ONLY: it freezes plainweave's own produced bytes and ties them to
-the live producer. There is no consumer oracle and no cross-repo drift check.
+ADR-006 (Status: Accepted). Legis is the CONSUMER of this envelope. As of
+2026-06-29 a legis-side consumer + constructed oracle of this contract exists, but
+per the federation enrich-only discipline that read ships solo and creates NO
+plainweave obligation — plainweave OWNS the contract and legis conforms to it. This
+row therefore stays PRODUCER-SIDE ONLY by design: it freezes plainweave's own
+produced bytes and ties them to the live producer; plainweave runs no cross-repo
+drift gate against the legis copy (legis re-pins on its side).
 
 PLAINWEAVE IS THE AUTHORITY for this seam — it OWNS the preflight-facts shape via
 ``PlainweaveMcpSurface.plainweave_preflight_facts_get``. The protection is a

@@ -139,9 +139,14 @@ Plainweave requires Python ≥ 3.12. Installing exposes two console commands:
 
 - `plainweave` — the CLI: `init`, `intent` (`coverage` / `orphans` / `trace` /
   `corpus`), `req`, `goal`, `bind`, `catalog`, `criterion`, `verify`, `status`,
-  `dossier`, `baseline`, `actor`, and `doctor`.
+  `dossier`, `baseline`, `actor`, `doctor`, the cross-member peer-facts surfaces
+  (`wardline-peer-facts`, `requirements-enrichment`), and the operator `web` UI.
 - `plainweave-mcp` — the read-only MCP server that mirrors the intent reads for
   agents (`mutates:false`, `local_only:true`).
+
+Plainweave also ships an agent skill — `plainweave-workflow` (under
+`src/plainweave/skills/`) — the federation-standard `SKILL.md` + reference sheets
+that teach an agent the read/author/verify workflow and the doctrine invariants.
 
 Quick start:
 

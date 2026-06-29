@@ -1,0 +1,28 @@
+{
+  "schema": "weft.plainweave.loomweave_catalog.v1",
+  "items": [],
+  "limit": 50,
+  "offset": 0,
+  "has_more": false,
+  "next_offset": null,
+  "adapter_status": {
+    "status": "unavailable",
+    "db_path": ".weft/loomweave/loomweave.db",
+    "http_url": null,
+    "identity_http": "not_configured",
+    "sei_supported": false
+  },
+  "degraded": [
+    {
+      "code": "loomweave_db_missing",
+      "message": "Loomweave database is missing: .weft/loomweave/loomweave.db"
+    }
+  ],
+  "coverage": {
+    "public_surface_tags": ["cli-command", "entry-point", "exported-api", "http-route"],
+    "present_tags": [],
+    "absent_tags": [],
+    "complete": false,
+    "present_plugins": []
+  }
+}
