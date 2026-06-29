@@ -365,6 +365,16 @@ def test_mcp_preflight_freshness_is_unavailable_for_empty_project_scope(tmp_path
     assert preflight["facts"] == []
     assert preflight["freshness"] == "unavailable"
 
+    # Filigree seam, scope-independent no-silent-clean (production blocker #5, paired with
+    # tests/contracts/test_filigree_contract.py): even on an EMPTY scope, linked-work absence
+    # is reported in-band as `linked_work_facts_unavailable`, never an empty-but-ok result.
+    warnings = cast(list[dict[str, Any]], preflight["warnings"])
+    linked_work = next(w for w in warnings if w["code"] == "linked_work_facts_unavailable")
+    assert "Filigree" in linked_work["message"]
+    assert linked_work["severity"] == "info"
+    assert linked_work["freshness"] == "unavailable"
+    assert linked_work["provenance"]["inputs"] == []
+
 
 def test_mcp_preflight_soft_degrades_an_unresolvable_requirement_id(tmp_path: Path) -> None:
     service = service_for(tmp_path)
@@ -396,6 +406,32 @@ def test_mcp_preflight_labels_corpus_fallback_requirements_nearby_not_touched(tm
     fact_kinds = {fact["kind"] for fact in preflight["facts"]}
     assert "requirement_nearby" in fact_kinds
     assert "requirement_touched" not in fact_kinds
+
+
+def test_mcp_preflight_emits_orphaned_entity_link_for_a_stale_entity_trace(tmp_path: Path) -> None:
+    """Production blocker #4 test-hardening: orphaned_entity_link emits but had zero
+    behavioral coverage. A scoped requirement whose entity trace went stale/orphaned must
+    surface an orphaned_entity_link warn fact citing the offending trace."""
+    service = service_for(tmp_path)
+    requirement_id = approve_requirement(service)
+    stale = service.create_trace_link(
+        TraceRef("file_ref", "src/legacy_auth.py"),
+        "fragile_satisfies",
+        TraceRef("requirement_version", f"{requirement_id}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+    service.mark_trace_stale(stale.id, actor="agent:codex", reason="content changed")
+    surface = PlainweaveMcpSurface(tmp_path)
+
+    preflight = data(
+        surface.plainweave_preflight_facts_get(scope_kind="explicit_requirements", requirement_ids=[requirement_id])
+    )
+
+    orphaned = [fact for fact in preflight["facts"] if fact["kind"] == "orphaned_entity_link"]
+    assert len(orphaned) == 1
+    assert orphaned[0]["severity"] == "warn"
+    assert stale.id in orphaned[0]["evidence_refs"]
 
 
 def test_mcp_entity_intent_context_returns_peer_ready_entity_facts(tmp_path: Path) -> None:

@@ -1,4 +1,4 @@
-# Plainweave Current State        Checkpoint: 2026-06-28 (PDR-016; prior PDR-015) · (commit recorded below)
+# Plainweave Current State        Checkpoint: 2026-06-29 (PDR-018; prior PDR-016) · (branch feat/seam-hardening-blockers-345)
 
 ## The bet right now
 
@@ -65,6 +65,10 @@ north-star (coverage completeness) unchanged — owner-/sibling-gated.
 **Owner calls on the release escalation** — finalize the `1.2.0` CHANGELOG version/date,
 reconcile/retire the `release/1.2.0` branch against `main`, then the held PyPI publish. Then
 close the two **Lacuna-tour prerequisites** (fix the packaging bug → install plainweave →
-clean-tree `make tour`). Then continue **harden + build** (remaining production blockers:
-Loomweave-owned identity resolution, Legis fact emission, Filigree contract tests) or pivot to
-**coverage-completeness** if the owner wants north-star movement.
+clean-tree `make tour`). All 5 named production blockers are now retired plainweave-side —
+**PDR-018 closed the last three** (#3 Loomweave identity / #4 Legis fact emission / #5
+Filigree contract tests) as test-and-docs-only hardening (390 tests, 91.18% cov; legis
+cross-repo oracle stayed green; zero `src/` changes). The only open seam item is the
+owner-gated Filigree `open_linked_work` handoff
+(`docs/handoffs/2026-06-29-filigree-linked-work-facts.md`). Next: pivot to
+**coverage-completeness** if the owner wants north-star movement, or finalize the release.

@@ -20,6 +20,17 @@ rest of Plainweave.
   Accepts a SEI or a dotted locator; preserves the no-silent-clean contract
   (`present`/`absent`/`unavailable` — an identity gap is `unavailable`, never `absent`).
 
+### Added
+- **Frozen degraded-state contract for `weft.plainweave.loomweave_catalog.v1`** — the
+  Loomweave catalog producer's `unavailable`-adapter envelope is now pinned by a structural
+  validator + golden routed through the same oracle as live output (no-silent-clean: an
+  unavailable adapter never returns a clean-empty page). Seam-hardening, no behavior change
+  (PDR-018, production blocker #3).
+- **Contract test for the Filigree seam** — pins `open_linked_work` as reserved-but-never-
+  emitted by the local-only producer (absence is the in-band `linked_work_facts_unavailable`
+  warning), the `filigree_issue` trace opacity + canonical relations, and the dossier's
+  advisory boundary (PDR-018, production blocker #5).
+
 ### Fixed
 - `requirements_enrichment` now drops `rejected` trace links before building the view — a
   reviewed-and-rejected binding no longer reads as requirement coverage (`present`); a
@@ -28,6 +39,10 @@ rest of Plainweave.
 - `plainweave doctor` Wardline-findings remediation is now root-aware (`cd <root> &&
   wardline scan .` when the inspected root is not the cwd). _(Folded in from a sibling
   product's contract work.)_
+- ADR-006 now documents that the preflight producer emits 8 of its 11 fact kinds and why the
+  other three are superseded (dedicated wardline producer) or sibling-gated (Filigree); added
+  the previously-missing behavioral coverage for the `orphaned_entity_link` fact (PDR-018,
+  production blocker #4).
 
 ## [1.1.0] — 2026-06-27
 
