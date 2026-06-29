@@ -48,6 +48,8 @@ Plainweave.
   `base.html` so script-less pages such as the requirement dossier are covered too).
 
 ### Fixed
+- **Loomweave read-path trace enrichment now honors the `local_only` authority boundary
+  (RED-2)** — the read path no longer reaches past the local store when the boundary is set.
 - `requirements_enrichment` now drops `rejected` trace links before building the view — a
   reviewed-and-rejected binding no longer reads as requirement coverage (`present`); a
   rejected-only entity that resolves locally reads `absent`. _(Folded in from a sibling
