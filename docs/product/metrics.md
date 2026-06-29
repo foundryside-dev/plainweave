@@ -160,3 +160,22 @@ covered→present, orphan→absent, identity-gap→`unavailable`-never-`absent`,
 absent-`.wardline/`→`unavailable`-never-clean, out-of-scope→`indeterminate`-never-resolved).
 No reversal trigger fired. (Out-of-scope item filed: a pre-existing wheel-build packaging bug
 blocks `uv tool install` — observation `plainweave-obs-6a7255ffbe`.)
+
+### 2026-06-28 — Operator web UI a11y hardening + 1.2 line delivered to main (PDR-016)
+
+Hardening reading, NOT a north-star reading. Two operator-UI a11y review findings
+(owner-supplied) were **adversarially verified, then fixed**: (1) visited primary anchors
+regained `--text-on-accent` — the "New requirement" link was ~1.7:1 (a WCAG AA failure) once
+visited, because the global `a:visited` rule (0,1,1) outspecified `.btn--primary` (0,1,0);
+(2) the success toast now auto-dismisses on **every** page — the dismiss timer was gated
+behind `review.html`'s `.qi-actions` handler, so the confirm-step queue flows and the
+requirement dossier left it stuck. `make ci` green: **378 tests, 91.14% coverage** (unchanged
+from PDR-015 — the changes are CSS / template / JS, no Python coverage delta); CI gate passed
+(37s). The full `feat/lacuna-peer-facts-tour-cli-parity` line (web overhaul `9f00ae0` +
+design-review docs + peer-facts CLI parity + these fixes) merged to **`origin/main`** via PR #5
+— owner-directed (resolves the standing "push `main`" escalation).
+
+Guardrails — all intact: web writes remain human-attributed; advisory, no release verdict; the
+a11y fix *restores* a contrast guardrail rather than tripping one. No reversal trigger fired.
+Publication held by owner ("we haven't published it yet") — the PyPI publish + the CHANGELOG
+version/date finalization remain owner-gated.

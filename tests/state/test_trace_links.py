@@ -7,6 +7,7 @@ import pytest
 from tests.loomweave_test_utils import seed_loomweave_catalog
 
 from plainweave.errors import ErrorCode, PlainweaveError
+from plainweave.loomweave_adapter import LoomweaveAdapter
 from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
 from plainweave.store import connect, migrate
@@ -256,3 +257,45 @@ def test_read_time_orphaned_loomweave_identity_returns_degraded_trace_without_de
     assert any(item["code"] == "identity_orphaned" for item in returned.target_snapshot["degraded"])
     with connect(service.db_path) as connection:
         assert connection.execute("select count(*) from trace_links").fetchone()[0] == 1
+
+
+def test_read_path_honors_local_only_boundary_when_loomweave_endpoint_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED-2 (weft-d5091cba12): Plainweave's trace read tools advertise
+    ``local_only: True`` / ``live_peer_calls: False``. With a Loomweave HTTP
+    endpoint CONFIGURED, the read-time enrich path (``trace_for`` ->
+    ``_enrich_loomweave_trace``, which backs ``plainweave_trace_link_list`` and
+    the dossier) must resolve identity from the local catalog only and make NO
+    live peer call — otherwise the advertised boundary is a lie."""
+    service = service_for(tmp_path)
+    approved = approved_requirement_ref(service)
+    seed = seed_loomweave_catalog(tmp_path)
+    # Create the accepted link BEFORE an endpoint is configured: write-time
+    # normalization is a separate (non-local_only) path and is not what we test.
+    link = service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", approved),
+        actor="human:john",
+        authority="accepted",
+    )
+
+    # Now a Loomweave HTTP endpoint IS configured, and ANY live peer call made
+    # from the read path must fail the test instead of reaching the wire.
+    monkeypatch.setenv("WEFT_LOOMWEAVE_URL", "http://127.0.0.1:9")
+
+    def fail_http(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise AssertionError("advertised local_only read path must not make a live peer call")
+
+    monkeypatch.setattr(LoomweaveAdapter, "_http_json", fail_http)
+    # Guard the guard: the endpoint really is configured, so a route to HTTP
+    # would happen if the read path used the HTTP-capable resolver.
+    assert LoomweaveAdapter(tmp_path).http_url == "http://127.0.0.1:9"
+
+    returned = service.trace_for()[0]
+
+    assert returned.id == link.id
+    assert returned.target_snapshot["sei"] == seed["public_sei"]
+    assert returned.target_snapshot["content_hash"] == "hash-public-v1"
+    assert returned.freshness == "current"

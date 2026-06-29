@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 from plainweave import __version__
+from plainweave.loomweave_adapter import LoomweaveAdapter
 from plainweave.mcp_surface import MCP_RESOURCE_URIS, MCP_TOOL_METADATA, PlainweaveMcpSurface
 from plainweave.models import TraceRef
 from plainweave.service import PlainweaveService
@@ -743,6 +746,44 @@ def test_mcp_dossier_peer_facts_report_loomweave_trace_sources(tmp_path: Path) -
 
     assert "loomweave" in dossier["peer_facts"]["sources"]
     assert any("Loomweave" in note for note in dossier["peer_facts"]["notes"])
+    assert dossier["traces"]["items"][0]["target_snapshot"]["sei"] == seed["public_sei"]
+
+
+def test_mcp_dossier_makes_no_live_peer_call_with_loomweave_endpoint_configured(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """RED-2 (weft-d5091cba12): the dossier tool advertises ``local_only: True``
+    and reports ``peer_facts.live_peer_calls = False`` with a note that a
+    configured Loomweave endpoint "was not called". That note must be TRUE: with
+    an endpoint CONFIGURED, computing the dossier (which enriches loomweave trace
+    snapshots) must NOT make a live peer call."""
+    service = service_for(tmp_path)
+    seed = seed_loomweave_catalog(tmp_path)
+    requirement_id = approve_requirement(service)
+    # Build the accepted loomweave trace before the endpoint is configured, so
+    # only the read-time enrich path is under test.
+    service.create_trace_link(
+        TraceRef("loomweave_entity", seed["public_locator"]),
+        "satisfies",
+        TraceRef("requirement_version", f"{requirement_id}@1"),
+        actor="human:john",
+        authority="accepted",
+    )
+
+    monkeypatch.setenv("WEFT_LOOMWEAVE_URL", "http://127.0.0.1:9")
+
+    def fail_http(*_args: object, **_kwargs: object) -> dict[str, object]:
+        raise AssertionError("dossier advertises local_only; it must not make a live peer call")
+
+    monkeypatch.setattr(LoomweaveAdapter, "_http_json", fail_http)
+    assert LoomweaveAdapter(tmp_path).http_url == "http://127.0.0.1:9"
+
+    surface = PlainweaveMcpSurface(tmp_path)
+    dossier = data(surface.plainweave_requirement_dossier_get(requirement_id))
+
+    assert dossier["peer_facts"]["live_peer_calls"] is False
+    assert any("was not called" in note for note in dossier["peer_facts"]["notes"])
+    # The local catalog still supplies the enriched snapshot — no live call needed.
     assert dossier["traces"]["items"][0]["target_snapshot"]["sei"] == seed["public_sei"]
 
 
