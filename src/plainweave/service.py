@@ -2485,7 +2485,15 @@ class PlainweaveService:
         if lookup is None:
             return link
         try:
-            current = self._loomweave_adapter().resolve_identity(lookup)
+            # Read-path enrichment is reached from tools that advertise
+            # ``local_only: True`` / ``live_peer_calls: False`` (trace_link_list,
+            # the requirement dossier, verification status). Resolve from the
+            # local Loomweave catalog ONLY — never the HTTP-capable
+            # ``resolve_identity`` — so the advertised authority boundary stays
+            # true even when a Loomweave endpoint is configured (RED-2,
+            # weft-d5091cba12). Write-time normalization (``_normalize_trace_refs``)
+            # is a separate, non-local_only path and keeps live resolution.
+            current = self._loomweave_adapter().resolve_identity_local(lookup)
         except LoomweaveIdentityError as exc:
             return self._trace_with_degraded_snapshot(link, exc)
         snapshot = current.to_dict()
