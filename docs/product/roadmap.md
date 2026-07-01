@@ -1,4 +1,4 @@
-# Plainweave Roadmap            Updated: 2026-06-27 (PDR-013, PDR-014)
+# Plainweave Roadmap            Updated: 2026-07-01 (PDR-019, PDR-020)
 
 > Sequencing, WSJF / cost-of-delay, and dated forecasts are produced by
 > /axiom-program-management. This file records bets as INTENT, not a delivery
@@ -36,10 +36,11 @@
   **closing it upstream is owner-gated** (sibling obligation — do not file a Loomweave
   ticket unilaterally). Owner-raised this session as the most pressing remaining gap.
 - **Federation operability parity** — `doctor` + `--fix` shipped (PDR-011: store/schema +
-  Loomweave catalog binding + MCP surface, `--root`, non-zero-exit gate). The remaining
-  agent-orientation install surfaces the sibling doctors manage — a `plainweave-workflow`
-  skill pack, a SessionStart hook, `.mcp.json` self-registration, an `install` command — are
-  a future onboarding bet (Option 2 deferred in PDR-011), not yet committed.
+  Loomweave catalog binding + MCP surface, `--root`, non-zero-exit gate). The
+  **`plainweave-workflow` skill pack is now DELIVERED** in 1.2.0 (PDR-019: federation-standard,
+  in-package + dogfooded). The remaining agent-orientation surfaces the sibling doctors manage —
+  a SessionStart hook, `.mcp.json` self-registration, and a `plainweave install` distribution
+  command — remain a future onboarding bet (the rest of PDR-011's Option 2), not yet committed.
 - Optional Loomweave semantic-similarity hint over requirement text — DEFERRED by
   PDR-003; advisory only, never a dedup verdict. · tracker: plainweave-02376962ab.
 - Corpus-curation workflows for duplicate or overlapping requirements.
@@ -47,7 +48,24 @@
   packaging + PyPI release shipped (PDR-012); formal suite admission is a separate owner step.
   _(The operator web UI moved Later → Now: ratified as a standing bet, PDR-013.)_
 
-## Done since last checkpoint (2026-06-26 → 06-27)
+## Done since last checkpoint (2026-06-29 → 07-01)
+
+- **Plainweave 1.2.0 RELEASED to PyPI** (PDR-019, owner-directed) — the full 1.2 line
+  (peer-facts CLI parity PDR-015 + web/a11y overhaul PDR-016 + requirements producer
+  gated-live PDR-017 + seam hardening PDR-018) shipped live via Trusted Publishing. PyPI
+  jumps 1.0.0 → 1.2.0 (1.1.0's release build had failed on the wheel bug, now fixed). Clears
+  the publication escalation held across the last three checkpoints.
+- **`plainweave-workflow` skill pack delivered** (PDR-019) — moved **Later → Done**: the
+  federation-standard agent skill (SKILL.md + reference sheets) ships in-package as package
+  data and is dogfooded into the repo skill trees. Delivers part of PDR-011's Option-2
+  operability-parity bet; the hook / `.mcp.json` / `install` surfaces remain future.
+- **Plainweave 1.2.1 RELEASED to PyPI** (PDR-020, owner-directed) — error-legibility
+  (say-what-you-know) fixes: version-conflict errors now disclose the actual version in
+  message + details + hint; cause-specific hints replace the misleading blanket "refresh
+  state" hint. Additive (frozen error envelope + `ErrorCode` unchanged); `make ci` 400 passed
+  / 91.32%. Idempotency-hint precision deferred (`plainweave-de4ced60cf`, P3).
+
+## Done (2026-06-26 → 06-27)
 
 - **Plainweave 1.1.0 cut: operator web UI + SEI conformance** (PDR-013 ratifies the web-UI
   direction). The human-facing seam (`plainweave[web]`) merged to `main`; the public site

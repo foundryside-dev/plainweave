@@ -179,3 +179,32 @@ Guardrails — all intact: web writes remain human-attributed; advisory, no rele
 a11y fix *restores* a contrast guardrail rather than tripping one. No reversal trigger fired.
 Publication held by owner ("we haven't published it yet") — the PyPI publish + the CHANGELOG
 version/date finalization remain owner-gated.
+
+### 2026-06-30 — Plainweave 1.2.0 released to PyPI + plainweave-workflow skill delivered (PDR-019)
+
+Delivery milestone, NOT a north-star reading. The full 1.2 line published live via Trusted
+Publishing; `pip install plainweave` → **1.2.0** (wheel + sdist). PyPI now `[1.0.0, 1.2.0]` —
+1.1.0 is absent because its release build had failed on the wheel `force-include` collision
+(now fixed, PDR-017). Pre-tag gate: `make ci` **390 passed / 91.18% cov**; full `uv build`
+(sdist+wheel). The `plainweave-workflow` skill pack ships as package data (delivers part of
+PDR-011's Option-2 bet). North-star (coverage completeness) unchanged.
+
+PDR-009 reversal-trigger check: the release artifacts publish **no headline north-star number**
+(README states completeness is a roadmap item) → the vanity-metric / silent-clean trigger did
+NOT fire. Guardrails intact (advisory, no verdict; SEIs consumed opaquely).
+
+### 2026-07-01 — Error-legibility (say-what-you-know) fixes + 1.2.1 released (PDR-020)
+
+Hardening reading (an **adoption-cost reduction**, not a north-star reading). Version-conflict
+errors (requirement version + draft revision) now disclose the actual version in
+message + `details` + a `--expected-version <cur>` hint; the misleading blanket "Refresh local
+Plainweave state and retry." hint is gone from VALIDATION/NOT_FOUND errors, replaced by
+cause-appropriate hints. Additive to the frozen `weft.plainweave.error.v1` envelope
+(`ErrorCode` unchanged). `make ci` green: **400 passed, 91.32% cov** (up from 91.18% at 1.2.0);
+mypy-strict + ruff clean; `wardline scan` exit 0. Published to PyPI **1.2.1** (verified live).
+
+Guardrails — all intact: advisory only, no verdict tokens in any new hint (scanned);
+no-silent-clean preserved (`unavailable` ≠ `absent` untouched). No reversal trigger fired.
+**Input-metric gap noted:** there is no agent-adoption / probe-cycle scoreboard yet to
+*quantify* the legibility gain — the evidence is qualitative (clean-room dogfood). Worth an
+input metric if agent adoption becomes the active bet.
