@@ -141,6 +141,11 @@ def test_cli_error_output_matches_contract_fixture(
         expected_status=2,
     )
     assert_matches_fixture(error, load_fixture("cli/error-validation-json.json"))
+    # The missing-actor hint must point at --actor, not at stale local state,
+    # and must not silently grow details away from the pinned {}.
+    assert "--actor" in error["error"]["hint"]
+    assert "Refresh local Plainweave state" not in error["error"]["hint"]
+    assert error["error"]["details"] == {}
 
 
 def test_cli_conflict_error_output_matches_contract_fixture(
@@ -193,6 +198,13 @@ def test_cli_conflict_error_output_matches_contract_fixture(
         expected_status=2,
     )
     assert_matches_fixture(error, load_fixture("cli/error-conflict-json.json"))
+    # Say what you know: both version numbers surface in the message and details,
+    # the hint names the version to retry with, and it is not the stale-state blanket.
+    assert "expected version 0" in error["error"]["message"]
+    assert "current version 1" in error["error"]["message"]
+    assert error["error"]["details"] == {"expected_version": 0, "current_version": 1}
+    assert "--expected-version 1" in error["error"]["hint"]
+    assert "Refresh local Plainweave state" not in error["error"]["hint"]
 
 
 def test_criterion_cli_output_matches_contract_fixture(

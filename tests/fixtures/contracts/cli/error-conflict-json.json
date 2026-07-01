@@ -3,10 +3,13 @@
   "ok": false,
   "error": {
     "code": "CONFLICT",
-    "message": "expected version does not match current version",
+    "message": "expected version 0 does not match current version 1",
     "recoverable": true,
-    "hint": "Refresh local Plainweave state and retry.",
-    "details": {}
+    "hint": "Retry with --expected-version 1.",
+    "details": {
+      "expected_version": 0,
+      "current_version": 1
+    }
   },
   "warnings": [],
   "meta": {

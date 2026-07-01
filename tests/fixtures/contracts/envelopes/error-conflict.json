@@ -3,9 +3,9 @@
   "ok": false,
   "error": {
     "code": "CONFLICT",
-    "message": "expected version 1 but current version is 2",
+    "message": "expected version 1 does not match current version 2",
     "recoverable": true,
-    "hint": "Refetch the requirement and retry with the current version.",
+    "hint": "Retry with --expected-version 2.",
     "details": {
       "expected_version": 1,
       "current_version": 2

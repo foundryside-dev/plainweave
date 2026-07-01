@@ -68,6 +68,11 @@ def assert_error(envelope: dict[str, Any], code: str) -> None:
     assert envelope["error"]["code"] == code
     assert envelope["error"]["recoverable"] is True
     assert envelope["error"]["hint"]
+    assert isinstance(envelope["error"]["details"], dict)
+    # Functional honesty: bad-input / missing-id errors must never inherit the
+    # stale-state "refresh and retry" blanket hint — it would misdirect the agent.
+    if code in {"VALIDATION", "NOT_FOUND"}:
+        assert envelope["error"]["hint"] != "Refresh local Plainweave state and retry."
 
 
 _VERDICT_KEYS = {"allow", "allowed", "block", "blocked", "verdict", "decision", "gate", "enforcement"}
