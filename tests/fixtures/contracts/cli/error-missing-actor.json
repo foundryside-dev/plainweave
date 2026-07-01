@@ -5,7 +5,7 @@
     "code": "VALIDATION",
     "message": "actor is required",
     "recoverable": true,
-    "hint": "Refresh local Plainweave state and retry.",
+    "hint": "Pass --actor <acting-identity> (e.g. --actor claude); it need not be pre-registered for req/criterion commands.",
     "details": {}
   },
   "warnings": [],

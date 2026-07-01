@@ -60,6 +60,38 @@ from plainweave.models import (
 from plainweave.store import connect, read_schema_meta
 from plainweave.wardline_adapter import WardlineAdapter
 
+#: Cause-appropriate default hints, one per :class:`ErrorCode` member. An error
+#: must SAY WHAT IT KNOWS: a hint that does not point at the real fix actively
+#: misdirects, so VALIDATION/NOT_FOUND must NEVER inherit a stale-state
+#: "refresh and retry" hint (their cause is bad input / a missing id, not local
+#: staleness). CONFLICT legitimately points at refetch-and-retry because reused
+#: or superseded state IS its genuine cause. Sites that know more (e.g. the
+#: version guard) override with a precise per-call hint. Advisory only — no
+#: allow/block/approved/verdict/gate tokens.
+_DEFAULT_ERROR_HINTS: dict[ErrorCode, str] = {
+    ErrorCode.VALIDATION: "Correct the invalid input described in the message and retry.",
+    ErrorCode.NOT_FOUND: "Confirm the referenced id exists (list or search to find it) and retry.",
+    ErrorCode.CONFLICT: (
+        "Refetch the current state and retry - the value you sent no longer matches (it changed or was already used)."
+    ),
+    ErrorCode.POLICY_REQUIRED: "Satisfy the precondition named in the message before retrying.",
+    ErrorCode.PEER_ABSENT: (
+        "The named peer facts are absent; enable or supply the sibling tool, or proceed treating enrichment as absent."
+    ),
+    ErrorCode.PEER_STALE: (
+        "The peer's facts are stale relative to the current tree; re-run the peer's analysis to refresh them."
+    ),
+    ErrorCode.PEER_CONTRACT: (
+        "The peer returned data that does not match the expected contract; check the peer's version and output."
+    ),
+    ErrorCode.LOCKED: ("The resource is held by another operation; wait for it to be freed or retry shortly."),
+    ErrorCode.UNSUPPORTED: "Use one of the supported operations or values described in the message.",
+    ErrorCode.INTERNAL: (
+        "Internal defect: this should not occur from normal input and refreshing "
+        "local state will not help; report it with the message and details."
+    ),
+}
+
 
 class PlainweaveService:
     #: Actor kinds permitted to record external/manual attestation authority
@@ -526,9 +558,19 @@ class PlainweaveService:
             if not isinstance(draft_id, str):
                 raise self._error(ErrorCode.POLICY_REQUIRED, "requirement has no active draft")
             draft = self._draft_row(connection, draft_id)
-            if expected_draft_revision is not None and int(draft["draft_revision"]) != expected_draft_revision:
-                raise self._error(ErrorCode.CONFLICT, "draft revision conflict")
-            next_revision = int(draft["draft_revision"]) + 1
+            current_draft_revision = int(draft["draft_revision"])
+            if expected_draft_revision is not None and current_draft_revision != expected_draft_revision:
+                raise self._error(
+                    ErrorCode.CONFLICT,
+                    f"expected draft revision {expected_draft_revision} does not match "
+                    f"current draft revision {current_draft_revision}",
+                    hint=f"Retry with --expected-draft-revision {current_draft_revision}.",
+                    details={
+                        "expected_draft_revision": expected_draft_revision,
+                        "current_draft_revision": current_draft_revision,
+                    },
+                )
+            next_revision = current_draft_revision + 1
             next_title = title if title is not None else str(draft["title"])
             next_statement = statement if statement is not None else str(draft["statement"])
             connection.execute(
@@ -2101,7 +2143,12 @@ class PlainweaveService:
     def _require_current_version(self, requirement: sqlite3.Row, expected_version: int) -> None:
         current_version = int(requirement["current_version"])
         if current_version != expected_version:
-            raise self._error(ErrorCode.CONFLICT, "expected version does not match current version")
+            raise self._error(
+                ErrorCode.CONFLICT,
+                f"expected version {expected_version} does not match current version {current_version}",
+                hint=f"Retry with --expected-version {current_version}.",
+                details={"expected_version": expected_version, "current_version": current_version},
+            )
 
     def _project_key(self, connection: sqlite3.Connection) -> str:
         metadata = read_schema_meta(connection)
@@ -2785,7 +2832,14 @@ class PlainweaveService:
             ("legis_attestation", "attests", "requirement_version"),
         }
         if (from_ref.kind, relation, to_ref.kind) not in allowed:
-            raise self._error(ErrorCode.VALIDATION, "trace relation is not canonical")
+            raise self._error(
+                ErrorCode.VALIDATION,
+                "trace relation is not canonical",
+                hint=(
+                    "Use a canonical (from-kind, relation, to-kind) triple, "
+                    "e.g. loomweave_entity satisfies requirement_version."
+                ),
+            )
 
     def _validate_trace_transition(self, current: str, target: str) -> None:
         allowed = {
@@ -2975,15 +3029,30 @@ class PlainweaveService:
 
     def _require_actor(self, actor: str) -> None:
         if not actor:
-            raise self._error(ErrorCode.VALIDATION, "actor is required")
+            raise self._error(
+                ErrorCode.VALIDATION,
+                "actor is required",
+                hint=(
+                    "Pass --actor <acting-identity> (e.g. --actor claude); "
+                    "it need not be pre-registered for req/criterion commands."
+                ),
+            )
 
     def _validate_verification_method(self, method: str) -> None:
         if method not in {"test", "analysis", "inspection", "manual"}:
-            raise self._error(ErrorCode.VALIDATION, "verification method is not supported")
+            raise self._error(
+                ErrorCode.VALIDATION,
+                "verification method is not supported",
+                hint="Pass --method as one of: test, analysis, inspection, manual.",
+            )
 
     def _validate_evidence_status(self, status: str) -> None:
         if status not in {"passing", "failing", "inconclusive", "waived"}:
-            raise self._error(ErrorCode.VALIDATION, "verification evidence status is not supported")
+            raise self._error(
+                ErrorCode.VALIDATION,
+                "verification evidence status is not supported",
+                hint="Pass --status as one of: passing, failing, inconclusive, waived.",
+            )
 
     def _actor_kind(self, connection: sqlite3.Connection, actor: str) -> str | None:
         """Return the registered kind for ``actor`` or ``None`` if unregistered."""
@@ -3025,8 +3094,18 @@ class PlainweaveService:
             return "human_attested"
         return "agent_reported"
 
-    def _error(self, code: ErrorCode, message: str) -> PlainweaveError:
-        return PlainweaveError(code, message, recoverable=True, hint="Refresh local Plainweave state and retry.")
+    def _error(
+        self,
+        code: ErrorCode,
+        message: str,
+        *,
+        hint: str | None = None,
+        details: dict[str, object] | None = None,
+    ) -> PlainweaveError:
+        resolved_hint = (
+            hint if hint is not None else _DEFAULT_ERROR_HINTS.get(code, "Review the error message and retry.")
+        )
+        return PlainweaveError(code, message, recoverable=True, hint=resolved_hint, details=details)
 
     def _optional_int(self, value: object) -> int | None:
         return int(str(value)) if value is not None else None

@@ -1252,7 +1252,10 @@ class PlainweaveMcpSurface:
                 ErrorCode.INTERNAL,
                 "preflight severity is not supported",
                 recoverable=True,
-                hint="Refresh local Plainweave state and retry.",
+                hint=(
+                    f"Internal defect: preflight severity must be one of {sorted(PREFLIGHT_SEVERITIES)}; "
+                    "refreshing local state will not help."
+                ),
             )
         facts.append(
             {
