@@ -6,6 +6,29 @@ All notable changes to Plainweave are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-07-01
+
+Error-legibility (functional-honesty) fixes surfaced by clean-room dogfooding: an error must
+*say what it knows*, and a hint that doesn't point at the real fix misdirects. Additive and
+backward-compatible — the `weft.plainweave.error.v1` envelope and the `ErrorCode` vocabulary
+are unchanged.
+
+### Fixed
+- **Version-conflict errors now disclose the actual version.** A `CONFLICT` on a requirement
+  version or a draft revision previously reported only `"expected version does not match current
+  version"` with empty `details`, forcing callers to probe for the real value. Both optimistic-
+  concurrency guards now name the expected and current values in the message, in structured
+  `details` (`{expected_version, current_version}` / `{expected_draft_revision,
+  current_draft_revision}`), and in a hint that names the recovery
+  (e.g. `Retry with --expected-version 0.`).
+- **Cause-specific error hints; dropped the misleading blanket hint.** `_error` no longer stamps
+  `"Refresh local Plainweave state and retry."` on every error — it misdirected, e.g. a missing
+  `--actor` VALIDATION error, down a dead path. Each error now carries a cause-appropriate hint
+  from a per-`ErrorCode` map (VALIDATION/NOT_FOUND never claim staleness; `CONFLICT` legitimately
+  suggests a refetch), with precise hints for the missing-actor, verification-method /
+  evidence-status, and trace-relation cases, plus an honest INTERNAL hint on the MCP
+  preflight-severity guard.
+
 ## [1.2.0] — 2026-06-30
 
 Closes the CLI/MCP parity gap for the 1.1 peer-facts producers (they shipped MCP-only),
@@ -140,6 +163,7 @@ coverage *completeness* remains a documented roadmap item, not a 1.0 gate.)
 - Zero Plainweave-minted SEIs; sibling SEIs consumed opaquely.
 - No silent-clean — a degraded or language-partial denominator is flagged in-band.
 
+[1.2.1]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.2.1
 [1.2.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.2.0
 [1.1.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.1.0
 [1.0.0]: https://github.com/foundryside-dev/plainweave/releases/tag/v1.0.0
